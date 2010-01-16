@@ -109,6 +109,16 @@ public:
 		return m_pointCache[index];
 	}
 
+	// ****** ADDED BY SETH HOLLADAY 2009_11_14 ****** //
+	void swapContactPoints( int index1, int index2 )
+	{
+		btManifoldPoint& tmp = m_pointCache[index1];
+		m_pointCache[index1] = m_pointCache[index2];
+		m_pointCache[index2] = tmp;
+	
+	}  // swapContactPoints()
+	// *********************************************** //
+
 	SIMD_FORCE_INLINE btManifoldPoint& getContactPoint(int index)
 	{
 		btAssert(index < m_cachedPoints);

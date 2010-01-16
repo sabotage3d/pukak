@@ -31,9 +31,17 @@ ATTRIBUTE_ALIGNED16 (struct)	btSolverConstraint
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
 	btVector3		m_relpos1CrossNormal;
+	btVector3		m_relpos2CrossNormal;
 	btVector3		m_contactNormal;
 
-	btVector3		m_relpos2CrossNormal;
+	// *** ADDED BY SETH HOLLADAY 2009-11-04 *** //
+	btVector3		m_relPos1;
+	btVector3		m_relPos2;
+	btVector3		m_relativeVelocity;
+	btScalar		m_relVelNormalMagnitude;
+	btVector3		m_impulse;
+	// ***************************************** //
+
 	//btVector3		m_contactNormal2;//usually m_contactNormal2 == -m_contactNormal
 
 	btVector3		m_angularComponentA;

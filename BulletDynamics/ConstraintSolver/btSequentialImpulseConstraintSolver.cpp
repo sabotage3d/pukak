@@ -444,6 +444,11 @@ int	btSequentialImpulseConstraintSolver::getOrInitSolverBody(btCollisionObject& 
 
 
 
+// convertContact()
+//    Computes collision impulses and applies those impulses to the rigid bodies
+//    This is called for each manifold
+//    There is a manifold for each pair of objects colliding
+//    btPersistentManifolds are built of btManifoldPoint's in file btManifoldResult.cpp
 void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* manifold,const btContactSolverInfo& infoGlobal)
 {
 	btCollisionObject* colObj0=0,*colObj1=0;
@@ -470,7 +475,11 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 
 	for (int j=0;j<manifold->getNumContacts();j++)
 	{
-
+		// Set up the contact constraints
+		// manifold, of type btPersistentManifold, is a contact point cache (contains btManifoldPoint objects),
+		//    and it stays persistent as long as objects are overlapping in the broadphase.
+		// btManifoldPoint contains (and maintains) the positions of the two points in the contact (one for each object)
+		//    as well as correlated values such as friction and restitution
 		btManifoldPoint& cp = manifold->getContactPoint(j);
 
 		if (cp.getDistance() <= manifold->getContactProcessingThreshold())
@@ -490,6 +499,7 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 			int frictionIndex = m_tmpSolverContactConstraintPool.size();
 
 			{
+				// A btSolverConstraint keeps track of impulse, friction, and other values that defines the constraint (in this case, a collision constraint)
 				btSolverConstraint& solverConstraint = m_tmpSolverContactConstraintPool.expand();
 				btRigidBody* rb0 = btRigidBody::upcast(colObj0);
 				btRigidBody* rb1 = btRigidBody::upcast(colObj1);
@@ -514,12 +524,12 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 					if (rb0)
 					{
 						vec = ( solverConstraint.m_angularComponentA).cross(rel_pos1);
-						denom0 = rb0->getInvMass() + cp.m_normalWorldOnB.dot(vec);
+						denom0 = rb0->getInvMass() + cp.m_normalWorldOnB.dot(vec);	// denom0 is the vector sum of the linear and angular velocity components of the eqn, with impulse j taken out
 					}
 					if (rb1)
 					{
 						vec = ( -solverConstraint.m_angularComponentB).cross(rel_pos2);
-						denom1 = rb1->getInvMass() + cp.m_normalWorldOnB.dot(vec);
+						denom1 = rb1->getInvMass() + cp.m_normalWorldOnB.dot(vec);	// denom1 is the vector sum of the linear and angular velocity components of the eqn, with impulse j taken out
 					}
 #endif //COMPUTE_IMPULSE_DENOM		
 
@@ -560,6 +570,10 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 
 
 				///warm starting (or zero if disabled)
+				// Update the solverBody impulse for the current solverConstraint
+				// m_tmpSolverBodyPool is a btAlignedObjectArray<btSolverBody>
+				//    that holds a btSolverBody for each btRigidBody in the current simulation island
+				//    a btSolverBody (btSolverBody.h) is a struct that keeps track of linear and angular velocities, mass, friction
 				if (infoGlobal.m_solverMode & SOLVER_USE_WARMSTARTING)
 				{
 					solverConstraint.m_appliedImpulse = cp.m_appliedImpulse * infoGlobal.m_warmstartingFactor;
@@ -608,9 +622,12 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 				/////setup the friction constraints
 
 
-
+				// Setup the friction constraints
+				//    Computes impulses based on the friction method indicated by infoGlobal.m_solverMode
 				if (1)
 				{
+					// m_tmpSolverContactFrictionConstraintPool is type btConstraintArray
+					//    (btConstraintArray is a btAlignedObjectArray<btSolverConstraint>, btSolverConstraint keeps track of friction, impulse, etc. between bodies)
 					solverConstraint.m_frictionIndex = m_tmpSolverContactFrictionConstraintPool.size();
 					if (!(infoGlobal.m_solverMode & SOLVER_ENABLE_FRICTION_DIRECTION_CACHING) || !cp.m_lateralFrictionInitialized)
 					{
@@ -630,9 +647,12 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 
 							applyAnisotropicFriction(colObj0,cp.m_lateralFrictionDir1);
 							applyAnisotropicFriction(colObj1,cp.m_lateralFrictionDir1);
+							// Add a friction constraint for the current contact point (cp)
+							//    addFrictionConstraint() appends a new friction constraint to m_tmpSolverContactFrictionConstraintPool (with extend())
+							//    The solverBodies' ids are assigned to the newly created solver constraint in this function
 							addFrictionConstraint(cp.m_lateralFrictionDir1,solverBodyIdA,solverBodyIdB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation);
 							cp.m_lateralFrictionInitialized = true;
-						} else
+						} else		// not SOLVER_DISABLE_VELOCITY_DEPENDENT_FRICTION_DIRECTION
 						{
 							//re-calculate friction direction every frame, todo: check if this is really needed
 							btPlaneSpace1(cp.m_normalWorldOnB,cp.m_lateralFrictionDir1,cp.m_lateralFrictionDir2);
@@ -650,13 +670,14 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 							cp.m_lateralFrictionInitialized = true;
 						}
 
-					} else
+					} else		// not SOLVER_ENABLE_FRICTION_DIRECTION_CACHING
 					{
 						addFrictionConstraint(cp.m_lateralFrictionDir1,solverBodyIdA,solverBodyIdB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation);
 						if ((infoGlobal.m_solverMode & SOLVER_USE_2_FRICTION_DIRECTIONS))
 							addFrictionConstraint(cp.m_lateralFrictionDir2,solverBodyIdA,solverBodyIdB,frictionIndex,cp,rel_pos1,rel_pos2,colObj0,colObj1, relaxation);
 					}
-
+					
+					//    The computed frictionConstraint(s) are applied to the solverBody for both contact objects (updates m_deltaLinearVelocity and m_deltaAngularVelocity)
 					if (infoGlobal.m_solverMode & SOLVER_USE_FRICTION_WARMSTARTING)
 					{
 						{
@@ -689,7 +710,7 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 								frictionConstraint2.m_appliedImpulse = 0.f;
 							}
 						}
-					} else
+					} else		// not SOLVER_USE_FRICTION_WARMSTARTING
 					{
 						btSolverConstraint& frictionConstraint1 = m_tmpSolverContactFrictionConstraintPool[solverConstraint.m_frictionIndex];
 						frictionConstraint1.m_appliedImpulse = 0.f;
@@ -708,6 +729,13 @@ void	btSequentialImpulseConstraintSolver::convertContact(btPersistentManifold* m
 }
 
 
+
+// Looks like this is where the magic happens for computing impulse and updating forces
+//    EACH btSolverConstraint OBJECT IS CREATED PER COLLISION/CONSTRAINT, AND THEIR IMPULSES ARE COMPUTED AND APPLIED TO UPDATE THE btSolverBodys' m_deltaLinearVelocity AND m_deltaLinearVelocity
+//    m_tmpSolverNonContactConstraintPool will create and keep track of btSolverConstraints for each non-collision constraint (eg. springs, joints, etc.)
+//    m_tmpSolverContactConstraintPool will create and keep track of btSolverConstraints for each collision constraint
+//    btPersistentManifolds contain btManifoldPoint's, and they were set up in file btManifoldResult.cpp
+// By the end of this method, a btSolverConstraints for each constraint (collision or otherwise) will have all needed values (force) computed (solved)
 btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCollisionObject** /*bodies */,int /*numBodies */,btPersistentManifold** manifoldPtr, int numManifolds,btTypedConstraint** constraints,int numConstraints,const btContactSolverInfo& infoGlobal,btIDebugDraw* debugDrawer,btStackAlloc* stackAlloc)
 {
 	BT_PROFILE("solveGroupCacheFriendlySetup");
@@ -715,12 +743,14 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 	(void)debugDrawer;
 
 
-	if (!(numConstraints + numManifolds))
+	if (!(numConstraints + numManifolds))		// if no constraints and no collisions
 	{
 		//		printf("empty\n");
 		return 0.f;
 	}
-
+	
+	// It looks like constraints are manually added when the scene is built,
+	//    so for scenes like BasicDemo where no constraints are defined, numConstraints = 0, and this for-loop is not entered
 	if (1)
 	{
 		int j;
@@ -730,12 +760,15 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 			constraint->buildJacobian();
 		}
 	}
-
+	
+	// expand() adds another btSolverBody to the end of m_tmpSolverBodyPool and returns that end btSolverBody, then initSolverBody() inits that btSolverBody's values
 	btSolverBody& fixedBody = m_tmpSolverBodyPool.expand();
 	initSolverBody(&fixedBody,0);
 
 	//btRigidBody* rb0=0,*rb1=0;
 
+	// set up and solve the constraints (see btTypedConstraint.h for the enumeration of constraint types)
+	//    Again, scenes won't have any constraints (such as BasicDemo) unless they are hard coded into the scene (such as in RagdollDemo)
 	//if (1)
 	{
 		{
@@ -770,15 +803,18 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 
 
 
-					btRigidBody& rbA = constraint->getRigidBodyA();
+					btRigidBody& rbA = constraint->getRigidBodyA();		// a btRigidBody is a class that keeps track of and updates the rigid body object's current attributes
 					btRigidBody& rbB = constraint->getRigidBodyB();
 
-					int solverBodyIdA = getOrInitSolverBody(rbA);
+					// find or create solverBodys matching the rigidBodys
+					int solverBodyIdA = getOrInitSolverBody(rbA);		// a btSolverBody is a struct representing the body (object) and solves/computes change in velocities based off impulse,etc.; points back to its corresponding btRigidBody
 					int solverBodyIdB = getOrInitSolverBody(rbB);
 
 					btSolverBody* bodyAPtr = &m_tmpSolverBodyPool[solverBodyIdA];
 					btSolverBody* bodyBPtr = &m_tmpSolverBodyPool[solverBodyIdB];
-
+					
+					// Each typeConstraint (constraint) has multiple corresponding solverConstraints (array currentConstraintRow)
+					//    The number of solverConstraints needed by the current typeConstraint is determined by info1, which was set up by typeConstraint->getInfo1()
 					int j;
 					for ( j=0;j<info1.m_numConstraintRows;j++)
 					{
@@ -816,6 +852,9 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 					constraints[i]->getInfo2(&info2);
 
 					///finalize the constraint setup
+					//    All the solverConstraints in currentConstraintRow were recently initialized and assigned a pair of solverBodyIds (see approx. 30 lines up)
+					//    Then compute the angular components, rhs, and applied impulse for each of those solver constraints
+					//    Each constraint has its own row of solverConstraints
 					for ( j=0;j<info1.m_numConstraintRows;j++)
 					{
 						btSolverConstraint& solverConstraint = currentConstraintRow[j];
@@ -867,16 +906,23 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlySetup(btCol
 				currentRow+=m_tmpConstraintSizesPool[i].m_numConstraintRows;
 			}
 		}
-
+		// solverConstraints are now done being set up for btTypeConstraints
+		//   **NO** IMPULSES HAVE BEEN APPLIED TO CONSTRAINED BODIES YET (see the next method, solveGroupCacheFriendlyIterations, where impulses will be applied to constrained objects)
+		
+		
+		// Now compute solverConstraints for the collisions and apply the impulses to the interacting bodies
+		//    IMPULSES WILL BE APPLIED **HERE** TO COLLIDING BODIES
 		{
 			int i;
 			btPersistentManifold* manifold = 0;
 //			btCollisionObject* colObj0=0,*colObj1=0;
 
-
+			// manifolds represents the number of collisions for the current step
+			//    There is a manifold for each pair of colliding objects
 			for (i=0;i<numManifolds;i++)
 			{
 				manifold = manifoldPtr[i];
+				// compute btSolverConstraints (impulse, friction) for each collision in the manifold, and apply the impulse to the interacting bodies
 				convertContact(manifold,infoGlobal);
 			}
 		}
@@ -925,13 +971,15 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 			if (infoGlobal.m_solverMode & SOLVER_RANDMIZE_ORDER)
 			{
 				if ((iteration & 7) == 0) {
+					// randomize the order of the tmp constraint lookup (m_orderTmpConstraintPool is an array of ints)
 					for (j=0; j<numConstraintPool; ++j) {
 						int tmp = m_orderTmpConstraintPool[j];
 						int swapi = btRandInt2(j+1);
 						m_orderTmpConstraintPool[j] = m_orderTmpConstraintPool[swapi];
 						m_orderTmpConstraintPool[swapi] = tmp;
 					}
-
+					
+					// randomize the order of the friction constraint lookup (m_orderFrictionConstraintPool is an array of ints)
 					for (j=0; j<numFrictionPool; ++j) {
 						int tmp = m_orderFrictionConstraintPool[j];
 						int swapi = btRandInt2(j+1);
@@ -950,6 +998,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 					resolveSingleConstraintRowGenericSIMD(m_tmpSolverBodyPool[constraint.m_solverBodyIdA],m_tmpSolverBodyPool[constraint.m_solverBodyIdB],constraint);
 				}
 
+				// IMPULSES ARE APPLIED TO CONSTRAINED BODIES **HERE** USING SIMD
 				for (j=0;j<numConstraints;j++)
 				{
 					int bodyAid = getOrInitSolverBody(constraints[j]->getRigidBodyA());
@@ -959,14 +1008,27 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 					constraints[j]->solveConstraintObsolete(bodyA,bodyB,infoGlobal.m_timeStep);
 				}
 
+				// it looks like the solving of the contact (normal) impulse using m_tmpSolverContactConstraintPool
+				//    is separate from solving the frictional (tangent) impulse using m_tmpSolverContactFrictionConstraintPool
+
+
+				// NORMAL IMPULSES ARE APPLIED TO CONTACTING BODIES **HERE** USING SIMD
+				// This is the second time, for some reason (better accuracy?) that impulses are applied to the btSolverBody for these contact objects
+				//    The first time happened directly in convertContact()
+				//    I double checked that it is using the same btSolverConstraint objects from m_tmpSolverContactConstraintPool both times
+				//    Maybe this is to properly update collision impulses after constraints have been applied
 				///solve all contact constraints using SIMD, if available
+				//    resolveSingleConstraintRowLowerLimitSIMD() uses SIMD instructions to compute the impulse of the btSolverConstraint and apply the impulse to the constrained bodies
 				int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
 				for (j=0;j<numPoolConstraints;j++)
 				{
 					const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
+					// compute impulse and apply it to the constrained bodies, using the CPU's SIMD instruction set (for parallelization of arithmetic computations)
 					resolveSingleConstraintRowLowerLimitSIMD(m_tmpSolverBodyPool[solveManifold.m_solverBodyIdA],m_tmpSolverBodyPool[solveManifold.m_solverBodyIdB],solveManifold);
 
 				}
+
+				// FRICTIONAL IMPULSES ARE APPLIED TO CONTACTING BODIES **HERE** USING SIMD
 				///solve all friction constraints, using SIMD, if available
 				int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
 				for (j=0;j<numFrictionPoolConstraints;j++)
@@ -992,6 +1054,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 					resolveSingleConstraintRowGeneric(m_tmpSolverBodyPool[constraint.m_solverBodyIdA],m_tmpSolverBodyPool[constraint.m_solverBodyIdB],constraint);
 				}
 
+				// IMPULSES ARE APPLIED TO CONSTRAINED BODIES **HERE**
 				for (j=0;j<numConstraints;j++)
 				{
 					int bodyAid = getOrInitSolverBody(constraints[j]->getRigidBodyA());
@@ -1002,6 +1065,11 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 					constraints[j]->solveConstraintObsolete(bodyA,bodyB,infoGlobal.m_timeStep);
 				}
 
+				// NORMAL IMPULSES ARE APPLIED TO CONTACTING BODIES **HERE**
+				// This is the second time, for some reason (better accuracy?) that impulses are applied to the btSolverBody for these contact objects
+				//    The first time happened directly in convertContact()
+				//    I double checked that it is using the same btSolverConstraint objects from m_tmpSolverContactConstraintPool both times
+				//    Maybe this is to properly update collision impulses after constraints have been applied
 				///solve all contact constraints
 				int numPoolConstraints = m_tmpSolverContactConstraintPool.size();
 				for (j=0;j<numPoolConstraints;j++)
@@ -1009,6 +1077,8 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 					const btSolverConstraint& solveManifold = m_tmpSolverContactConstraintPool[m_orderTmpConstraintPool[j]];
 					resolveSingleConstraintRowLowerLimit(m_tmpSolverBodyPool[solveManifold.m_solverBodyIdA],m_tmpSolverBodyPool[solveManifold.m_solverBodyIdB],solveManifold);
 				}
+
+				// FRICTIONAL IMPULSES ARE APPLIED TO CONTACTING BODIES **HERE**
 				///solve all friction constraints
 				int numFrictionPoolConstraints = m_tmpSolverContactFrictionConstraintPool.size();
 				for (j=0;j<numFrictionPoolConstraints;j++)
@@ -1073,6 +1143,7 @@ btScalar btSequentialImpulseConstraintSolver::solveGroupCacheFriendlyIterations(
 
 
 /// btSequentialImpulseConstraintSolver Sequentially applies impulses
+//    btPersistentManifolds contain btManifoldPoint's, and they were set up in file btManifoldResult.cpp
 btScalar btSequentialImpulseConstraintSolver::solveGroup(btCollisionObject** bodies,int numBodies,btPersistentManifold** manifoldPtr, int numManifolds,btTypedConstraint** constraints,int numConstraints,const btContactSolverInfo& infoGlobal,btIDebugDraw* debugDrawer,btStackAlloc* stackAlloc,btDispatcher* /*dispatcher*/)
 {
 
@@ -1112,24 +1183,29 @@ btScalar btSequentialImpulseConstraintSolver::solveGroup(btCollisionObject** bod
 	{		
 		for ( i=0;i<m_tmpSolverBodyPool.size();i++)
 		{
+			// adds m_deltaLinearVelocity to this object's linear velocity and m_deltaAngularVelocity to this objects angular velocity
+			//   and updates the corresponding rigid body's linear and angular velocities
 			m_tmpSolverBodyPool[i].writebackVelocity(infoGlobal.m_timeStep);
 		}
 	} else
 	{
 		for ( i=0;i<m_tmpSolverBodyPool.size();i++)
 		{
+			// adds m_deltaLinearVelocity to this object's linear velocity and m_deltaAngularVelocity to this objects angular velocity
+			//   and updates the corresponding rigid body's linear and angular velocities
 			m_tmpSolverBodyPool[i].writebackVelocity();
 		}
 	}
 
-
+	// RESET all of the btConstraintSolver and btSolverBody arrays
 	m_tmpSolverBodyPool.resize(0);
 	m_tmpSolverContactConstraintPool.resize(0);
 	m_tmpSolverNonContactConstraintPool.resize(0);
 	m_tmpSolverContactFrictionConstraintPool.resize(0);
 
 	return 0.f;
-}
+
+}  // solveGroup()
 
 
 

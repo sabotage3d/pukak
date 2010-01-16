@@ -175,7 +175,8 @@ public:
 	/// continuous collision detection needs prediction
 	void			predictIntegratedTransform(btScalar step, btTransform& predictedTransform) ;
 	
-	void			saveKinematicState(btScalar step);
+	virtual void saveKinematicState( btScalar step );		/********        VIRTUAL KEYWORD INSERTED BY SETH HOLLADAY 2009-10-17        ********/
+	virtual void revertKinematicState();					/********        INSERTED BY SETH HOLLADAY (FOR SHRIGIDBODY) 2009-11-07        ********/
 	
 	void			applyGravity();
 	
@@ -233,7 +234,7 @@ public:
 		return m_invInertiaTensorWorld; 
 	}
 		
-	void			integrateVelocities(btScalar step);
+	virtual void	integrateVelocities(btScalar step);			/********        VIRTUAL KEYWORD INSERTED BY SETH HOLLADAY 2009-09-28        ********/
 
 	void			setCenterOfMassTransform(const btTransform& xform);
 
