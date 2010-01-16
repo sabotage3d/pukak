@@ -45,6 +45,11 @@ protected:
 
 	btTransform	m_worldTransform;
 
+	// ** INSERTED BY SETH HOLLADAY 10/17/09 ** //
+	// For saving out transforms while collisions are calculated for temporary object positions
+	btTransform m_savedWorldTransform;
+	// ** DONE SETH INSERTION ** //
+
 	///m_interpolationWorldTransform is used for CCD and interpolation
 	///it can be either previous or future (predicted) transform
 	btTransform	m_interpolationWorldTransform;
@@ -119,6 +124,7 @@ public:
 	{
 		CO_COLLISION_OBJECT =1,
 		CO_RIGID_BODY,
+		CO_SH_RIGID_BODY,		/********        INSERTED BY SETH HOLLADAY 2009-09-28        ********/
 		///CO_GHOST_OBJECT keeps track of all objects overlapping its AABB and that pass its collision filter
 		///It is useful for collision sensors, explosion objects, character controller etc.
 		CO_GHOST_OBJECT,
@@ -416,6 +422,16 @@ public:
 
 		return true;
 	}
-};
+
+	// ** INSERTED BY SETH HOLLADAY 10/19/09 ** //
+	// For resetting the transforms back to the last time the m_savedWorldTransform variable was assigned
+	void resetWorldTransform()
+	{
+		m_worldTransform = m_savedWorldTransform;
+		m_interpolationWorldTransform = m_savedWorldTransform;
+	}
+	// ** DONE SETH INSERTION ** //
+
+};  // btCollisionObject
 
 #endif //COLLISION_OBJECT_H
