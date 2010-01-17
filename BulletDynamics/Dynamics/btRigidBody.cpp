@@ -315,3 +315,11 @@ void btRigidBody::removeConstraintRef(btTypedConstraint* c)
 	m_constraintRefs.remove(c);
 	m_checkCollideWith = m_constraintRefs.size() > 0;
 }
+
+
+// ****** ADDED BY SETH HOLLADAY 2010-01-16 ****** //
+void btRigidBody::revertKinematicState()
+{
+	
+}  // saveKinematicState()
+// *********************************************** //

@@ -648,16 +648,17 @@ void shNonconvexStackingConstraintSolver::initSolverBody( shSolverBody* solverBo
 
 	if (rb)
 	{
-		solverBody->m_invMass = rb->getInvMass();
+		//solverBody->m_invMass = rb->getInvMass();
 		solverBody->m_originalBody = rb;
 		solverBody->m_angularFactor = rb->getAngularFactor();
 
 	}  // if
 	else
 	{
-		solverBody->m_invMass = 0.f;
+		//solverBody->m_invMass = 0.f;
 		solverBody->m_originalBody = 0;
-		solverBody->m_angularFactor = 1.f;
+		//solverBody->m_angularFactor = 1.f;
+		solverBody->m_angularFactor.setValue(1.f, 1.f, 1.f);
 
 	}  // else
 

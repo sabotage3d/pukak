@@ -591,6 +591,19 @@ class btMatrix3x3 {
 			m2.tdotx( m1[2]), m2.tdoty( m1[2]), m2.tdotz( m1[2]));
 	}
 
+	/****** READDED BY SETH HOLLADAY 2010-01-16, FROM BULLET 2.74 ******/
+	SIMD_FORCE_INLINE btMatrix3x3 
+	operator+(const btMatrix3x3& m1, const btMatrix3x3& m2)
+	{
+		return btMatrix3x3(
+			m1[0][0] + m2[0][0],  m1[0][1] + m2[0][1],  m1[0][2] + m2[0][2],
+			m1[1][0] + m2[1][0],  m1[1][1] + m2[1][1],  m1[1][2] + m2[1][2],
+			m1[2][0] + m2[2][0],  m1[2][1] + m2[2][1],  m1[2][2] + m2[2][2]
+		);
+
+	}  // operator+
+	/* ************************ */
+
 /*
 	SIMD_FORCE_INLINE btMatrix3x3 btMultTransposeLeft(const btMatrix3x3& m1, const btMatrix3x3& m2) {
     return btMatrix3x3(

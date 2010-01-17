@@ -40,7 +40,7 @@ extern bool gDisableDeactivation;
 ///Deactivated (sleeping) rigid bodies don't take any processing time, except a minor broadphase collision detection impact (to allow active objects to activate/wake up sleeping objects)
 class btRigidBody  : public btCollisionObject
 {
-
+protected:		// ****** ADDED BY SETH HOLLADAY 2010-01-16 ****** //
 	btMatrix3x3	m_invInertiaTensorWorld;
 	btVector3		m_linearVelocity;
 	btVector3		m_angularVelocity;
