@@ -188,7 +188,7 @@ btScalar shMolecularDynamicsConstraintSolver::computeSoftSphereCollision( btPers
 	btScalar k_d = 2 * m_eff * ( -log_e_n / t_c );
 
 	// Compute elastic restoration coefficient, kr, which influences the penetration depth (also known as the "spring constant")
-	btScalar k_r = ( m_eff / t_c*t_c ) * ( log_e_n*log_e_n + PI_SQUARED );
+	btScalar k_r = ( m_eff / t_c*t_c ) * ( log_e_n*log_e_n + (btScalar)PI_SQUARED );
 
 	// Compute relative velocity term of the spring equation
 	btScalar relativeVelocityTerm = k_d * relVelNMag;
@@ -211,7 +211,7 @@ btScalar shMolecularDynamicsConstraintSolver::computeSoftSphereCollision( btPers
 	btScalar dampingTerm = -1 * min( (mu * F_n), (k_t*relVelTMag) );
 
 	// Compute the tangential force
-	btScalar F_t = dampingTerm * (relVelT/relVelTMag);
+	btVector3 F_t = dampingTerm * (relVelT/relVelTMag);
 
 
 
