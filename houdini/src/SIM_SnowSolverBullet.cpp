@@ -90,8 +90,8 @@ SIM_SnowSolverBullet::getSolverBulletDopDescription()
 	};
 
 	static SIM_DopDescription   theDopDescription(true,
-		"bulletsnowsolver",
-		"Bullet Snow Solver",
+		"bulletrbdsolver",
+		"Bullet RBD Solver",
 		"Solver",
 		classname(),
 		theTemplates);
@@ -148,7 +148,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		{
 			// Pull the DOPs subdata and set the Bullet Transforms with it.			
 			RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
-			//SIM_BulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_BulletData);
+			//SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
 
 			// Pull initial Position & Rotation from subdata and set bullet transform
 			p = rbdstate->getPosition();
@@ -187,7 +187,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			//Get State for Curr Object
 			RBD_State	*rbdstate;
 			rbdstate =  SIM_DATA_GET(*currObject, "Position", RBD_State);
-			//SIM_BulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_BulletData);
+			//SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
 	
 			//Get the matching bullet body in map
 			bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
@@ -260,7 +260,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 		bulletBody	currBody;
 		
 		RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
-		SIM_BulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_BulletData);
+		SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
 		if(rbdstate) //This is an rbd object
 		{
 			UT_DMatrix4 xform;
@@ -374,7 +374,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 					}
 					btVector3 inertiaHalfExtents( 1,1,1);
 					fallShape = new btMultiSphereShape(
-						inertiaHalfExtents,
+						//inertiaHalfExtents,
 						sphereCentres,
 						sphereRadii,
 						nspheres);
@@ -582,14 +582,14 @@ void SIM_SnowSolverBulletState::initSystem(  )
 	m_broadphase = new btDbvtBroadphase();
 	m_solver = new btSequentialImpulseConstraintSolver(); //new btOdeQuickstepConstraintSolver();
 	
-	m_dynamicsWorld = new btGranularDiscreteDynamicsWorld( 
+    m_dynamicsWorld = new shGranularDiscreteDynamicsWorld( 
 		m_dispatcher,
 		m_broadphase,
 		m_solver,
 		m_collisionConfiguration);
 	//m_dynamicsWorld = world;
 	
-	m_dynamicsWorld->clearForces();
+    m_dynamicsWorld->clearForces();
 
 	m_bulletBodies = new std::map<int, bulletBody>();
 
@@ -649,7 +649,7 @@ void initializeSIM(void *)
 	//register our shit with houdini
 	//
 	IMPLEMENT_DATAFACTORY(SIM_SnowSolverBullet);
-	IMPLEMENT_DATAFACTORY(SIM_BulletData);
+	IMPLEMENT_DATAFACTORY(SIM_SnowBulletData);
 }
 
 
@@ -657,7 +657,7 @@ void initializeSIM(void *)
 
 
 const SIM_DopDescription*
-SIM_BulletData::getBulletDataDopDescription()
+SIM_SnowBulletData::getBulletDataDopDescription()
 {
 	static PRM_Name                theGeoRep(SIM_NAME_GEO_REP, "Geometry Representation");
 	static PRM_Name                theGeoTri(SIM_NAME_GEO_TRI, "Triangulate Polygons (not working yet)");
@@ -716,19 +716,19 @@ SIM_BulletData::getBulletDataDopDescription()
 	return &theDopDescription;
 }
 
-const char* SIM_BulletData::getName() 
+const char* SIM_SnowBulletData::getName() 
 {
 	static char name[256];
 	sprintf (name, "Bullet Data");
 	return name;
 }
 
-SIM_BulletData::SIM_BulletData(const SIM_DataFactory *factory)
+SIM_SnowBulletData::SIM_SnowBulletData(const SIM_DataFactory *factory)
 : BaseClass(factory), SIM_OptionsUser(this)
 {
 }
 
-SIM_BulletData::~SIM_BulletData()
+SIM_SnowBulletData::~SIM_SnowBulletData()
 {
 }
 

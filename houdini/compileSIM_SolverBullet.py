@@ -30,7 +30,7 @@ if bulletPath and houdiniPath:
     bulletSrcPath = bulletPath + '\\src'
     bulletSrcPath = bulletSrcPath.replace( '/', '\\' )
     
-    hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SolverBullet.cpp'
+    hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.system( hcustomCommand )
 
     print( 'Bullet src path = ' + bulletSrcPath )
