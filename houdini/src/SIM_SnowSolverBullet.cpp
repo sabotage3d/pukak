@@ -90,8 +90,8 @@ SIM_SnowSolverBullet::getSolverBulletDopDescription()
 	};
 
 	static SIM_DopDescription   theDopDescription(true,
-		"bulletrbdsolver",
-		"Bullet RBD Solver",
+		"bulletsnowsolver",
+		"Bullet Snow Solver",
 		"Solver",
 		classname(),
 		theTemplates);
@@ -355,6 +355,8 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				}
 				else if ( nspheres > 1 )
 				{
+				    // MAKE MULTIPLE SPHERES AND CONSTRAIN THEM
+				    
 					//cout<<"creating multisphere shape"<<endl;
 					btScalar *sphereRadii = new btScalar [nspheres];
 					btVector3 *sphereCentres = new btVector3 [nspheres];
@@ -580,14 +582,26 @@ void SIM_SnowSolverBulletState::initSystem(  )
 	m_collisionConfiguration = new btDefaultCollisionConfiguration();
 	m_dispatcher = new	btCollisionDispatcher( m_collisionConfiguration);
 	m_broadphase = new btDbvtBroadphase();
-	m_solver = new btSequentialImpulseConstraintSolver(); //new btOdeQuickstepConstraintSolver();
+#ifdef DO_SNOW_STUFF
+	m_solver = new shMolecularDynamicsConstraintSolver();
+#else
+    m_solver = new btSequentialImpulseConstraintSolver();
+#endif
 	
+#ifdef DO_SNOW_STUFF
     m_dynamicsWorld = new shGranularDiscreteDynamicsWorld( 
 		m_dispatcher,
 		m_broadphase,
 		m_solver,
 		m_collisionConfiguration);
 	//m_dynamicsWorld = world;
+#else
+    m_dynamicsWorld = new btDiscreteDynamicsWorld( 
+		m_dispatcher,
+		m_broadphase,
+		m_solver,
+		m_collisionConfiguration);
+#endif
 	
     m_dynamicsWorld->clearForces();
 

@@ -43,4 +43,4 @@ if bulletPath and houdiniPath:
         if not os.path.exists( houdiniUserPath ):
             os.mkdir( houdiniUserPath )
         os.mkdir( houdiniDllPath )
-    shutil.copy( 'SIM_SolverBullet.dll', houdiniDllPath )
+    shutil.copy( 'SIM_SnowSolverBullet.dll', houdiniDllPath )

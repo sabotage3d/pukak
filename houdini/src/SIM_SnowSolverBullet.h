@@ -61,6 +61,9 @@ typedef struct bulletBodystr {
 //#define GEO_REP_SPHEREPACK	"spherepack"
 
 
+//#define DO_SNOW_STUFF   1
+
+
 
 
 class SIM_SnowBulletData : public SIM_Data,
@@ -112,7 +115,11 @@ class SIM_SnowSolverBulletState {
 		btBroadphaseInterface*	m_broadphase;
 		btCollisionDispatcher*	m_dispatcher;
 		btConstraintSolver*	m_solver;
-		btDiscreteDynamicsWorld* m_dynamicsWorld;
+#ifdef DO_SNOW_STUFF
+		shGranularDiscreteDynamicsWorld* m_dynamicsWorld;
+#else
+        btDiscreteDynamicsWorld* m_dynamicsWorld;
+#endif
 		btDefaultCollisionConfiguration* m_collisionConfiguration;
 		SIM_SnowSolverBulletState(); 
 		~SIM_SnowSolverBulletState();
