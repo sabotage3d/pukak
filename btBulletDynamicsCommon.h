@@ -21,6 +21,7 @@ subject to the following restrictions:
 
 #include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
 #include "BulletDynamics/Dynamics/btContinuousDynamicsWorld.h"
+#include "BulletDynamics/Dynamics/shGranularDiscreteDynamicsWorld.h"    /********    INSERTED BY SETH HOLLADAY 2010-01-30    ********/
 
 #include "BulletDynamics/Dynamics/btSimpleDynamicsWorld.h"
 #include "BulletDynamics/Dynamics/btRigidBody.h"
@@ -36,7 +37,7 @@ subject to the following restrictions:
 #include "BulletDynamics/ConstraintSolver/btHinge2Constraint.h"
 
 #include "BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.h"
-
+#include "BulletDynamics/Dynamics/shMolecularDynamicsConstraintSolver.h"    /********    INSERTED BY SETH HOLLADAY 2010-02-01    ********/
 
 ///Vehicle simulation, with wheel contact simulated by raycasts
 #include "BulletDynamics/Vehicle/btRaycastVehicle.h"
