@@ -24,8 +24,8 @@ subject to the following restrictions:
 
 #include <math.h>
 
-//#include "BulletMultiThreaded/vectormath/scalar/cpp/vectormath_aos.h"
-#include <vectormath_aos.h>
+#include "BulletMultiThreaded/vectormath/scalar/cpp/vectormath_aos.h"
+//#include <vectormath_aos.h>
 
 
 using namespace Vectormath::Aos;
