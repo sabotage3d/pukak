@@ -366,9 +366,42 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 					{
 						if (prim->getPrimitiveId() & GEOPRIMSPHERE)
 						{
-							sphere = dynamic_cast<GEO_PrimSphere*>(prim);
+							sphere = dynamic_cast<GEO_PrimSphere*>( prim );
+							
+							
+							UT_Matrix4 xform;
+							//myGeo->getTransform( xform );
+							sphere->getTransform4( xform );
+							UT_XformOrder xformOrder;
+							UT_Vector3 rotation, scale, translation;
+							int success = xform.explode( xformOrder, rotation, scale, translation );
+							//cout << "scale = " << scale.x() << ", " << scale.y() << ", " << scale.z() << endl;
+							
+							//UT_BoundingBox bounds;
+        					//sphere->getBBox( &bounds );
+        					//cout << "bbox = " << bounds.sizeX() << ", " << bounds.sizeY() << ", " << bounds.sizeZ() << endl;
+							
 							//TODO: get sphere radius
-							sphereRadii[c] = 1;
+							// GU_Detail->attribs() returns a GB_AttributeTable
+							// GEO_AttributeHandle GEO_Detail::getAttribute( GEO_AttributeOwner dict, const char* attrib_name ) const
+							// int GEO_Detail::findPrimAttrib (const GB_Attribute *src) const
+							// int GEO_Detail::findPrimAttrib (const char *n, int s, GB_AttribType t) const
+							// int 	findPrimAttrib (const char* n, int s, GB_AttribType t) const
+							//
+							// //GetBoudningBox
+        					// UT_BoundingBox bounds;
+        					//  voxPrim->getBBox(&bounds);
+        					//
+        					// current_input_xform =(UT_DMatrix4&)foo_node->getWorldTransform(context);
+							// int foo2 = current_input_xform.explode(xformOrder, rot, scale, trans);
+							// OP_Network *objptr;
+							// xform  = objptr->getWorldTransform(context);
+							
+							
+							//TODO: get sphere radius
+							//sphereRadii[c] = 1;
+							sphereRadii[c] = scale.x();
+							
 							centre = sphere->baryCenter();
 							sphereCentres[c] = btVector3( centre.x(),centre.y(),centre.z() );
 							c++;
@@ -380,7 +413,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 						sphereCentres,
 						sphereRadii,
 						nspheres);
-					cout<<"created multisphere shape"<<endl;
+					//cout<<"created multisphere shape, very good"<<endl;
 					
 					//delete sphereRadii;
 					//delete sphereCentres;

@@ -8,6 +8,7 @@ bulletPath = None
 houdiniPath = None
 try:
     bulletPath = os.environ['BULLET_PATH']
+    bulletPath = bulletPath.replace( 'Program Files (x86)', 'PROGRA~2' )
     bulletPath = bulletPath.replace( 'Program Files', 'PROGRA~1' )
 except( ValueError ):
     print( 'Set up a variable called BULLET_PATH, then set BULLET_PATH to the path to your main bullet folder.' )
@@ -24,13 +25,14 @@ if bulletPath and houdiniPath:
     linearMathPath = bulletPath + '\\src\\LinearMath'
     
     simSolverBulletSrcPath = houdiniPath + '\\toolkit\\SIM_SolverBullet-0.11\\src'
-    
-    os.chdir( simSolverBulletSrcPath )
+    simSolverBulletSrcPath = simSolverBulletSrcPath.replace( '\\', '/' )
     
     bulletSrcPath = bulletPath + '\\src'
     bulletSrcPath = bulletSrcPath.replace( '/', '\\' )
     
-    hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
+    #hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
+    os.chdir( simSolverBulletSrcPath )
+    hcustomCommand = 'hcustom -g -i C:\Users\srh43\Documents\houdini10.0\dso -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.system( hcustomCommand )
 
     print( 'Bullet src path = ' + bulletSrcPath )
@@ -43,4 +45,4 @@ if bulletPath and houdiniPath:
         if not os.path.exists( houdiniUserPath ):
             os.mkdir( houdiniUserPath )
         os.mkdir( houdiniDllPath )
-    shutil.copy( 'SIM_SnowSolverBullet.dll', houdiniDllPath )
+    #shutil.copy( 'SIM_SnowSolverBullet.dll', houdiniDllPath )
