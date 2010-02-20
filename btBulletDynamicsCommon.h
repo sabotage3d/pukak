@@ -37,7 +37,7 @@ subject to the following restrictions:
 #include "BulletDynamics/ConstraintSolver/btHinge2Constraint.h"
 
 #include "BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.h"
-#include "BulletDynamics/Dynamics/shMolecularDynamicsConstraintSolver.h"    /********    INSERTED BY SETH HOLLADAY 2010-02-01    ********/
+#include "BulletDynamics/ConstraintSolver/shMolecularDynamicsConstraintSolver.h"    /********    INSERTED BY SETH HOLLADAY 2010-02-01    ********/
 
 ///Vehicle simulation, with wheel contact simulated by raycasts
 #include "BulletDynamics/Vehicle/btRaycastVehicle.h"
