@@ -260,7 +260,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 		bulletBody	currBody;
 		
 		RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
-		SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
+		SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Snow Data", SIM_SnowBulletData);
 		if(rbdstate) //This is an rbd object
 		{
 			UT_DMatrix4 xform;
@@ -381,7 +381,6 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
         					//sphere->getBBox( &bounds );
         					//cout << "bbox = " << bounds.sizeX() << ", " << bounds.sizeY() << ", " << bounds.sizeZ() << endl;
 							
-							//TODO: get sphere radius
 							// GU_Detail->attribs() returns a GB_AttributeTable
 							// GEO_AttributeHandle GEO_Detail::getAttribute( GEO_AttributeOwner dict, const char* attrib_name ) const
 							// int GEO_Detail::findPrimAttrib (const GB_Attribute *src) const
@@ -693,7 +692,7 @@ void SIM_SnowSolverBulletState::cleanSystem(  )
 
 void initializeSIM(void *)
 {
-	//register our shit with houdini
+	//register our stuff with houdini
 	//
 	IMPLEMENT_DATAFACTORY(SIM_SnowSolverBullet);
 	IMPLEMENT_DATAFACTORY(SIM_SnowBulletData);
@@ -704,7 +703,7 @@ void initializeSIM(void *)
 
 
 const SIM_DopDescription*
-SIM_SnowBulletData::getBulletDataDopDescription()
+SIM_SnowBulletData::getSnowBulletDataDopDescription()
 {
 	static PRM_Name                theGeoRep(SIM_NAME_GEO_REP, "Geometry Representation");
 	static PRM_Name                theGeoTri(SIM_NAME_GEO_TRI, "Triangulate Polygons (not working yet)");
@@ -754,9 +753,9 @@ SIM_SnowBulletData::getBulletDataDopDescription()
 	};
 	
 	static SIM_DopDescription    theDopDescription(true,
-							"bulletdata",
+							"snowbulletdata",
 							getName(),
-							"Bullet Data",
+							"Bullet Snow Data",
 							classname(),
 							theTemplates);
 	
@@ -766,7 +765,7 @@ SIM_SnowBulletData::getBulletDataDopDescription()
 const char* SIM_SnowBulletData::getName() 
 {
 	static char name[256];
-	sprintf (name, "Bullet Data");
+	sprintf (name, "Bullet Snow Data");
 	return name;
 }
 

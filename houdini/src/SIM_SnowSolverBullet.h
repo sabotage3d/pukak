@@ -96,13 +96,13 @@ class SIM_SnowBulletData : public SIM_Data,
 	virtual             ~SIM_SnowBulletData();
 
 	private:
-		static const SIM_DopDescription     *getBulletDataDopDescription();
+		static const SIM_DopDescription     *getSnowBulletDataDopDescription();
 	
 		DECLARE_STANDARD_GETCASTTOTYPE();
 		DECLARE_DATAFACTORY(SIM_SnowBulletData,
 				SIM_Data,
-				"Bullet Data",
-				getBulletDataDopDescription()
+				"Snow Bullet Data",
+				getSnowBulletDataDopDescription()
 			);
 };
 #endif
