@@ -26,6 +26,13 @@ ATTRIBUTE_ALIGNED16(class) btSphereShape : public btConvexInternalShape
 public:
 	BT_DECLARE_ALIGNED_ALLOCATOR();
 
+	/*btSphereShape() : btConvexInternalShape()
+	{
+		m_shapeType = SPHERE_SHAPE_PROXYTYPE;
+		m_implicitShapeDimensions.setX(1.0);
+		m_collisionMargin = 1.0;
+	}*/
+
 	btSphereShape (btScalar radius) : btConvexInternalShape ()
 	{
 		m_shapeType = SPHERE_SHAPE_PROXYTYPE;
