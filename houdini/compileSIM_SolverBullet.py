@@ -1,7 +1,31 @@
-
-
+import getopt
 import os
 import shutil
+import sys
+
+
+def usage():
+    print( 'Usage: compileSIM_SolverBullet.py' )
+    print( '    -h, --help           Print this help.' )
+    print( '    -c, --copyfiles      Copy plug-in over to the home houdini plug-in folder (default does not copy).' )
+    
+
+doCopy = False
+
+try:                                
+    opts, args = getopt.getopt( sys.argv[1:], "hc", ["help", "copyfiles"] )
+except getopt.GetoptError:
+    print( 'Bad arg' )
+    usage()
+    sys.exit(2)
+    
+for (opt, arg) in opts:
+    if opt in ( '-h', '--help' ):
+        usage()
+        sys.exit(2)
+    elif opt in ( '-c', '--copyfiles'):
+        doCopy = True
+
 
 # do a "try" here, if "BULLET_PATH" is not found, prompt for a BULLET_PATH (raw_input) and then create one.
 bulletPath = None
@@ -30,19 +54,20 @@ if bulletPath and houdiniPath:
     bulletSrcPath = bulletPath + '\\src'
     bulletSrcPath = bulletSrcPath.replace( '/', '\\' )
     
-    #hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
+    hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.chdir( simSolverBulletSrcPath )
-    hcustomCommand = 'hcustom -g -i C:\Users\srh43\Documents\houdini10.0\dso -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
+    #hcustomCommand = 'hcustom -g -i C:\Users\srh43\Documents\houdini10.0\dso -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.system( hcustomCommand )
 
     print( 'Bullet src path = ' + bulletSrcPath )
     print( 'Sim solver bullet src path = ' + simSolverBulletSrcPath )
     
-    userPath = os.environ['USERPROFILE']
-    houdiniDllPath = userPath + '\\My Documents\\houdini10.0\\dso'
-    if not os.path.exists( houdiniDllPath ):
-        houdiniUserPath = userPath + '\\My Documents\\houdini10.0'
-        if not os.path.exists( houdiniUserPath ):
-            os.mkdir( houdiniUserPath )
-        os.mkdir( houdiniDllPath )
-    #shutil.copy( 'SIM_SnowSolverBullet.dll', houdiniDllPath )
+    if doCopy:
+        userPath = os.environ['USERPROFILE']
+        houdiniDllPath = userPath + '\\My Documents\\houdini10.0\\dso'
+        if not os.path.exists( houdiniDllPath ):
+            houdiniUserPath = userPath + '\\My Documents\\houdini10.0'
+            if not os.path.exists( houdiniUserPath ):
+                os.mkdir( houdiniUserPath )
+            os.mkdir( houdiniDllPath )
+        shutil.copy( 'SIM_SnowSolverBullet.dll', houdiniDllPath )

@@ -6,6 +6,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btSphereSphereCollisionAlgorithm.h>
 #include <BulletCollision/CollisionDispatch/btSphereTriangleCollisionAlgorithm.h>
+#include <BulletCollision/CollisionShapes/shCompoundSphereShape.h>
 #include <BulletCollision/Gimpact/btGImpactShape.h>
 #include <BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h>
 
@@ -142,7 +143,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		
 		//This is a new body (that is, it doesn't match any key in the map), make a bullet body to match
 		if(bodyIt == state->m_bulletBodies->end())
-			bodyIt = addBulletBody(currObject );
+			bodyIt = addBulletBody( currObject );
 		
 		if(bodyIt != state->m_bulletBodies->end())
 		{
@@ -351,16 +352,34 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				else if ( nspheres == 1 )
 				{
 					//cout<<"creating single sphere shape"<<endl;
-					fallShape = new btSphereShape(1);
+					
+					// Set the sphere's scale (based off of both its radius setting and any scale transforms)
+					UT_Matrix4 xform;
+					sphere->getTransform4( xform );
+					UT_XformOrder xformOrder;
+					UT_Vector3 rotation, scale, translation;
+					xform.explode( xformOrder, rotation, scale, translation );
+					float sphereRadius = scale.x();
+					
+					fallShape = new btSphereShape( sphereRadius );
 				}
 				else if ( nspheres > 1 )
 				{
 				    // MAKE MULTIPLE SPHERES AND CONSTRAIN THEM
+				    //cout<<"creating multisphere shape"<<endl;
 				    
-					//cout<<"creating multisphere shape"<<endl;
+				    // Create an array of btSphereShape objects
+				    //btSphereShape** fallSpheres = new btSphereShape*[nspheres];
+				    
+				    // ADDED BY SRH 2010-02-22 //
+				    btAlignedObjectArray<btSphereShape*> sphereShapes;
+				    btAlignedObjectArray<btVector3> sphereRelativePositions;
+				    // *********************** //
+					
 					btScalar *sphereRadii = new btScalar [nspheres];
 					btVector3 *sphereCentres = new btVector3 [nspheres];
-					int c=0;
+					//btVector3 centerOfMass( 0.0, 0.0, 0.0 );
+					int c = 0;
 					UT_Vector3 centre;
 					FOR_ALL_PRIMITIVES (gdp, prim) 
 					{
@@ -368,54 +387,79 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 						{
 							sphere = dynamic_cast<GEO_PrimSphere*>( prim );
 							
-							
+							// Sphere radius (based off of both its radius setting and any scale transforms)
+							// ADDED BY SRH 2010-02-22 //
 							UT_Matrix4 xform;
-							//myGeo->getTransform( xform );
 							sphere->getTransform4( xform );
 							UT_XformOrder xformOrder;
 							UT_Vector3 rotation, scale, translation;
-							int success = xform.explode( xformOrder, rotation, scale, translation );
-							//cout << "scale = " << scale.x() << ", " << scale.y() << ", " << scale.z() << endl;
+							xform.explode( xformOrder, rotation, scale, translation );
+							sphereRadii[c] = scale.x();		// THIS NEEDS FIXED TO TAKE THE LARGEST (OR SMALLEST) DIMENSION (not just x)
+							// *********************** //
 							
-							//UT_BoundingBox bounds;
-        					//sphere->getBBox( &bounds );
-        					//cout << "bbox = " << bounds.sizeX() << ", " << bounds.sizeY() << ", " << bounds.sizeZ() << endl;
-							
-							// GU_Detail->attribs() returns a GB_AttributeTable
-							// GEO_AttributeHandle GEO_Detail::getAttribute( GEO_AttributeOwner dict, const char* attrib_name ) const
-							// int GEO_Detail::findPrimAttrib (const GB_Attribute *src) const
-							// int GEO_Detail::findPrimAttrib (const char *n, int s, GB_AttribType t) const
-							// int 	findPrimAttrib (const char* n, int s, GB_AttribType t) const
-							//
-							// //GetBoudningBox
-        					// UT_BoundingBox bounds;
-        					//  voxPrim->getBBox(&bounds);
-        					//
-        					// current_input_xform =(UT_DMatrix4&)foo_node->getWorldTransform(context);
-							// int foo2 = current_input_xform.explode(xformOrder, rot, scale, trans);
-							// OP_Network *objptr;
-							// xform  = objptr->getWorldTransform(context);
-							
-							
-							//TODO: get sphere radius
-							//sphereRadii[c] = 1;
-							sphereRadii[c] = scale.x();
-							
+							// Sphere center
 							centre = sphere->baryCenter();
-							sphereCentres[c] = btVector3( centre.x(),centre.y(),centre.z() );
+							sphereCentres[c] = btVector3( centre.x(), centre.y(), centre.z() );
+							//centerOfMass = centerOfMass + sphereCentres[c];
+							//cout << " Pos = " << centre.x() << ", " << centre.y() << ", " << centre.z() << endl;
+							
+							// ADDED BY SRH 2010-02-22 //
+							sphereShapes.push_back( new btSphereShape(sphereRadii[c]) );
+							sphereRelativePositions.push_back( sphereCentres[c] );
+							// *********************** //
+							
 							c++;
 						}
+						
+					}  // FOR_ALL_PRIMITIVES
+					
+					// ADDED BY SRH 2010-02-22 //
+					fallShape = new shCompoundSphereShape( sphereShapes, sphereRelativePositions );
+					// *********************** //
+					
+					/*
+					// Calculate center of mass
+					centerOfMass = centerOfMass / (float)c;
+					
+					// Find the sphere that is closest to the center of mass.
+					//   All other spheres will be constrain
+					int centerSphereIndex = -1;
+					double closestDistToCenter = BT_LARGE_FLOAT;
+					for ( int i = 0; i < nspheres; i++ )
+					{
+						btScalar vecDiff = sphereCentres[i].distance2( centerOfMass );
+						if ( vecDiff < closestDistToCenter )
+						{
+							centerSphereIndex = i;
+							closestDistToCenter = vecDiff;
+							
+						}  // if
+						
+					}  // for i
+					
+					// Set up constraints between each sphere and the center of mass sphere.
+					for ( int i = 0; i < nspheres; i++ )
+					{
+						if ( i != centerSphereIndex )
+						{
+							btTypedConstraint* p2p = new btPoint2PointConstraint( *body0, *body1, pivotInA, pivotInB );
+						}
 					}
-					btVector3 inertiaHalfExtents( 1,1,1);
-					fallShape = new btMultiSphereShape(
-						//inertiaHalfExtents,
-						sphereCentres,
-						sphereRadii,
-						nspheres);
+					
+					delete fallSpheres;	// the btSphereShapes in fallShape are now stored in rigidBodies in state->m_dynamicsWorld
+					
+					return;
+					*/
+					//btVector3 inertiaHalfExtents( 1,1,1);
+					//fallShape = new btMultiSphereShape(
+					//	//inertiaHalfExtents,
+					//	sphereCentres,
+					//	sphereRadii,
+					//	nspheres);
 					//cout<<"created multisphere shape, very good"<<endl;
 					
-					//delete sphereRadii;
-					//delete sphereCentres;
+					delete sphereRadii;
+					delete sphereCentres;
 				}
 				else if( ntriangles == 0  && nspheres == 0 )
 				{
@@ -521,6 +565,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 	return bodyIt;
 
 }
+
 
 
 //Kill off the bullet bodies that are not needed anymore

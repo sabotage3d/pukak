@@ -101,7 +101,7 @@ class SIM_SnowBulletData : public SIM_Data,
 		DECLARE_STANDARD_GETCASTTOTYPE();
 		DECLARE_DATAFACTORY(SIM_SnowBulletData,
 				SIM_Data,
-				"Snow Bullet Data",
+				"Bullet Snow Data",
 				getSnowBulletDataDopDescription()
 			);
 };
