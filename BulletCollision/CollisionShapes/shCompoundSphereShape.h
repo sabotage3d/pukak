@@ -1,24 +1,23 @@
 
-#ifndef SPHERE_GRANULE_H
-#define SPHERE_GRANULE_H
+#ifndef COMPOUND_SPHERE_SHAPE_H
+#define COMPOUND_SPHERE_SHAPE_H
 
-#include "btConvexInternalShape.h"
+#include "btCompoundShape.h"
+#include "btSphereShape.h"
 #include "BulletCollision/BroadphaseCollision/btBroadphaseProxy.h" // for the types
+#include "LinearMath/btAlignedObjectArray.h"
 
-///The btSphereShape implements an implicit sphere, centered around a local origin with radius.
-ATTRIBUTE_ALIGNED16(class) btGranuleSphereShape : public btSphereShape
-
+// The btCompoundSphereShape implements a btCompoundShape made up of spheres.
+ATTRIBUTE_ALIGNED16(class) shCompoundSphereShape : public btCompoundShape
 {
 	
 public:
 	
-	btGranuleSphereShape( btScalar radius ) : btSphereShape(radius)
-	{
-	}
+	// constructors
+	shCompoundSphereShape( bool enableDynamicAabbTree = false );
+	shCompoundSphereShape( btAlignedObjectArray<btSphereShape*> sphereShapes, btAlignedObjectArray<btVector3> sphereRelativePositions, bool enableDynamicAabbTree = false );
 	
-	shGranule myGranule;
-
-};
+};  // btCompoundSphereShape
 
 
-#endif //SPHERE_MINKOWSKI_H
+#endif // COMPOUND_SPHERE_SHAPE_H
