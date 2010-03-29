@@ -13,7 +13,41 @@ subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "btSphereShape.h"
+#include "shCompoundSphereShape.h"
 #include "BulletCollision/CollisionShapes/btCollisionMargin.h"
 
 #include "LinearMath/btQuaternion.h"
+
+
+
+
+// CONSTRUCTOR (also the default constructor, since its only parameter has a default value set)
+shCompoundSphereShape::shCompoundSphereShape( bool enableDynamicAabbTree )
+: btCompoundShape( enableDynamicAabbTree )
+{
+	
+}  // constructor
+
+
+
+// CONSTRUCTOR
+shCompoundSphereShape::shCompoundSphereShape( btAlignedObjectArray<btSphereShape*> sphereShapes, btAlignedObjectArray<btVector3> sphereRelativePositions, bool enableDynamicAabbTree )
+: btCompoundShape( enableDynamicAabbTree )
+{
+	int numSpheres = sphereShapes.size();
+	for ( int i = 0; i < numSpheres; i++ )
+	{
+		btSphereShape* curSphereShape = sphereShapes[i];
+		btVector3 curRelPos = sphereRelativePositions[i];
+
+		// Set up the relative transform based off the relative position.
+		//   The transform's rotation will always be zero, since these are spheres and thus it would have no effect.
+		btTransform curTransform;
+		curTransform.setIdentity();
+		curTransform.setOrigin( curRelPos );
+
+		this->addChildShape( curTransform, curSphereShape );
+
+	}  // for
+}  // constructor
+
