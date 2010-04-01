@@ -144,47 +144,22 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 	//cout<<"remove any that have been deleted from dops in system:"<<state->m_dynamicsWorld<<endl;
 	removeDeadBodies( engine );	
 
-	//Loop over all objects 
-	for(i = 0; i < totalDopObjects; i++)
-	{
+	////////Loop over all objects 
+	//////for(i = 0; i < totalDopObjects; i++)
+	// First we add/update all objects for which we'll be solving using Bullet.
+    //   (Objects using other solvers are not included here.)
+    int numBulletObjects = objects.entries();	// "objects" was passed in as input to this function
+    for ( i = 0; i < numBulletObjects; i++ )
+    {
 		//Get current dop sim object
-		SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+		//SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+		SIM_Object *currObject = (SIM_Object *)objects(i);
 		
 		// ADDED BY SRH 2010-30-03 //
 		// Get the affector information
 		UT_String name = currObject->getName();
-		if ( name == "box_object1")
-		{
-			SIM_ColliderInfoArray colliders;
-			SIM_Object *currAffector;
-			//ObjectMap *odeaffectors = worlddata->getOdeAffectors();
-			currObject->getColliderInfo( colliders );
-			bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
-			for (int a = 0; a < colliders.entries(); a++)
-			{
-				currAffector = colliders(a).getAffector();
-				affectorIt = state->m_bulletAffectors->find( currAffector->getObjectId() );
-				if ( affectorIt == state->m_bulletAffectors->end() )
-	    		{
-	    			bodyIt = state->m_bulletBodies->find( currAffector->getObjectId() );
-					if ( bodyIt != state->m_bulletBodies->end() )
-					{
-					    // This object has already been added as an ODE body
-					    // Make sure collisions are detected appropriately
-					}
-					else
-					{
-					    // Add this object to the sim as an affector
-					    affectorIt = addAffector(currAffector);
-			
-					    /*if (affectoritr == odeaffectors->end())
-					    {
-						continue;	// Affector was not created properly
-					    }*/
-					}
-	    		}
-			}
-			
+		if ( name == "box_object1" )
+		{	
 			//currObject->getAffectors( collisionAffectors, "SIM_RelationshipCollide" );
 			//int n = collisionAffectors.entries();
 	    	//for ( int i = 0; i < n; i++ )
@@ -234,7 +209,44 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			//Add forces and such from the rest of the subdata
 			processSubData(currObject, bodyIt->second);
 		}	
-	}
+	}  // for each object(i)
+	
+	for ( i = 0; i < numBulletObjects; i++ )
+	{
+		SIM_ColliderInfoArray colliders;
+		SIM_Object *currAffector;
+		//ObjectMap *odeaffectors = worlddata->getOdeAffectors();
+		
+		SIM_Object *currObject = (SIM_Object *)objects(i);
+		
+		currObject->getColliderInfo( colliders );
+		bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
+		for (int a = 0; a < colliders.entries(); a++)
+		{
+			currAffector = colliders(a).getAffector();
+			affectorIt = state->m_bulletAffectors->find( currAffector->getObjectId() );
+			if ( affectorIt == state->m_bulletAffectors->end() )
+			{
+				bodyIt = state->m_bulletBodies->find( currAffector->getObjectId() );
+				if ( bodyIt != state->m_bulletBodies->end() )
+				{
+				    // This object has already been added as an ODE body
+				    // Make sure collisions are detected appropriately
+				}
+				else
+				{
+				    // Add this object to the sim as an affector
+				    //affectorIt = addAffector(currAffector);
+				    affectorIt = addBulletBody( currAffector );
+					
+				    /*if (affectoritr == odeaffectors->end())
+				    {
+					continue;	// Affector was not created properly
+				    }*/
+				}
+			}
+		}
+	}  // for each object(i), look for additional affectors
 
 	//Run Sim and update DOPS not on init frame
 	if(currTime > 0) 
@@ -246,11 +258,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		// ******************************************** //
 
 		//Iterate over active objects and update the dop geometry	
-		for	(i = 0;	i <	totalUpdateObjects; i++)
+		//for	(i = 0;	i <	totalUpdateObjects; i++)
+		for ( i = 0; i < numBulletObjects; i++ )
 		{
 		
 			//Get current sim object
-			SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+			//SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+			SIM_Object *currObject = (SIM_Object *)objects(i);
 			
 			/*UT_String name = currObject->getName();
 			if ( name == "box_object1" ) {
@@ -875,6 +889,7 @@ void SIM_SnowSolverBulletState::initSystem(  )
     m_dynamicsWorld->clearForces();
 
 	m_bulletBodies = new std::map<int, bulletBody>();
+	m_bulletAffectors = new std::map<int, bulletBody>();
 
 
 	// TEMP: add groundplane
