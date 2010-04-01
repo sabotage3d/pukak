@@ -112,6 +112,9 @@ class SIM_SnowSolverBulletState {
 	public:
 		int  refCount;
 		std::map<int, bulletBody> *m_bulletBodies;
+		// ADDED BY SRH 2010-03-31 //
+		std::map<int, bulletBody> *m_bulletAffectors;
+		// *********************** //
 		btBroadphaseInterface*	m_broadphase;
 		btCollisionDispatcher*	m_dispatcher;
 		btConstraintSolver*	m_solver;
@@ -156,6 +159,9 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 			SIM_ObjectArray &feedbacktoobjects,
 			const SIM_Time &timestep);
 		virtual std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Object *currObject);
+		// ADDED BY SRH 2010-03-31 //
+		virtual std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addAffector( SIM_Object *currObject );
+		// *********************** //
 		virtual void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine);
 		virtual void SIM_SnowSolverBullet::processSubData(SIM_Object *currObject, bulletBody &body);
 

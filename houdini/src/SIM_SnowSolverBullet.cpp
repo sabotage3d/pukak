@@ -115,10 +115,18 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 	UT_Vector3 p, v, w;
 	UT_Quaternion rot;
 	std::map< int, bulletBody >::iterator bodyIt;
+	// ADDED BY SRH 2010-03-31 //
+	std::map< int, bulletBody >::iterator affectorIt;
+	// *********************** //
 	btTransform btrans;
 	int totalDopObjects = engine.getNumSimulationObjects();
 	int totalUpdateObjects = engine.getNumSimulationObjects();
 	float currTime = engine.getSimulationTime();
+	
+	// ADDED BY SRH 2010-03-30 FOR AFFECTOR CODE//
+	SIM_ObjectArray collisionAffectors;
+	const SIM_Geometry  *geometry = 0;
+	// *********************** //
 
 
 	if( !state )
@@ -128,6 +136,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		state->addReference();
 	}
 	
+	// ADDED BY SRH 2010-03-29 //
+	//int numRelationships = engine.getNumRelationships();
+	//cout << "Num relationships = " << numRelationships << endl;
+	// *********************** //
+	
 	//cout<<"remove any that have been deleted from dops in system:"<<state->m_dynamicsWorld<<endl;
 	removeDeadBodies( engine );	
 
@@ -136,6 +149,57 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 	{
 		//Get current dop sim object
 		SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+		
+		// ADDED BY SRH 2010-30-03 //
+		// Get the affector information
+		UT_String name = currObject->getName();
+		if ( name == "box_object1")
+		{
+			SIM_ColliderInfoArray colliders;
+			SIM_Object *currAffector;
+			//ObjectMap *odeaffectors = worlddata->getOdeAffectors();
+			currObject->getColliderInfo( colliders );
+			bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
+			for (int a = 0; a < colliders.entries(); a++)
+			{
+				currAffector = colliders(a).getAffector();
+				affectorIt = state->m_bulletAffectors->find( currAffector->getObjectId() );
+				if ( affectorIt == state->m_bulletAffectors->end() )
+	    		{
+	    			bodyIt = state->m_bulletBodies->find( currAffector->getObjectId() );
+					if ( bodyIt != state->m_bulletBodies->end() )
+					{
+					    // This object has already been added as an ODE body
+					    // Make sure collisions are detected appropriately
+					}
+					else
+					{
+					    // Add this object to the sim as an affector
+					    affectorIt = addAffector(currAffector);
+			
+					    /*if (affectoritr == odeaffectors->end())
+					    {
+						continue;	// Affector was not created properly
+					    }*/
+					}
+	    		}
+			}
+			
+			//currObject->getAffectors( collisionAffectors, "SIM_RelationshipCollide" );
+			//int n = collisionAffectors.entries();
+	    	//for ( int i = 0; i < n; i++ )
+	    	//{
+	    	//	const SIM_Object *affector = collisionAffectors( i );
+	    	//	//geometry = affector->getGeometry();
+	    	//	//cout << "   " << affector->getName() << endl;
+	    	//}
+	    }
+
+		//if ( name == "box_object1" ) {
+		//	cout << name << endl;
+		//	continue;
+		//}
+		// *********************** //
 					
 		//Check if this body has been added already, if not, add it.
 		//Bullet bodies are stored in a map, the key is the dopObjectId
@@ -153,9 +217,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 
 			// Pull initial Position & Rotation from subdata and set bullet transform
 			p = rbdstate->getPosition();
-				rot =	rbdstate->getOrientation();		
-				btrans.setRotation( btQuaternion( rot.x(), rot.y(), rot.z(), rot.w() ) );
-				btrans.setOrigin( btVector3(p[0],p[1],p[2]) );
+			rot =	rbdstate->getOrientation();
+			btrans.setRotation( btQuaternion( rot.x(), rot.y(), rot.z(), rot.w() ) );
+			btrans.setOrigin( btVector3(p[0],p[1],p[2]) );
 			(bodyIt->second.bodyId)->getMotionState()->setWorldTransform(btrans);
 			
 			if( rbdstate->getMass() > 0 )
@@ -176,7 +240,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 	if(currTime > 0) 
 	{
 		//cout<<"step world"<<endl;
+		
+		// THIS IS WHERE IT ALL HAPPENS IN BULLET!!!!!! //
 		state->m_dynamicsWorld->stepSimulation( 1/24.f, 10 );
+		// ******************************************** //
 
 		//Iterate over active objects and update the dop geometry	
 		for	(i = 0;	i <	totalUpdateObjects; i++)
@@ -184,6 +251,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		
 			//Get current sim object
 			SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
+			
+			/*UT_String name = currObject->getName();
+			if ( name == "box_object1" ) {
+				continue;
+			}*/
 		
 			//Get State for Curr Object
 			RBD_State	*rbdstate;
@@ -298,7 +370,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				FOR_ALL_PRIMITIVES (gdp, prim) 
 				{
 					if (prim->getPrimitiveId() & GEOPRIMPOLY)
-					if( prim->getVertexCount() == 3 )  //add only tri's
+						if( prim->getVertexCount() == 3 )  //add only tri's
 							ntriangles++;
 					if (prim->getPrimitiveId() & GEOPRIMSPHERE)
 						nspheres++;
@@ -353,15 +425,21 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				{
 					//cout<<"creating single sphere shape"<<endl;
 					
-					// Set the sphere's scale (based off of both its radius setting and any scale transforms)
-					UT_Matrix4 xform;
-					sphere->getTransform4( xform );
-					UT_XformOrder xformOrder;
-					UT_Vector3 rotation, scale, translation;
-					xform.explode( xformOrder, rotation, scale, translation );
-					float sphereRadius = scale.x();
-					
-					fallShape = new btSphereShape( sphereRadius );
+					// FIXED BY SRH 2010-03-30 //
+					FOR_ALL_PRIMITIVES (gdp, prim) 
+					{
+						sphere = dynamic_cast<GEO_PrimSphere*>( prim );
+						
+						// Set the sphere's scale (based off of both its radius setting and any scale transforms)
+						UT_Matrix4 xform;
+						sphere->getTransform4( xform );
+						UT_XformOrder xformOrder;
+						UT_Vector3 rotation, scale, translation;
+						xform.explode( xformOrder, rotation, scale, translation );
+						float sphereRadius = scale.x();
+						fallShape = new btSphereShape( sphereRadius );
+					}
+					// *********************** //
 				}
 				else if ( nspheres > 1 )
 				{
@@ -565,6 +643,120 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 	return bodyIt;
 
 }
+
+
+
+// ADDED BY SRH 2010-03-31, THIS CODE TAKEN FROM SIM_SolverODE.C *************** //
+std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addAffector( SIM_Object *currObject )
+{
+    //SIM_ODEWorldData *worlddata;
+    //worlddata = SIM_DATA_CREATE(*this, "ODE_World", SIM_ODEWorldData, SIM_DATA_RETURN_EXISTING);
+    //ObjectMap *odeaffectors = worlddata->getOdeAffectors();
+
+	std::map< int, bulletBody >::iterator bodyIt;
+	const SIM_Geometry *simgeo;
+	const SIM_SDF *sdf;
+	//const SIM_EmptyData *bulletInfo;
+	RBD_State *rbdState;
+	bulletBody currBody;
+
+	simgeo = currObject->getGeometry();
+
+	if (simgeo)
+	{
+		// We have geometry to work with.
+		
+		// Check if we have an sdf
+		sdf = SIM_DATA_GETCONST(*simgeo, SIM_SDF_DATANAME, SIM_SDF);
+		
+		/*if (sdf)
+		{
+		    if (sdf->getMode() == 4)	// This is a ground plane
+		    {
+				if ( !createGroundPlane(currObject, currBody) )
+				{
+				    return bodyIt;
+				}
+				
+				//Insert the body into the map
+				m_bulletAffectors->insert( std::make_pair(currObject->getObjectId(), currBody) );
+				bodyIt = m_bulletAffectors->find( currObject->getObjectId() );
+				// Store the OdeObject data for later reference
+				dGeomSetData( currBody.geomId, &bodyIt->second );
+		
+				return bodyIt;
+		    }
+		}*/
+		
+		//RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
+		SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Snow Data", SIM_SnowBulletData);
+		//odeinfo = SIM_DATA_GETCONST( *currObject, "ODE_Body", SIM_EmptyData);
+		/*if (!bulletstate)
+		{
+		    cerr << "No Bullet info found!" << endl;
+		    return bodyIt;
+		}*/
+	
+		/*
+		// Check if this is a composite object, and handle it if so
+		OdePrimType primtype = 
+			(OdePrimType)odeinfo->getData().getOptionI("primType");
+		if (primtype == odeComposite)
+		{
+		    // The relevant OdeObject data needs to already be in the 
+		    // affector map before we call createComposite, because we 
+		    // essentially need a pointer to the OdeObject to give to every 
+		    // geom that's created as part of the composite.
+		    odeaffectors->insert(std::make_pair(
+				    currobject->getObjectId(), currbody));
+		    bodyitr = odeaffectors->find(currobject->getObjectId());
+		    if (!createComposite(currobject, bodyitr, true))
+		    {
+			// If we weren't successful, remove the OdeObject
+			odeaffectors->erase(bodyitr);
+			bodyitr = odeaffectors->end();
+		    }
+		    else
+		    {
+			bodyitr->second.isStatic = false;
+			bodyitr->second.isAffector = true;
+		    }
+		    return bodyitr;
+		}
+		*/
+	
+		// Attempt to get its State
+		//state = SIM_DATA_GET(*currobject, "Position", RBD_State);
+		RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
+		
+		/*if (rbdstate) // This is an RBD object
+		{
+		    if ( !createBody(currObject, currBody, true) )
+		    {
+				return bodyIt;
+		    }
+		}
+		else	// This is a static object
+		{
+		    if ( !createStatic(currObject, currBody) )
+		    {
+				return bodyitr;
+		    }
+		}*/
+	
+		// Insert the new affector into the map
+		state->m_bulletAffectors->insert(std::make_pair( currObject->getObjectId(), currBody) );
+		bodyIt = state->m_bulletAffectors->find( currObject->getObjectId() );
+	
+		// Store the OdeObject data for later reference
+		//dGeomSetData( currBody.geomId, &bodyIt->second);
+    }
+
+    return bodyIt;
+    
+}  // addAffectors()
+// ***************************************************************************** //
+
 
 
 
