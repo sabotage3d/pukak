@@ -146,36 +146,18 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 
 	////////Loop over all objects 
 	//////for(i = 0; i < totalDopObjects; i++)
+	// ADDED BY SRH 2010-04-01 - Now, instead of looping over all objects in the engine
+	//                             it, only loops over objects directly connected to this Bullet Solver node. //
 	// First we add/update all objects for which we'll be solving using Bullet.
     //   (Objects using other solvers are not included here.)
     int numBulletObjects = objects.entries();	// "objects" was passed in as input to this function
     for ( i = 0; i < numBulletObjects; i++ )
     {
+    // *********************** //
 		//Get current dop sim object
 		//SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
 		SIM_Object *currObject = (SIM_Object *)objects(i);
 		
-		// ADDED BY SRH 2010-30-03 //
-		// Get the affector information
-		UT_String name = currObject->getName();
-		if ( name == "box_object1" )
-		{	
-			//currObject->getAffectors( collisionAffectors, "SIM_RelationshipCollide" );
-			//int n = collisionAffectors.entries();
-	    	//for ( int i = 0; i < n; i++ )
-	    	//{
-	    	//	const SIM_Object *affector = collisionAffectors( i );
-	    	//	//geometry = affector->getGeometry();
-	    	//	//cout << "   " << affector->getName() << endl;
-	    	//}
-	    }
-
-		//if ( name == "box_object1" ) {
-		//	cout << name << endl;
-		//	continue;
-		//}
-		// *********************** //
-					
 		//Check if this body has been added already, if not, add it.
 		//Bullet bodies are stored in a map, the key is the dopObjectId
 		bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
@@ -211,6 +193,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		}	
 	}  // for each object(i)
 	
+	// ADDED BY SRH 2010-04-01 *************************************** //
+	//   Based on the affector for-loop in the ODESolver code!  Thanks!
+	//   However, this is simplified and CURRENTLY ONLY WORKS WITH STATIC (non-dynamic) AFFECTOR OBJECTS!
 	for ( i = 0; i < numBulletObjects; i++ )
 	{
 		SIM_ColliderInfoArray colliders;
@@ -235,18 +220,17 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				}
 				else
 				{
-				    // Add this object to the sim as an affector
-				    //affectorIt = addAffector(currAffector);
+				    // Add this affector object to the sim AS A BULLET BODY (not with addAffector(), but with addBulletBody())
+				    //   Therefore, objects connected to this SIM_SnowSolverBullet node and objects
+				    //   affecting those objects are treated equally, except the data (position, etc.)
+				    //   is not updated for the affectors each frame, only when it is first added.
+				    //   ***This will need to be fixed in the future to take into affect dynamic affectors.***
 				    affectorIt = addBulletBody( currAffector );
-					
-				    /*if (affectoritr == odeaffectors->end())
-				    {
-					continue;	// Affector was not created properly
-				    }*/
-				}
-			}
-		}
+				}  // else
+			}  // if
+		}  // for each affector(a) of the current object
 	}  // for each object(i), look for additional affectors
+	// *************************************************************** //
 
 	//Run Sim and update DOPS not on init frame
 	if(currTime > 0) 
@@ -261,7 +245,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		//for	(i = 0;	i <	totalUpdateObjects; i++)
 		for ( i = 0; i < numBulletObjects; i++ )
 		{
-		
 			//Get current sim object
 			//SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
 			SIM_Object *currObject = (SIM_Object *)objects(i);
@@ -458,10 +441,8 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				else if ( nspheres > 1 )
 				{
 				    // MAKE MULTIPLE SPHERES AND CONSTRAIN THEM
+				    //   Uses srh's shCompoundSphereShape added to Bullet
 				    //cout<<"creating multisphere shape"<<endl;
-				    
-				    // Create an array of btSphereShape objects
-				    //btSphereShape** fallSpheres = new btSphereShape*[nspheres];
 				    
 				    // ADDED BY SRH 2010-02-22 //
 				    btAlignedObjectArray<btSphereShape*> sphereShapes;
@@ -508,47 +489,6 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 					// ADDED BY SRH 2010-02-22 //
 					fallShape = new shCompoundSphereShape( sphereShapes, sphereRelativePositions );
 					// *********************** //
-					
-					/*
-					// Calculate center of mass
-					centerOfMass = centerOfMass / (float)c;
-					
-					// Find the sphere that is closest to the center of mass.
-					//   All other spheres will be constrain
-					int centerSphereIndex = -1;
-					double closestDistToCenter = BT_LARGE_FLOAT;
-					for ( int i = 0; i < nspheres; i++ )
-					{
-						btScalar vecDiff = sphereCentres[i].distance2( centerOfMass );
-						if ( vecDiff < closestDistToCenter )
-						{
-							centerSphereIndex = i;
-							closestDistToCenter = vecDiff;
-							
-						}  // if
-						
-					}  // for i
-					
-					// Set up constraints between each sphere and the center of mass sphere.
-					for ( int i = 0; i < nspheres; i++ )
-					{
-						if ( i != centerSphereIndex )
-						{
-							btTypedConstraint* p2p = new btPoint2PointConstraint( *body0, *body1, pivotInA, pivotInB );
-						}
-					}
-					
-					delete fallSpheres;	// the btSphereShapes in fallShape are now stored in rigidBodies in state->m_dynamicsWorld
-					
-					return;
-					*/
-					//btVector3 inertiaHalfExtents( 1,1,1);
-					//fallShape = new btMultiSphereShape(
-					//	//inertiaHalfExtents,
-					//	sphereCentres,
-					//	sphereRadii,
-					//	nspheres);
-					//cout<<"created multisphere shape, very good"<<endl;
 					
 					delete sphereRadii;
 					delete sphereCentres;
