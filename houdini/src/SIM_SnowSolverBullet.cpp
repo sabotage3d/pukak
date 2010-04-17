@@ -188,6 +188,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				w = rbdstate->getAngularVelocity();
 				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) ); 
 			}
+			// ADDED BY SRH 2010-04-14 //
+			else
+			{
+				// Set linear and angular velocities to zero
+				(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+			}
+			// *********************** //
 			//Add forces and such from the rest of the subdata
 			processSubData(currObject, bodyIt->second);
 		}	
