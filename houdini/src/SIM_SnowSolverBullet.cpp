@@ -189,11 +189,24 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) ); 
 			}
 			// ADDED BY SRH 2010-04-14 //
-			else
+			//   If an active object's mass is ever set to zero, it is made static (and velocities set to zero)
+			else if ( (bodyIt->second.bodyId)->getActivationState() != 0 )
 			{
-				// Set linear and angular velocities to zero
-				(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
-				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+				//state->m_bulletBodies->erase(bodyIt);
+				//bodyIt = addBulletBody( currObject );
+				//(bodyIt->second.bodyId)->setActivationState( 0 );
+				//(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+				
+				// Set object as static, since mass == 0
+				//bodyIt->second.isStatic = 1;
+				//(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+				//bodyIt->second.isStatic = 1;
+				//(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+				//(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+				//(bodyIt->second.bodyId)->setActivationState( 0 );
+				//(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+				//btVector3 fallInertia(0.0, 0.0, 0.0);
+				//(bodyIt->second.bodyId)->updateInertiaTensor();  //->getCollisionShape()->calculateLocalInertia( 0, fallInertia );
 			}
 			// *********************** //
 			//Add forces and such from the rest of the subdata
@@ -248,7 +261,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		// THIS IS WHERE IT ALL HAPPENS IN BULLET!!!!!! //
 		state->m_dynamicsWorld->stepSimulation( 1/24.f, 10 );
 		// ******************************************** //
-
+		
 		//Iterate over active objects and update the dop geometry	
 		//for	(i = 0;	i <	totalUpdateObjects; i++)
 		for ( i = 0; i < numBulletObjects; i++ )
@@ -294,6 +307,37 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 					//(bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia(mass,fallInertia);
 					//cerr<<"setting mass:"<<mass<<endl;
 				}
+				
+				/*if ( mass == btScalar(0.) )
+				{
+					cout << "inertia = " << (float)fallInertia[0] << " " << (float)fallInertia[1] << " " << (float)fallInertia[2] << endl;
+					cout << endl;
+				}*/
+				
+				// ADDED BY SRH43 2010-04-19 //
+				//   If the mass is set to zero on any frame during the Houdini simulation,
+				//   this makes the object static (freezes the object)
+				//   by giving it setting its mass to zero (essentially giving it infinite mass)
+				//   and setting its velocities to zero.
+				if( rbdstate->getMass() == 0  && (bodyIt->second.bodyId)->getActivationState() != 0 )
+				{
+					//cout << "setting activation of " << currObject->getName() << " to zero." << endl;
+					(bodyIt->second.bodyId)->setActivationState( 0 );
+					(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+					(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+					(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+					(bodyIt->second.bodyId)->updateInertiaTensor();
+					//bodyIt->second.isStatic = 1;
+					
+					rbdstate->setVelocity( UT_Vector3( 0, 0, 0 ) );
+					rbdstate->setAngularVelocity( UT_Vector3( 0, 0, 0 ) );
+					//(bodyIt->second.bodyId)->setActivationState( 0 );
+					//(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+					//btVector3 fallInertia(0.0, 0.0, 0.0);
+					
+					//(bodyIt->second.bodyId)->setActivationState( 0 );
+				}
+				// ************************* //
 
 								
 				if( !(bodyIt->second.bodyId)->isStaticObject() && (bodyIt->second.bodyId)->isActive() == 1 ) // if not tagged as Static
@@ -306,6 +350,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 					btVector3 w;
 					w = (bodyIt->second.bodyId)->getAngularVelocity(); 
 					rbdstate->setAngularVelocity( UT_Vector3( w.getX(), w.getY(), w.getZ() ) );
+				}
+				else //if ( rbdstate->getMass() == 0  && (bodyIt->second.bodyId)->getActivationState() != 0 )
+				{
+					// Set linear and angular velocities to zero
+					//bodyIt->second.isStatic = 1;
+					//(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+					//(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
 				}
 			}	
 		}
@@ -561,19 +612,6 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				if( bulletstate )
 					collisionMargin = bulletstate->getCollisionMargin();
 				fallShape->setMargin( collisionMargin ); 
-
-				// convert to btCompoundShape in order to offset the COM. 
-				// This behaves strangely right now though.. at least, to me.  Just storing these lines for later..
-				//btCompoundShape* compoundShape = new btCompoundShape();
-				//UT_Vector3 xform_t;
-				//xform.getTranslates(xform_t);
-				//btTransform btCom( btRot, btP );
-				//btCom *= convertTobtTransform(xform);
-				//btCom.setIdentity();
-				//btCom.setOrigin( btVector3( xform_t.x(),xform_t.y(),xform_t.z() ) );				
-				//compoundShape->addChildShape( btCom, fallShape );
-				//compoundShape->addChildShape( convertTobtTransform(xform), fallShape );
-				//compoundShape->calculateLocalInertia(mass,fallInertia);
 				
 				btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(
 					mass,
