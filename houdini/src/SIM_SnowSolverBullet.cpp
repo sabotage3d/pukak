@@ -188,9 +188,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			
 			// ADDED BY SRH43 2010-04-27 //
 			//   If the mass is set to zero on any frame during the Houdini simulation,
-			//   this makes the object static (freezes the object)
-			//   by giving it setting its mass to zero (essentially giving it infinite mass)
-			//   and setting its velocities to zero.
+			//   this should trigger the bullet object to freeze
+			//   (it still affects other objects but is immovable and unaffected by others).
+			//   To do this, the bullet object's mass is set to zero (essentially giving it infinite mass)
+			//   and its velocities are set to zero.
 			//if (solverparms) cout << "solver parms for " << currObject->getName() << endl;
 			if( currObject->getIsStatic() )
 			{
@@ -238,19 +239,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		{
 			currAffector = colliders(a).getAffector();
 			affectorIt = state->m_bulletAffectors->find( currAffector->getObjectId() );
-			if ( affectorIt == state->m_bulletAffectors->end() )
+			if ( affectorIt == state->m_bulletAffectors->end() )	// The object is not already in the list of bullet affectors
 			{
 				bodyIt = state->m_bulletBodies->find( currAffector->getObjectId() );
 				if ( bodyIt != state->m_bulletBodies->end() )
 				{
 				    // This object has already been added as an ODE body
 				    // Make sure collisions are detected appropriately
-				    //SIM_Container *solverparms = SIM_DATA_GET(*currObject, "SolverParms", SIM_Container);
-					//SIM_ActiveValue *activevalue = SIM_DATA_GET(*solverparms, "ActiveValue", SIM_ActiveValue);
-					//btScalar active = activevalue->getActive();
-					//cout << "active for " << currObject->getName() << " = " << active << endl;
-				    //if (active)
-				    //	continue;
 				}
 				else
 				{
@@ -262,40 +257,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				    affectorIt = addBulletBody( currAffector );
 				}  // else
 			}  // if
-			else {
-				//SIM_Container *solverparms = SIM_DATA_GET(*currObject, "SolverParms", SIM_Container);
-				//SIM_ActiveValue *activevalue = SIM_DATA_GET(*solverparms, "ActiveValue", SIM_ActiveValue);
-				//btScalar active = activevalue->getActive();
-				//cout << "active for " << currObject->getName() << " = " << active << endl;
-			    //if (active)
-			    //	continue;
-				continue;
-			}
-			
-			
-			/*
-			// ADDED BY SRH 2010-04-20 //
-			//   If the mass has not been set to zero, set it to zero so that it can be treated as a static object.
-			RBD_State *rbdstate = SIM_DATA_GET(*currAffector, "Position", RBD_State);
-			//cout << "mass of " << currAffector->getName() << " is " << rbdstate->getMass() << endl;
-			if ( rbdstate->getMass() != 0 )
-			{
-				cout << "Setting AFFECTOR " << currAffector->getName() << " activation to zero." << endl;
-				rbdstate->setMass( 0. );
-				(affectorIt->second.bodyId)->setActivationState( 0 );
-				(affectorIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
-				(affectorIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
-				(affectorIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
-				//btVector3 fallInertia(0,0,0);
-				//(affectorIt->second.bodyId)->getCollisionShape()->calculateLocalInertia(mass,fallInertia);
-				(affectorIt->second.bodyId)->updateInertiaTensor();
-				//bodyIt->second.isStatic = 1;
-				
-				rbdstate->setVelocity( UT_Vector3( 0, 0, 0 ) );
-				rbdstate->setAngularVelocity( UT_Vector3( 0, 0, 0 ) );
-			}
-			// *********************** //
-			*/
 			
 		}  // for each affector(a) of the current object
 	}  // for each object(i), look for additional affectors
