@@ -73,6 +73,10 @@ protected:		// ****** ADDED BY SETH HOLLADAY 2010-01-16 ****** //
 	//keep track of typed constraints referencing this rigid body
 	btAlignedObjectArray<btTypedConstraint*> m_constraintRefs;
 
+	//btAlignedObjectArray<btRigidBody*> m_collidingBodies;		// ADDED BY SETH HOLLADAY 2010-04-29 FOR HOUDINI BULLET SOLVER TO KNOW IMPACT GEOM //
+
+
+
 public:
 
 
