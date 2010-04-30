@@ -225,6 +225,37 @@ void	btDiscreteDynamicsWorld::synchronizeMotionStates()
 }
 
 
+/***
+Process of a single simulation step:
+1. Apply the gravity force to each object
+	This method calls this->applyGravity()
+2. For each substep, call internalSingleStepSimulation(), which does the following:
+	i. CALCULATE CURRENT COLLISIONS (note positions have NOT been updated yet in the current step)
+		Done in this->performDiscreteCollisionDetection()
+		First, finds for broad collisions (a subclass of btBroadphaseInterface calls calculateOverlappingPairs())
+		Second, finds actual collisions in the broad collision pairs (a subclass of btBroadphaseInterface calls dispatchAllCollisionPairs())
+	ii. CALCULATE FORCES AND IMPULSES BASED ON CONSTRAINTS (constraints, such as collisions or joint constraints, are categorized in simulation islands)
+		this->solveConstraints() defines a struct (InplaceSolverIslandCallback) inherited from IslandCallback (defined in btSimulationIslandManager)
+		The IslandCallback (InplaceSolverIslandCallback) takes in some subclass of btConstraintSolver so that the IslandCallback's method can call btConstraintSolver->solveGroup()
+		An object is set up from this IslandCallback struct (InplaceSolverIslandCallback) and passed into the island manager
+		The island manager sets up the islands then calls the IslandCallback->ProcessIsland on each island
+		The IslandCallback->ProcessIsland calls btConstraintSolver->solveGroup(), where the btConstraintSolver used is really a defined subclass of btConstraintSolver
+	iii. UPDATE VELOCITIES
+		See step ii for detail on where velocities are updated
+	iv. UPDATE THE TRANSFORM MATRIX AND INERTIA TENSOR
+		Calls integrateTransforms() which loops through each rigid body
+		Each rigid body takes the new velocities and integrates the new positions and rotations
+		Matrix is updated from that info
+	v. DO ANY EXTRA PHYSICAL SIM ACTION NEEDS
+		Such as for vehicles, there are certain computations for the turn of the wheels, etc.
+	vi. UPDATE WHETHER OR NOT EACH RIGID BODY IS ACTIVE
+		This tells whether or not an object is at rest
+		Based on some kind of threshold of non-movement
+3. Synchronize the motion state for each body
+	Calls body->getMotionState()->setWorldTransform() for each rigid body
+	MotionStates synchronize and interpolate the updated world transforms with graphics
+4. Clear all the forces on all the objects
+***/
 int	btDiscreteDynamicsWorld::stepSimulation( btScalar timeStep,int maxSubSteps, btScalar fixedTimeStep)
 {
 	startProfiling(timeStep);
@@ -232,7 +263,8 @@ int	btDiscreteDynamicsWorld::stepSimulation( btScalar timeStep,int maxSubSteps, 
 	BT_PROFILE("stepSimulation");
 
 	int numSimulationSubSteps = 0;
-
+	
+	// time step calculations
 	if (maxSubSteps)
 	{
 		//fixed timestep with interpolation
@@ -264,14 +296,19 @@ int	btDiscreteDynamicsWorld::stepSimulation( btScalar timeStep,int maxSubSteps, 
 		btIDebugDraw* debugDrawer = getDebugDrawer ();
 		gDisableDeactivation = (debugDrawer->getDebugMode() & btIDebugDraw::DBG_NoDeactivation) != 0;
 	}
+
+	// compute the forces and update the transforms
 	if (numSimulationSubSteps)
 	{
 
 		//clamp the number of substeps, to prevent simulation grinding spiralling down to a halt
 		int clampedSimulationSteps = (numSimulationSubSteps > maxSubSteps)? maxSubSteps : numSimulationSubSteps;
-
+		
+		// save out the current transforms inside each rigid body
 		saveKinematicState(fixedTimeStep*clampedSimulationSteps);
-
+		
+		// forces were cleared out at the end of the last time step (end of this method),
+        //   so gravity is being added to a current force of zero for each object
 		applyGravity();
 
 		
@@ -279,6 +316,9 @@ int	btDiscreteDynamicsWorld::stepSimulation( btScalar timeStep,int maxSubSteps, 
 		for (int i=0;i<clampedSimulationSteps;i++)
 		{
 			internalSingleStepSimulation(fixedTimeStep);
+
+			// update each rigid body's motionState
+			//    motionStates synchronize and interpolate the updated world transforms with graphics
 			synchronizeMotionStates();
 		}
 
@@ -286,7 +326,8 @@ int	btDiscreteDynamicsWorld::stepSimulation( btScalar timeStep,int maxSubSteps, 
 	{
 		synchronizeMotionStates();
 	}
-
+	
+	// clear out the accumulated force on each object
 	clearForces();
 
 #ifndef BT_NO_PROFILE
@@ -316,26 +357,28 @@ void	btDiscreteDynamicsWorld::internalSingleStepSimulation(btScalar timeStep)
 
 	///perform collision detection
 	performDiscreteCollisionDetection();
-
+	
+	// Group bodies based on their constraints (collisions, joints, etc.) and activation states
 	calculateSimulationIslands();
 
-	
+	// The solver is of class btContactSolverInfo (for BasicDemo, it's subclass btSequentialImpulseConstraintSolver)
 	getSolverInfo().m_timeStep = timeStep;
 	
 
 
 	///solve contact and other joint constraints
-	solveConstraints(getSolverInfo());
+	solveConstraints(getSolverInfo());                      // getSolverInfo() returns m_solverInfo, of type btContactSolve
 	
 	///CallbackTriggers();
 
 	///integrate transforms
+	//  Integrate the transforms using Euler's method
 	integrateTransforms(timeStep);
 
 	///update vehicle simulation
 	updateActions(timeStep);
 	
-	updateActivationState( timeStep );
+	updateActivationState( timeStep );              // check if the rigid body should be deactivated
 
 	if(0 != m_internalTickCallback) {
 		(*m_internalTickCallback)(this, timeStep);
@@ -434,7 +477,7 @@ void	btDiscreteDynamicsWorld::updateActions(btScalar timeStep)
 	
 	for ( int i=0;i<m_actions.size();i++)
 	{
-		m_actions[i]->updateAction( this, timeStep);
+		m_actions[i]->updateAction( this, timeStep);    // to process any custom physics game code inside the physics pipeline
 	}
 }
 	
@@ -558,7 +601,7 @@ void	btDiscreteDynamicsWorld::solveConstraints(btContactSolverInfo& solverInfo)
 	struct InplaceSolverIslandCallback : public btSimulationIslandManager::IslandCallback
 	{
 
-		btContactSolverInfo&	m_solverInfo;
+		btContactSolverInfo&	m_solverInfo;                   // btContactSolverInfo is a struct with hardcoded (global) constants for solvers
 		btConstraintSolver*		m_solver;
 		btTypedConstraint**		m_sortedConstraints;
 		int						m_numConstraints;
@@ -573,7 +616,7 @@ void	btDiscreteDynamicsWorld::solveConstraints(btContactSolverInfo& solverInfo)
 
 		InplaceSolverIslandCallback(
 			btContactSolverInfo& solverInfo,
-			btConstraintSolver*	solver,
+			btConstraintSolver*	solver,                   // For Non-convex Stacking method, this will be subclass shNonconvexStackingConstraintSolver*
 			btTypedConstraint** sortedConstraints,
 			int	numConstraints,
 			btIDebugDraw*	debugDrawer,
@@ -599,14 +642,14 @@ void	btDiscreteDynamicsWorld::solveConstraints(btContactSolverInfo& solverInfo)
 		}
 		virtual	void	ProcessIsland(btCollisionObject** bodies,int numBodies,btPersistentManifold**	manifolds,int numManifolds, int islandId)
 		{
-			if (islandId<0)
+			if (islandId<0) // currently, this will never be true because btSimulationIslandManager->m_splitIslands (a boolean) is always true, meaning btSimulationIslandManager will always pass this method a islandId > 0
 			{
 				if (numManifolds + m_numConstraints)
 				{
 					///we don't split islands, so all constraints/contact manifolds/bodies are passed into the solver regardless the island id
 					m_solver->solveGroup( bodies,numBodies,manifolds, numManifolds,&m_sortedConstraints[0],m_numConstraints,m_solverInfo,m_debugDrawer,m_stackAlloc,m_dispatcher);
 				}
-			} else
+			} else  // btSimulationIslandManager (which calls this method from its method buildAndProcessIslands()) will always pass a valid islandId, since it is currently hardcoded to do so
 			{
 					//also add all non-contact constraints/joints for this island
 				btTypedConstraint** startConstraint = 0;
@@ -690,15 +733,32 @@ void	btDiscreteDynamicsWorld::solveConstraints(btContactSolverInfo& solverInfo)
 	
 	btTypedConstraint** constraintsPtr = getNumConstraints() ? &sortedConstraints[0] : 0;
 	
+	// InplaceSolverIslandCallback defined in this method (see above, inherits from struct btSimulationIslandManager::IslandCallback)
+	//    IslandCallback, from which InplaceSolverIslandCallback is inherited, is a struct to call ProcessIsland, which 
+	//    In BasicDemo, m_constraintSolver is subclass btSequentialImpulseConstraintSolver
+	//    In Nonconvex Stacking, m_constraintSolver is subclass shNonconvexStackingConstraintSolver
 	InplaceSolverIslandCallback	solverCallback(	solverInfo,	m_constraintSolver, constraintsPtr,sortedConstraints.size(),	m_debugDrawer,m_stackAlloc,m_dispatcher1);
 	
+	// in BasicDemo, m_constraintSolver is subclass btSequentialImpulseConstraintSolver, where prepareSolve() does nothing
 	m_constraintSolver->prepareSolve(getCollisionWorld()->getNumCollisionObjects(), getCollisionWorld()->getDispatcher()->getNumManifolds());
 	
 	/// solve all the constraints for this island
+	//    m_islandManager is type btSimulationIslandManager
+	//    m_islandManager->buildAndProcessIslands() builds sim islands
+	//      then calls solverCallback->ProcessIsland() on each simulation island (in buildAndProcessIslands(), "solverCallback" is called "callback")
+	//
+	//    solverCallback is of type InplaceSolverIslandCallback, defined above in this method
+	//    solverCallback->ProcessIsland() calls m_solver->solveGroup
+	//
+	//    m_solver is a subclass of class btConstraintSolver (BasicDemo uses subclass btSequentialImpulseConstraintSolver)
+	//    m_solver->solveGroup calls m_solver->solveGroupCacheFriendlySetup(), which sets up btSolverConstraints which solve for impulses and forces
+	//    m_solver->solveGroup calls m_solver->solveGroupCacheFriendlyIterations(), which applies the btSolverConstraints to update each object's solver's changes in velocity
+	//    m_solver->solveGroup finally updates each rigid body's velocities from each of their solvers, then resets all the solver data structures
 	m_islandManager->buildAndProcessIslands(getCollisionWorld()->getDispatcher(),getCollisionWorld(),&solverCallback);
 
 	solverCallback.processConstraints();
-
+	
+	// in BasicDemo, m_constraintSolver is subclass btSequentialImpulseConstraintSolver, where allSolved() does nothing
 	m_constraintSolver->allSolved(solverInfo, m_debugDrawer, m_stackAlloc);
 }
 
@@ -709,8 +769,10 @@ void	btDiscreteDynamicsWorld::calculateSimulationIslands()
 {
 	BT_PROFILE("calculateSimulationIslands");
 
+	// group bodies based on their collision constraints
 	getSimulationIslandManager()->updateActivationState(getCollisionWorld(),getCollisionWorld()->getDispatcher());
 
+	// group bodies based on activation state of constrained objects
 	{
 		int i;
 		int numConstraints = int(m_constraints.size());
@@ -864,6 +926,7 @@ void	btDiscreteDynamicsWorld::integrateTransforms(btScalar timeStep)
 				}
 			}
 			
+			// update the object's world transformation matrix and inertia tensor
 			body->proceedToTransform( predictedTrans);
 		}
 	}
@@ -881,10 +944,13 @@ void	btDiscreteDynamicsWorld::predictUnconstraintMotion(btScalar timeStep)
 		btRigidBody* body = m_nonStaticRigidBodies[i];
 		if (!body->isStaticOrKinematicObject())
 		{
+			// calculate linear and angular velocities based on totalled forces (for translation) and tensor (for rotation)
 			body->integrateVelocities( timeStep);
 			//damping
 			body->applyDamping(timeStep);
 
+			// update the transform's origin using the linear velocity
+			// update the transform's rotation by computing the quaternion and using it to update the matrix's rotation
 			body->predictIntegratedTransform(timeStep,body->getInterpolationWorldTransform());
 		}
 	}
