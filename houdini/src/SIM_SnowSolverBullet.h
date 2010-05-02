@@ -26,12 +26,59 @@ class SIM_GeometryCopy;
 
 
 
+
+// ADDED BY SRH 2010-04-30 *************************************************** //
+//   This class has additional data structures to help keep track of impact
+//   information per rigid body, in order to be able to write out Houdini
+//   Impacts data.
+class sim_btRigidBody : public btRigidBody
+{
+
+public:
+	
+	btAlignedObjectArray<btPersistentManifold*> m_manifolds;
+	
+	
+	
+	// CONSTRUCTORS
+	sim_btRigidBody( const btRigidBody::btRigidBodyConstructionInfo& constructionInfo ) : btRigidBody( constructionInfo )
+	{
+	}  // CONSTRUCTOR
+	
+	sim_btRigidBody( btScalar mass, btMotionState* motionState, btCollisionShape* collisionShape, const btVector3& localInertia=btVector3(0,0,0) )
+		: btRigidBody( mass, motionState, collisionShape, localInertia )
+	{
+	}  // CONSTRUCTOR
+	
+	
+	static const sim_btRigidBody* upcast(const btCollisionObject* colObj)
+	{
+		if ( colObj->getInternalType() == btCollisionObject::CO_RIGID_BODY )
+			return (const sim_btRigidBody*)colObj;
+		return 0;
+	}  // upcast()
+	
+	static sim_btRigidBody*	upcast(btCollisionObject* colObj)
+	{
+		if ( colObj->getInternalType() == btCollisionObject::CO_RIGID_BODY )
+			return (sim_btRigidBody*)colObj;
+		return 0;
+	}  // upcast()
+	
+
+};  // class sim_btRigidBody
+// *************************************************************************** //
+
+
+
+
+
 typedef struct bulletBodystr {
 	UT_String type;
 	int isStatic;
 	int isSet;
 	int dopId;
-	btRigidBody* bodyId;
+	sim_btRigidBody* bodyId;
 	UT_BoundingBox bbox;
 } bulletBody;
 
