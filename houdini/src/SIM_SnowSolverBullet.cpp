@@ -367,7 +367,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
 					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, 0 );
 					//impactsData->setNumImpacts( numManifolds );
-					cout << "num manifolds = " << numManifolds << endl;
 					for ( int m = 0; m < numManifolds; m++ )
 					{	
 						// For each collision (manifold) on the Bullet rigid body,
@@ -379,7 +378,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 						
 						//btVector3 rBTot( 0, 0, 0 );
 						int numContacts = manifold->getNumContacts();
-						cout << "num contacts = " << numContacts << endl;
 						if ( numContacts > 0 )
 						{
 							for ( int n = 0; n < numContacts; n++ )
@@ -387,7 +385,16 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 								isImpact = true;
 								SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
 								btManifoldPoint& cp = manifold->getContactPoint( n );
-								const btVector3& posB = cp.getPositionWorldOnB();
+								
+								//const btVector3& posB = cp.getPositionWorldOnB();
+								//const btVector3& normB = cp.m_normalWorldOnB;
+								
+								UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
+								UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
+								fpreal impulse = (fpreal)cp.m_appliedImpulse;
+								SIM_Time cTime = (SIM_Time)currTime;
+								
+								impactsData->addPositionImpact( pos, norm, impulse, -1, -1, -1, -1, -1, cTime, 0 );
 								//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
 								//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
 								//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
