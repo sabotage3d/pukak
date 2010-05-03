@@ -254,7 +254,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				    //   Therefore, objects connected to this SIM_SnowSolverBullet node and objects
 				    //   affecting those objects are treated equally, except the data (position, etc.)
 				    //   is not updated for the affectors each frame, only when it is first added.
-				    //   ***This will need to be fixed in the future to take into affect dynamic affectors.***
+				    //   ***THIS WILL NEED TO BE FIXED IN THE FUTURE TO TAKE INTO AFFECT DYNAMIC AFFECTORS.***
 				    affectorIt = addBulletBody( currAffector );
 				}  // else
 			}  // if
@@ -276,14 +276,18 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		
 		
 		// ADDED BY SRH 2010-04-29 //
-		//   Get impact data and add it to the Houdini object's data
+		//   Attach each collision manifold to its corresponding Bullet rigid bodies.
+		//   This is used later down the code to attach Impacts data to each rigid body.
+		//   Manifolds are attached to their corresponding sim_btRigidBody objects by appending the manifold
+		//     to the sim_btRigidBody->m_manifolds array variable
+		//     (sim_btRigidBody class inherits from btRigidBody and is defined in SIM_SnowSolverBullet.h).
+		//   m_manifolds is cleared out at the start of each step when removeDeadBodies() is called above.
 		btDispatcher* dispatcher = state->m_dynamicsWorld->getCollisionWorld()->getDispatcher();
 		btPersistentManifold** manifoldPtr = dispatcher->getInternalManifoldPointer();
 		int numManifolds = dispatcher->getNumManifolds();
 		for ( int m = 0; m < numManifolds; m++ )
 		{
 			btPersistentManifold* manifold = manifoldPtr[m];
-			//btScalar foundAndComputedCollision = 0.f;
 			
 			// Extract the colliding objects from the manifold
 			btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
@@ -291,21 +295,8 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			sim_btRigidBody* rbA = sim_btRigidBody::upcast(colObjA);
 			sim_btRigidBody* rbB = sim_btRigidBody::upcast(colObjB);
 			
-			rbA->m_manifolds.push_back(  manifold );
-			rbB->m_manifolds.push_back(  manifold );
-			
-			// Create a constraint between the two sim_btRigidBodys, and add that constraint
-			//   to each sim_btRigidBody's m_constraintRefs array to keep track of which
-			//   sim_btRigidBodys are colliding with which others.
-			//btContactConstraint* contact = new btContactConstraint( manifold, rbA, rbB );
-			//rbA->addConstraintRef( contact );
-			//rbB->addConstraintRef( contact );
-			
-			// compute impulse and resulting deltas for linear and angular velocities
-					
-			// Compute impulses and UPDATE VELOCITIES for colliding objects based on each collision point in the manifold.
-			//   Each collision point that is diverging is removed from the manifold
-			//computeSoftSphereCollision( manifold, infoGlobal );
+			rbA->m_manifolds.push_back( manifold );
+			rbB->m_manifolds.push_back( manifold );
 			
 		}  // for i
 		// *********************** //
@@ -357,8 +348,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				
 				
 				// ADDED BY SRH43 2010-04-30 //
-				//   Add Impacts data for the current Houdini body, currObject,
-				//   based on the current Bullet body's collision manifolds.
+				//   Get Bullet impact data and add it to the Houdini object's data.
+				//   (Add Impacts data for the current Houdini body, currObject,
+				//   based on the current Bullet body's collision manifolds.)
 				bool isImpact = false;
 				int numManifolds = (bodyIt->second.bodyId)->m_manifolds.size();
 				if ( numManifolds > 0 )
@@ -376,6 +368,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 						//btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
 						//state->m_dynamicsWorld->getCollisionWorld()->contactPairTest( colObjA, colObjB, renderCallback );
 						
+						// NOTE: Just because a contact manifold exists does not mean there was an impact.
+						//         Sometimes, a manifold is created with zero contacts, so it does not contribute to Impacts data.
+						//         This is probably because in Bullet, each collision point that is diverging is removed from the manifold,
+						//         so zero contacts possibly means all contacts were diverging.
+						//         *OR* this is because the manifold represents another type of constraint, where there is not contact,
+						//         in which case this manifold is properly ignored.
+						//       So, Impacts data is added only if there are more than zero contacts in any of the manifolds.
+						
 						//btVector3 rBTot( 0, 0, 0 );
 						int numContacts = manifold->getNumContacts();
 						if ( numContacts > 0 )
@@ -392,9 +392,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 								UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
 								UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
 								fpreal impulse = (fpreal)cp.m_appliedImpulse;
+								int otherobjid = (bodyIt->second.bodyId)->houObjectID;
 								SIM_Time cTime = (SIM_Time)currTime;
 								
-								impactsData->addPositionImpact( pos, norm, impulse, -1, -1, -1, -1, -1, cTime, 0 );
+								impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
 								//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
 								//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
 								//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
@@ -735,13 +736,18 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				state->m_dynamicsWorld->addRigidBody(fallRigidBody);
 				//cout<<"creating new body, id:"<<currObject->getObjectId()
 				//	<<"  isStaticObject:"<<fallRigidBody->isStaticObject()<<endl;
+				
+				// ADDED BY SRH 2010-05-03 //
+				//   Assign to the Bullet rigid body the ID of the corresponding Houdini object.
+				fallRigidBody->houObjectID = currObject->getObjectId();
+				// *********************** //
 	
 				// Insert the body into the map
 				currBody.bodyId	= fallRigidBody;
 				currBody.isStatic =	false;
 				currBody.dopId = currObject->getObjectId();
 				currBody.type = "body";
-				state->m_bulletBodies->insert(std::make_pair( currObject->getObjectId() , currBody	));	
+				state->m_bulletBodies->insert(std::make_pair( currObject->getObjectId(), currBody ));	
 				bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
 			}
 		}	
@@ -877,6 +883,12 @@ void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine)
 	// Accumulate all bodies to remove
 	for( bodyIt = state->m_bulletBodies->begin(); bodyIt != state->m_bulletBodies->end(); ++bodyIt )
 	{
+		// ADDED BY SRH 2010-05-03 //
+		//   Clear the last time step's collision manifolds for this Bullet rigid body.
+		//   Collisions will be repopulated in the new time step.
+		(bodyIt->second.bodyId)->m_manifolds.resize(0);
+		// *********************** //
+		
 		SIM_Object *currObject = (SIM_Object *)engine.getSimulationObjectFromId(bodyIt->first);
 		//This object no longer exists, destroy the bullet body (add to a map)
 		if(!currObject)
