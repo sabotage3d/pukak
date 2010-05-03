@@ -487,11 +487,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		//   TO DO: This is currently very efficient, since it should only get
 		//          rid of collisions no longer happening instead of adding
 		//          and removing ALL the constraints every time.
-		for ( i = 0; i < numBulletObjects; i++ )
-		{
-			bodyIt = state->m_bulletBodies->find( i );
-			(bodyIt->second.bodyId)->m_manifolds.clear();
-		}
+		//for ( i = 0; i < numBulletObjects; i++ )
+		//{
+		//	bodyIt = state->m_bulletBodies->find( i );
+		//	(bodyIt->second.bodyId)->m_manifolds.clear();
+		//}
 		// *********************** //
 		
 	}
