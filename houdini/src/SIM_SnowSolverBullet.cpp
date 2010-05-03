@@ -364,9 +364,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 						// For each collision (manifold) on the Bullet rigid body,
 						//    add the impact data to the Houdini rigid body Impacts field
 						btPersistentManifold* manifold = (bodyIt->second.bodyId)->m_manifolds[m];
-						//btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
-						//btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
-						//state->m_dynamicsWorld->getCollisionWorld()->contactPairTest( colObjA, colObjB, renderCallback );
 						
 						// NOTE: Just because a contact manifold exists does not mean there was an impact.
 						//         Sometimes, a manifold is created with zero contacts, so it does not contribute to Impacts data.
@@ -380,27 +377,55 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 						int numContacts = manifold->getNumContacts();
 						if ( numContacts > 0 )
 						{
-							for ( int n = 0; n < numContacts; n++ )
+							isImpact = true;
+							
+							// For the current manifold, get the ID of the houdini object colliding with the current rigid body
+							sim_btRigidBody* rbA = (sim_btRigidBody*)manifold->getBody0();
+							sim_btRigidBody* rbB = (sim_btRigidBody*)manifold->getBody1();
+							int otherobjid = -1;
+							if ( (bodyIt->second.bodyId) == rbA )
 							{
-								isImpact = true;
+								otherobjid = rbB->houObjectId;
+							}
+							else
+							{
+								otherobjid = rbA->houObjectId;
+							}
+							
+							// Add Impacts data for each impact on the current manifold
+							bool getDeepestImpactOnly = true;
+							if ( getDeepestImpactOnly )			// Get only the deepest contact point (first entry in the manifold's contacts array)
+							{
 								SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
-								btManifoldPoint& cp = manifold->getContactPoint( n );
-								
-								//const btVector3& posB = cp.getPositionWorldOnB();
-								//const btVector3& normB = cp.m_normalWorldOnB;
+								btManifoldPoint& cp = manifold->getContactPoint( 0 );	// This gets the deepest contact point (contact points are ordered by depth, the deepest first)
 								
 								UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
 								UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
 								fpreal impulse = (fpreal)cp.m_appliedImpulse;
-								int otherobjid = (bodyIt->second.bodyId)->houObjectID;
 								SIM_Time cTime = (SIM_Time)currTime;
 								
 								impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
-								//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
-								//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
-								//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
-					
-							}  // for n
+							}
+							else	// Get all contact points
+							{
+								for ( int n = 0; n < numContacts; n++ )		// For each contact point in the manifold
+								{
+									SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
+									btManifoldPoint& cp = manifold->getContactPoint( n );
+									
+									UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
+									UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
+									fpreal impulse = (fpreal)cp.m_appliedImpulse;
+									SIM_Time cTime = (SIM_Time)currTime;
+									
+									impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
+									//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
+									//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
+									//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
+						
+								}  // for n
+							}  // else
+							
 						}  // if
 					}  // for m
 				}  // if
@@ -739,7 +764,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				
 				// ADDED BY SRH 2010-05-03 //
 				//   Assign to the Bullet rigid body the ID of the corresponding Houdini object.
-				fallRigidBody->houObjectID = currObject->getObjectId();
+				fallRigidBody->houObjectId = currObject->getObjectId();
 				// *********************** //
 	
 				// Insert the body into the map

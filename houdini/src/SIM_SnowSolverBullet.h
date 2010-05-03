@@ -37,19 +37,19 @@ class sim_btRigidBody : public btRigidBody
 public:
 	
 	btAlignedObjectArray<btPersistentManifold*> m_manifolds;
-	int houObjectID;
+	int houObjectId;
 	
 	
 	// CONSTRUCTORS
 	sim_btRigidBody( const btRigidBody::btRigidBodyConstructionInfo& constructionInfo ) : btRigidBody( constructionInfo )
 	{
-		houObjectID = -1;
+		houObjectId = -1;
 	}  // CONSTRUCTOR
 	
 	sim_btRigidBody( btScalar mass, btMotionState* motionState, btCollisionShape* collisionShape, const btVector3& localInertia=btVector3(0,0,0) )
 		: btRigidBody( mass, motionState, collisionShape, localInertia )
 	{
-		houObjectID = -1;
+		houObjectId = -1;
 	}  // CONSTRUCTOR
 	
 	
