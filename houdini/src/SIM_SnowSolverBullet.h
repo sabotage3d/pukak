@@ -157,6 +157,57 @@ class SIM_SnowBulletData : public SIM_Data,
 #endif
 
 
+
+
+
+
+// ADDED BY SRH 2010-05-10 ********************************************************* //
+
+// The SIM_SnowNeighborData defines a DOPs data type that
+//   keeps track of which other objects a given DOPs object
+//   is currently contacting against.
+
+#define SIM_NAME_GEO_NEIGHBORS           "geo_neighbors"
+
+
+class SIM_SnowNeighborData : public SIM_Data,
+				public SIM_OptionsUser
+{
+	public:
+		GETSET_DATA_FUNCS_S(SIM_NAME_GEO_NEIGHBORS, GeoNeighbors);
+
+		static const char* getName();
+
+	protected:
+		// This ensures that this data is always kept in RAM, even when
+		// the cache runs out of space and writes out the simulation
+		// step to disk. This is necessary because the Bullet data can't
+		// be written to disk.
+		virtual bool getCanBeSavedToDiskSubclass() const
+			{ return false; }
+
+	explicit             SIM_SnowNeighborData(const SIM_DataFactory *factory);
+	virtual             ~SIM_SnowNeighborData();
+
+	private:
+		static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
+	
+		DECLARE_STANDARD_GETCASTTOTYPE();
+		DECLARE_DATAFACTORY(SIM_SnowNeighborData,
+				SIM_Data,
+				"Bullet Neighbor Data",
+				getSnowNeighborDataDopDescription()
+			);
+};
+// ********************************************************************************* //
+
+
+
+
+
+
+
+
 class SIM_SnowSolverBulletState {
 	public:
 		int  refCount;
@@ -170,7 +221,7 @@ class SIM_SnowSolverBulletState {
 #ifdef DO_SNOW_STUFF
 		shGranularDiscreteDynamicsWorld* m_dynamicsWorld;
 #else
-        btDiscreteDynamicsWorld* m_dynamicsWorld;
+        	btDiscreteDynamicsWorld* m_dynamicsWorld;
 #endif
 		btDefaultCollisionConfiguration* m_collisionConfiguration;
 		SIM_SnowSolverBulletState(); 

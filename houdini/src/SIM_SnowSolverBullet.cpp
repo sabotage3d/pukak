@@ -355,6 +355,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				int numManifolds = (bodyIt->second.bodyId)->m_manifolds.size();
 				if ( numManifolds > 0 )
 				{
+					btAlignedObjectArray<int> neighborObjIDs;
+					UT_String neighborsStr = "[";		// This string keeps track of IDs of objects touching this object
+					//neighborsStr.sprintf( "%s", "[" );
+					
 					// Set up the Impacts data field for currObject
 					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
 					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, 0 );
@@ -405,12 +409,41 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 								SIM_Time cTime = (SIM_Time)currTime;
 								
 								impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
+								
+								// Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
+								int numNeighbors = neighborObjIDs.size();
+								bool foundMatch = false;
+								for ( int i = 0; i < numNeighbors; i++ )
+								{
+									if ( neighborObjIDs[i] == otherobjid )
+									{
+										foundMatch = true;
+										break;
+									}
+									
+								} // for i
+								
+								if ( !foundMatch )
+								{
+									char idStr[50];
+									int strSize = sprintf( idStr, "%d", otherobjid );
+									if (strSize >= 50)
+									{
+										cout << "ERROR: string size is greater than the string buffer." << endl;
+										return SIM_Solver::SIM_SOLVER_FAIL;
+									}
+									//neighborsStr.sprintf( "%s%d, ", neighborsStr.buffer(), otherobjid );
+									neighborsStr += idStr;
+									neighborsStr += ", ";
+									
+									neighborObjIDs.push_back( otherobjid );
+								}
 							}
 							else	// Get all contact points
 							{
+								SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
 								for ( int n = 0; n < numContacts; n++ )		// For each contact point in the manifold
 								{
-									SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
 									btManifoldPoint& cp = manifold->getContactPoint( n );
 									
 									UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
@@ -419,6 +452,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 									SIM_Time cTime = (SIM_Time)currTime;
 									
 									impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
+									
+									// Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
+									UT_String idStr;
+									sprintf( idStr, "%d", otherobjid );
+									neighborsStr += idStr;
+									neighborsStr += ", ";
+									
 									//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
 									//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
 									//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
@@ -428,6 +468,32 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 							
 						}  // if
 					}  // for m
+					
+					// Assign neighbors data (indicates what objects are touching/colliding with the current object)
+					neighborsStr.strip( " " );
+					neighborsStr.replaceSuffix( ",", "" );
+					neighborsStr += "]";
+					SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
+					
+					int numNeighbors = neighborObjIDs.size();
+					bool foundMatch = false;
+					for ( int i = 0; i < numNeighbors; i++ )
+					{
+						char idStr[50];
+						int strSize = sprintf( idStr, "%d", neighborObjIDs[i]);
+						if (strSize >= 50)
+						{
+							cout << "ERROR: string size is greater than the string buffer." << endl;
+							return SIM_Solver::SIM_SOLVER_FAIL;
+						}
+						neighborData->setGeoNeighbors( idStr );
+						
+					}  // for i
+					//neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
+					cout << neighborsStr << endl;
+					cout << "   num subdata = " << neighborData->getNumSubData() << endl;
+					for ( int j = 0; j < neighborData->getNumSubData(); j++ )
+						cout << "   " << neighborData->getSubDataName(j) << endl;
 				}  // if
 				
 				if ( !isImpact )
@@ -498,6 +564,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 
 	return SIM_Solver::SIM_SOLVER_SUCCESS;
 }
+
+
+
 
 //Adds a Bullet body to the world
 //Based on type of geometry in the SIM_Object we make a Bullet body to match
@@ -640,6 +709,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				    // ADDED BY SRH 2010-02-22 //
 				    btAlignedObjectArray<btSphereShape*> sphereShapes;
 				    btAlignedObjectArray<btVector3> sphereRelativePositions;
+				    fallShape = new btCompoundShape();
 				    // *********************** //
 					
 					btScalar *sphereRadii = new btScalar [nspheres];
@@ -670,8 +740,15 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 							//cout << " Pos = " << centre.x() << ", " << centre.y() << ", " << centre.z() << endl;
 							
 							// ADDED BY SRH 2010-02-22 //
-							sphereShapes.push_back( new btSphereShape(sphereRadii[c]) );
-							sphereRelativePositions.push_back( sphereCentres[c] );
+							//sphereShapes.push_back( new btSphereShape(sphereRadii[c]) );
+							//sphereRelativePositions.push_back( sphereCentres[c] );
+							
+							btSphereShape* sphShape = new btSphereShape( sphereRadii[c] );
+							btTransform curTransform;
+							curTransform.setIdentity();
+							curTransform.setOrigin( sphereCentres[c] );
+							
+							((btCompoundShape*)fallShape)->addChildShape( curTransform, sphShape );
 							// *********************** //
 							
 							c++;
@@ -680,7 +757,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 					}  // FOR_ALL_PRIMITIVES
 					
 					// ADDED BY SRH 2010-02-22 //
-					fallShape = new shCompoundSphereShape( sphereShapes, sphereRelativePositions );
+					//fallShape = new shCompoundSphereShape( sphereShapes, sphereRelativePositions );
 					// *********************** //
 					
 					delete sphereRadii;
@@ -1089,6 +1166,7 @@ void initializeSIM(void *)
 	//
 	IMPLEMENT_DATAFACTORY(SIM_SnowSolverBullet);
 	IMPLEMENT_DATAFACTORY(SIM_SnowBulletData);
+	IMPLEMENT_DATAFACTORY(SIM_SnowNeighborData);
 }
 
 
@@ -1132,7 +1210,7 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
 	static PRM_Range               collisionMarginRange(PRM_RANGE_UI, 0, PRM_RANGE_UI, 0.5);
 	
 	static PRM_Template            theTemplates[] = {
-		PRM_Template(PRM_STRING,		1, &theGeoRep, &defGeoRep, &theGeoRepNamesMenu),
+		PRM_Template(PRM_STRING,	1, &theGeoRep, &defGeoRep, &theGeoRepNamesMenu),
 		PRM_Template(PRM_TOGGLE_J,	1, &theGeoTri, &defOne),
 		PRM_Template(PRM_TOGGLE_J,	1, &theGeoConvex, &defZero),
 		PRM_Template(PRM_XYZ,		3, &thePrimT, defZeroVec),
@@ -1171,6 +1249,67 @@ SIM_SnowBulletData::~SIM_SnowBulletData()
 {
 }
 
+
+
+
+
+
+
+
+// ADDED BY SRH 2010-05-10 ********************************************************* //
+
+// The SIM_SnowNeighborData defines a DOPs data type that
+//   keeps track of which other objects a given DOPs object
+//   is currently contacting against.
+
+const SIM_DopDescription*
+SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
+{
+	static PRM_Name                theGeoNeighbors(SIM_NAME_GEO_NEIGHBORS, "Geometry Neighbors");
+	static PRM_Default             defGeoNeighbors(0, "[]");
+	
+	static PRM_Template            theTemplates[] = {
+		PRM_Template(PRM_STRING,		1, &theGeoNeighbors, &defGeoNeighbors),
+		PRM_Template()
+	};
+	
+	static SIM_DopDescription    theDopDescription(true,
+							"snowneighbordata",
+							getName(),
+							"Bullet Neighbor Data",
+							classname(),
+							theTemplates);
+	
+	return &theDopDescription;
+}
+
+const char* SIM_SnowNeighborData::getName() 
+{
+	static char name[256];
+	sprintf (name, "Bullet Neighbor Data");
+	return name;
+}
+
+SIM_SnowNeighborData::SIM_SnowNeighborData(const SIM_DataFactory *factory)
+: BaseClass(factory), SIM_OptionsUser(this)
+{
+}
+
+SIM_SnowNeighborData::~SIM_SnowNeighborData()
+{
+}
+
+
+// ********************************************************************************* //
+
+
+
+
+
+
+
+
+
 void
 SIM_SnowSolverBulletState::addReference()
 {
@@ -1195,5 +1334,4 @@ SIM_SnowSolverBulletState::~SIM_SnowSolverBulletState()
 	if( m_dynamicsWorld != NULL )
 		cleanSystem();
 }
-
 

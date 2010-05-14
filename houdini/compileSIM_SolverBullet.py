@@ -54,7 +54,7 @@ if bulletPath and houdiniPath:
     bulletSrcPath = bulletPath + '\\src'
     bulletSrcPath = bulletSrcPath.replace( '/', '\\' )
     
-    hcustomCommand = 'hcustom -g -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
+    hcustomCommand = 'hcustom -i . -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.chdir( simSolverBulletSrcPath )
     #hcustomCommand = 'hcustom -g -i C:\Users\srh43\Documents\houdini10.0\dso -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.system( hcustomCommand )
