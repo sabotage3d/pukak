@@ -59,8 +59,8 @@ if bulletPath and houdiniPath:
     #hcustomCommand = 'hcustom -g -i C:\Users\srh43\Documents\houdini10.0\dso -I ' + bulletSrcPath + ' -l BulletDynamics -l BulletCollision -l LinearMath -L ' + bulletDynamicsPath + ' -L ' + bulletCollisionPath + ' -L ' + linearMathPath + ' SIM_SnowSolverBullet.cpp'
     os.system( hcustomCommand )
 
-    print( 'Bullet src path = ' + bulletSrcPath )
-    print( 'Sim solver bullet src path = ' + simSolverBulletSrcPath )
+    #print( 'Bullet src path = ' + bulletSrcPath )
+    #print( 'Sim solver bullet src path = ' + simSolverBulletSrcPath )
     
     if doCopy:
         userPath = os.environ['USERPROFILE']

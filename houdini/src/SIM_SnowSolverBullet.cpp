@@ -171,7 +171,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			//SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
 
 			// Pull initial Position & Rotation from subdata and set bullet transform
-			p = rbdstate->getPosition();
+			/*p = rbdstate->getPosition();
 			rot = rbdstate->getOrientation();
 			btrans.setRotation( btQuaternion( rot.x(), rot.y(), rot.z(), rot.w() ) );
 			btrans.setOrigin( btVector3(p[0],p[1],p[2]) );
@@ -185,7 +185,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				//Angular Velocity
 				w = rbdstate->getAngularVelocity();
 				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) ); 
-			}
+			}*/
 			
 			// ADDED BY SRH43 2010-04-27 //
 			//   If the mass is set to zero on any frame during the Houdini simulation,
@@ -194,15 +194,16 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			//   To do this, the bullet object's mass is set to zero (essentially giving it infinite mass)
 			//   and its velocities are set to zero.
 			//if (solverparms) cout << "solver parms for " << currObject->getName() << endl;
-			if( currObject->getIsStatic() )
-			{
-				bodyIt->second.isStatic = true;
+			//if( currObject->getIsStatic() )
+			//{
+				//bodyIt->second.isStatic = true;
 				//cout << currObject->getName() << " is static" << endl;
-			}
-			if ( (rbdstate->getMass() != 0 && bodyIt->second.isStatic) )
+			//}
+			//if ( (rbdstate->getMass() != 0 && bodyIt->second.isStatic) )
+			if ( (rbdstate->getMass() == 0 && !bodyIt->second.isStatic) )
 			{
-				cout << "setting activation of " << currObject->getName() << " to zero." << endl;
-				(bodyIt->second.bodyId)->setActivationState( 0 );
+				//cout << "setting activation of " << currObject->getName() << " to zero." << endl;
+				//(bodyIt->second.bodyId)->setActivationState( 0 );
 				(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
 				(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
 				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
@@ -239,23 +240,69 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		for (int a = 0; a < colliders.entries(); a++)
 		{
 			currAffector = colliders(a).getAffector();
-			affectorIt = state->m_bulletAffectors->find( currAffector->getObjectId() );
+			int currAffectorId = currAffector->getObjectId();
+			affectorIt = state->m_bulletAffectors->find( currAffectorId );
 			if ( affectorIt == state->m_bulletAffectors->end() )	// The object is not already in the list of bullet affectors
 			{
-				bodyIt = state->m_bulletBodies->find( currAffector->getObjectId() );
-				if ( bodyIt != state->m_bulletBodies->end() )
+				bodyIt = state->m_bulletBodies->find( currAffectorId );
+				
+				// ADDED BY SRH 2010-05-24 //
+				//   If the Houdini object is now static, mark the Bullet object as static
+				//   so that it does not get its position updated below
+				//if ( currAffector->getIsStatic() )
+				//{
+				//	cout << "setting object " << currAffector->getObjectId() << " static to true" << endl;
+				//	bodyIt->second.isStatic = true;
+				//	//(bodyIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
+				//}
+				// *********************** //
+				
+				if ( currAffector->getIsStatic()/*bodyIt->second.isStatic*/ && bodyIt != state->m_bulletBodies->end() )
 				{
 				    // This object has already been added as an ODE body
 				    // Make sure collisions are detected appropriately
+				    (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+				    (bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+					(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+					(bodyIt->second.bodyId)->updateInertiaTensor();
+					state->m_bulletAffectors->insert(std::make_pair( currAffectorId, bodyIt->second ));
+					//cout << "setting object " << currAffector->getObjectId() << " static to true" << endl;
+					bodyIt->second.isStatic = true;
+					//Add forces and such from the rest of the subdata
+					//processSubData(currAffector, bodyIt->second);
 				}
-				else
+				else if ( currAffector->getIsStatic() ) //bodyIt->second.isStatic )
 				{
 				    // Add this affector object to the sim AS A BULLET BODY (not with addAffector(), but with addBulletBody())
+				    //   (Since the Houdini is inactive, its mass will be set to zero and thus it will be inactive in Bullet)
 				    //   Therefore, objects connected to this SIM_SnowSolverBullet node and objects
 				    //   affecting those objects are treated equally, except the data (position, etc.)
 				    //   is not updated for the affectors each frame, only when it is first added.
 				    //   ***THIS WILL NEED TO BE FIXED IN THE FUTURE TO TAKE INTO AFFECT DYNAMIC AFFECTORS.***
 				    affectorIt = addBulletBody( currAffector );
+				    state->m_bulletAffectors->insert(std::make_pair( currAffectorId, affectorIt->second ));
+				    //if ( affectorIt != state->m_bulletBodies->end() )
+				    //{
+				    	//(affectorIt->second.bodyId)->setCollisionFlags( (affectorIt->second.bodyId)->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+						//(affectorIt->second.bodyId)->setActivationState(DISABLE_DEACTIVATION);
+						//(affectorIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
+					    
+					    // Pull initial Position & Rotation from subdata and set bullet transform
+					    //RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
+						//p = rbdstate->getPosition();
+						//rot = rbdstate->getOrientation();
+						//btrans.setRotation( btQuaternion( rot.x(), rot.y(), rot.z(), rot.w() ) );
+						//btrans.setOrigin( btVector3(p[0],p[1],p[2]) );
+						//(affectorIt->second.bodyId)->getMotionState()->setWorldTransform(btrans);
+						
+						//(affectorIt->second.bodyId)->setActivationState( 0 );
+						(affectorIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+						(affectorIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+						(affectorIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
+						(affectorIt->second.bodyId)->updateInertiaTensor();
+						//(affectorIt->second.bodyId)->getCollisionShape()->calculateLocalInertia( 0.0, btVector3(0.0, 0.0, 0.0) );
+						affectorIt->second.isStatic = true;
+					//}
 				}  // else
 			}  // if
 			
@@ -339,7 +386,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				if( currObject->getIsStatic() )
 				{
 					mass = 0;
-					bodyIt->second.isStatic = true;
+					// ADDED BY SRH 2010-05-24 //
+					//bodyIt->second.isStatic = true;
+					//(affectorIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
+					// *********************** //
 				}
 				else
 				{
@@ -486,14 +536,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 							cout << "ERROR: string size is greater than the string buffer." << endl;
 							return SIM_Solver::SIM_SOLVER_FAIL;
 						}
-						neighborData->setGeoNeighbors( idStr );
+						//neighborData->setGeoNeighbors( idStr );
 						
 					}  // for i
-					//neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
-					cout << neighborsStr << endl;
-					cout << "   num subdata = " << neighborData->getNumSubData() << endl;
-					for ( int j = 0; j < neighborData->getNumSubData(); j++ )
-						cout << "   " << neighborData->getSubDataName(j) << endl;
+					neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
+					//cout << neighborsStr << endl;
 				}  // if
 				
 				if ( !isImpact )
@@ -506,34 +553,19 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				}  // else
 				// ************************* //
 				
+				// ADDED BY SRH 2010-05-22 //
+				//   If the Houdini object is now static, mark the Bullet object as static
+				//   so that it does not get its position updated below
+				//if ( currObject->getIsStatic() && !bodyIt->second.isStatic )
+				//{
+				//	cout << "setting object " << currObject->getObjectId() << " static to true" << endl;
+				//	bodyIt->second.isStatic = true;
+				//	(affectorIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
+				//}
+				// *********************** //
 				
-				// ADDED BY SRH43 2010-04-19 //
-				//   If the mass is set to zero on any frame during the Houdini simulation,
-				//   this makes the object static (freezes the object)
-				//   by giving it setting its mass to zero (essentially giving it infinite mass)
-				//   and setting its velocities to zero.
-				//if (solverparms) cout << "solver parms for " << currObject->getName() << endl;
-				if ( (rbdstate->getMass() == 0 && (bodyIt->second.bodyId)->getActivationState() != 0) ) //||
-				     //(rbdstate->getMass() != 0 && bodyIt->second.isStatic) )
-				{
-					//cout << "setting activation of " << currObject->getName() << " to zero." << endl;
-					(bodyIt->second.bodyId)->setActivationState( 0 );
-					(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
-					(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
-					(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
-					//btVector3 fallInertia(0,0,0);
-					//(bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia(mass,fallInertia);
-					(bodyIt->second.bodyId)->updateInertiaTensor();
-					bodyIt->second.isStatic = true;
-					
-					rbdstate->setVelocity( UT_Vector3( 0, 0, 0 ) );
-					rbdstate->setAngularVelocity( UT_Vector3( 0, 0, 0 ) );
-				}
-				// ************************* //
-
-								
-				else if( !(bodyIt->second.bodyId)->isStaticObject() && (bodyIt->second.bodyId)->isActive() == 1 ) // if not tagged as Static
-				{
+				//if( !(bodyIt->second.bodyId)->isStaticObject() && (bodyIt->second.bodyId)->isActive() == 1 ) // if not tagged as Static
+				//{cout << "updating position of " << currObject->getName() << endl;
 					//Velocity
 					btVector3 v;
 					v = (bodyIt->second.bodyId)->getLinearVelocity(); 
@@ -542,7 +574,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 					btVector3 w;
 					w = (bodyIt->second.bodyId)->getAngularVelocity(); 
 					rbdstate->setAngularVelocity( UT_Vector3( w.getX(), w.getY(), w.getZ() ) );
-				}
+				//}
 				
 				
 			}	
@@ -812,7 +844,9 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 	
 				// Calculate mass and inertia
 				if( currObject->getIsStatic() )
+				{
 					mass = 0;
+				}
 				else
 					mass = rbdstate->getMass();
 				btVector3 fallInertia(0,0,0);
@@ -1002,10 +1036,10 @@ void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine)
 		// ADDED BY SRH 2010-04-27 //
 		// If a body has been deactivated in Houdini (e.g. with an Active State node),
 		//   this removes that body from the list of active objects
-		else if ( currObject->getIsStatic() )
+		/*else if ( currObject->getIsStatic() && (bodyIt->second.bodyId)->getInvMass() > 0. )
 		{
 			state->m_bulletBodies->erase(bodyIt);
-		}
+		}*/
 		// *********************** //
 		
 	}
