@@ -177,14 +177,31 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			btrans.setOrigin( btVector3(p[0],p[1],p[2]) );
 			(bodyIt->second.bodyId)->getMotionState()->setWorldTransform(btrans);
 			
-			if( rbdstate->getMass() > 0 )
+			btScalar houMass = rbdstate->getMass();
+			if( houMass > 0 )
 			{
 				//Velocity
 				v = rbdstate->getVelocity();			
 				(bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) ); 
 				//Angular Velocity
 				w = rbdstate->getAngularVelocity();
-				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) ); 
+				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) );
+				
+				
+				// ADDED BY SRH 2010-05-27 //
+				//  If the mass of the Houdini RBD object has been turned from zero to nonzero,
+				//  then update the Bullet objects mass.
+				//Mass
+				//cout << currObject->getName() << " mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
+				if ( (bodyIt->second.bodyId)->getInvMass() == 0. )
+				{
+					btVector3 fallInertia(0,0,0);
+					(bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia( houMass, fallInertia );
+					(bodyIt->second.bodyId)->setMassProps( houMass, fallInertia );
+					
+					bodyIt->second.isStatic = false;
+				}
+				// *********************** //
 			}
 			
 			// ADDED BY SRH43 2010-04-27 //
@@ -196,11 +213,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 			if ( (rbdstate->getMass() == 0 && !bodyIt->second.isStatic) )
 			{
 				(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+				(bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
 				(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
 				(bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
 				(bodyIt->second.bodyId)->updateInertiaTensor();
 				
 				bodyIt->second.isStatic = true;
+				// MAKE THE HOUDINI OBJECT INACTIVE ??????  NO!!!!!
 				//(affectorIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
 			}
 			// ************************* //
