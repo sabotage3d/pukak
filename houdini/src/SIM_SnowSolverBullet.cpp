@@ -25,6 +25,8 @@
 #include <SIM/SIM_Data.h>
 #include <SIM/SIM_Impacts.h>
 #include <SIM/SIM_Query.h>
+#include <SIM/SIM_QueryArrays.h>		// Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
+#include <SIM/SIM_QueryCombine.h>		// Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
 #include <SIM/SIM_Utils.h>
 #include <RBD/RBD_State.h>
 #include <SIM/SIM_Container.h>
@@ -402,6 +404,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				int numManifolds = (bodyIt->second.bodyId)->m_manifolds.size();
 				if ( numManifolds > 0 )
 				{
+					SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
 					btAlignedObjectArray<int> neighborObjIDs;
 					UT_String neighborsStr = "[";		// This string keeps track of IDs of objects touching this object
 					//neighborsStr.sprintf( "%s", "[" );
@@ -484,6 +487,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 									neighborsStr += ", ";
 									
 									neighborObjIDs.push_back( otherobjid );
+									neighborData->appendValue( otherobjid );
 								}
 							}
 							else	// Get all contact points
@@ -520,7 +524,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 					neighborsStr.strip( " " );
 					neighborsStr.replaceSuffix( ",", "" );
 					neighborsStr += "]";
-					SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
+					//SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
 					
 					int numNeighbors = neighborObjIDs.size();
 					bool foundMatch = false;
@@ -1312,6 +1316,41 @@ SIM_SnowNeighborData::SIM_SnowNeighborData(const SIM_DataFactory *factory)
 
 SIM_SnowNeighborData::~SIM_SnowNeighborData()
 {
+}
+
+void SIM_SnowNeighborData::saveSubclass(ostream &os) const
+{
+    BaseClass::saveSubclass(os);
+    saveOptionPacket(os, classname(), 0);
+    int n = neighborIds.entries();
+    UTwrite(os, &n);				// Write out size of the data array
+    UTwrite(os, (const float *)neighborIds.getRawArray(), n);	// Write out data in the data array
+}
+
+bool SIM_SnowNeighborData::loadSubclass(UT_IStream &is)
+{
+    if (!BaseClass::loadSubclass(is))
+        return false;
+
+    if( !loadOptionPacket(is, classname(), 0) )
+        return false;
+
+    int n;
+    bool ok = is.read(&n);			// Read in size of the data array
+    if(ok)
+    {
+        neighborIds.resize(n);
+        ok = is.read((float *)neighborIds.getRawArray(), n);	// Read in data from the data array
+    }
+    return ok;
+}
+
+SIM_Query* SIM_SnowNeighborData::createQueryObjectSubclass() const
+{
+    SIM_QueryArrays *query = new SIM_QueryArrays(this);
+    // call addArray() for each field in your records
+    query->addArray("MyCustomValues", "neighborid", &neighborIds);
+    return new SIM_QueryCombine(BaseClass::createQueryObjectSubclass(), query);
 }
 
 

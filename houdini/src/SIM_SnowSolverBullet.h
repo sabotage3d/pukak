@@ -177,6 +177,16 @@ class SIM_SnowNeighborData : public SIM_Data,
 		GETSET_DATA_FUNCS_S(SIM_NAME_GEO_NEIGHBORS, GeoNeighbors);
 
 		static const char* getName();
+		
+		// Data added to this array will be used for multiple data records.
+		// Added by SRH 2010-05-29
+		int getNumValues() const				// For implementing multiple data records
+			{ return neighborIds.entries(); }
+    	float getValue( int i ) const			// For implementing multiple data records
+    		{ return neighborIds(i); }
+	    void appendValue( float v )				// For implementing multiple data records
+	    	{ neighborIds.append(v); }
+
 
 	protected:
 		// This ensures that this data is always kept in RAM, even when
@@ -185,11 +195,20 @@ class SIM_SnowNeighborData : public SIM_Data,
 		// be written to disk.
 		virtual bool getCanBeSavedToDiskSubclass() const
 			{ return false; }
+		
+		// This multiple records data should also be persisted so custom implementations 
+		//   of saveSubclass() and loadSubclass() should be provided
+		// Added by SRH 2010-05-29
+		virtual void saveSubclass(ostream &os) const;			// For implementing multiple data records
+		virtual bool loadSubclass(UT_IStream &is);				// For implementing multiple data records
+		virtual SIM_Query *createQueryObjectSubclass() const;	// For implementing multiple data records
 
-	explicit             SIM_SnowNeighborData(const SIM_DataFactory *factory);
-	virtual             ~SIM_SnowNeighborData();
+		explicit             SIM_SnowNeighborData(const SIM_DataFactory *factory);
+		virtual             ~SIM_SnowNeighborData();
 
 	private:
+		UT_FloatArray neighborIds;
+		
 		static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
 	
 		DECLARE_STANDARD_GETCASTTOTYPE();
