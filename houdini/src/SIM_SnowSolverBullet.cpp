@@ -313,7 +313,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		// ******************************************** //
 		// ******************************************** //
 		// THIS IS WHERE IT ALL HAPPENS IN BULLET!!!!!! //
-		state->m_dynamicsWorld->stepSimulation( 1/24.f, 10 );
+		// ALTERED BY SRH 2010-06-01 //
+		//   Implement substepping by using the timestep of the simulation
+		state->m_dynamicsWorld->stepSimulation( /*1/24.f*/ timestep, 10 );
+		// ************************* //
 		// ******************************************** //
 		// ******************************************** //
 		// ******************************************** //
