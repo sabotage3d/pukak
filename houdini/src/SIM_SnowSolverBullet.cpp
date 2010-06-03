@@ -43,6 +43,7 @@
 #include <SIMZ/SIM_PopGeometry.h>
 #include <GEO/GEO_Detail.h>
 #include <GEO/GEO_PrimSphere.h>
+#include <OP/OP_Node.h>
 #include <UT/UT_Quaternion.h>
 
 #include "SIM_SnowSolverBullet.h"
@@ -90,9 +91,24 @@ SIM_SnowSolverBullet::~SIM_SnowSolverBullet()
 const SIM_DopDescription *
 SIM_SnowSolverBullet::getSolverBulletDopDescription()
 {
-	static PRM_Template	theTemplates[] = {
-			PRM_Template()
+	// ADDED BY SRH 2010-06-02 //
+	static PRM_Name	               theComputeImpacts(SIM_NAME_COMPUTE_IMPACTS, "Compute Impact Data");
+	static PRM_Name                theSubsteps(SIM_NAME_SUBSTEPS, "Substeps for Bullet Solver");
+	
+	static PRM_Default             defOne(1);
+	
+	static PRM_Range               substepsRange(PRM_RANGE_UI, 1, PRM_RANGE_UI, 5);
+	
+	static PRM_Template            theTemplates[] = {
+		PRM_Template(PRM_TOGGLE_J,  1, &theComputeImpacts, &defOne),
+		PRM_Template(PRM_INT_J,     1, &theSubsteps, &defOne, 0, &substepsRange),
+		PRM_Template()
 	};
+	// *********************** //
+	
+	//static PRM_Template	theTemplates[] = {
+	//		PRM_Template()
+	//};
 
 	static SIM_DopDescription   theDopDescription(true,
 		"bulletsnowsolver",
@@ -299,6 +315,22 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 	// *************************************************************** //
 	
 	
+	
+	// ADDED BY SRH 2010-06-02 //
+	//   Get Bullet Data to 1) Determine if Impacts data should be computed
+	//                      2) Determine the number of substeps for this simulation step to take
+	//SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
+	
+	// ADDED BY SRH 2010-06-03 //
+	// Get the parameter values from this Bullet Solver's node for computing impacts and getting the current substeps
+	//   and set the matching data to those values.
+	OP_Node* thisbulletSolverNode = getCreatorNode();
+	bool doComputeImpacts = thisbulletSolverNode->evalInt( SIM_NAME_COMPUTE_IMPACTS, 0, currTime );
+	int substeps = thisbulletSolverNode->evalInt( SIM_NAME_SUBSTEPS, 0, currTime );
+	//setComputeImpacts( doComputeImpacts );
+	//setSubsteps( substeps );
+	// *********************** //
+	
 	//Run Sim and update DOPS not on init frame
 	if(currTime > 0) 
 	{
@@ -315,7 +347,21 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		// THIS IS WHERE IT ALL HAPPENS IN BULLET!!!!!! //
 		// ALTERED BY SRH 2010-06-01 //
 		//   Implement substepping by using the timestep of the simulation
-		state->m_dynamicsWorld->stepSimulation( /*1/24.f*/ timestep, 10 );
+		if ( substeps > 1 )
+		{
+			// If a Bullet Data node indicates higher than one substep, take that many substeps
+			//   With 0 as the second arg in "stepSimulation()", Bullet does not take internal substeps.
+			//   We do this because the accuracy of the simulation is faster this way.
+			float stepSize = timestep / (float)substeps;
+			for ( int i = 0; i < substeps; i++ )
+			{
+				state->m_dynamicsWorld->stepSimulation( stepSize, 0 );
+			}
+		}
+		else
+		{
+			state->m_dynamicsWorld->stepSimulation( /*1/24.f*/ timestep, 10 );
+		}
 		// ************************* //
 		// ******************************************** //
 		// ******************************************** //
@@ -335,23 +381,26 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 		//     to the sim_btRigidBody->m_manifolds array variable
 		//     (sim_btRigidBody class inherits from btRigidBody and is defined in SIM_SnowSolverBullet.h).
 		//   m_manifolds is cleared out at the start of each step when removeDeadBodies() is called above.
-		btDispatcher* dispatcher = state->m_dynamicsWorld->getCollisionWorld()->getDispatcher();
-		btPersistentManifold** manifoldPtr = dispatcher->getInternalManifoldPointer();
-		int numManifolds = dispatcher->getNumManifolds();
-		for ( int m = 0; m < numManifolds; m++ )
+		if ( doComputeImpacts )		// THIS IF-STATEMENT ADDED BY SRH 2010-06-03
 		{
-			btPersistentManifold* manifold = manifoldPtr[m];
-			
-			// Extract the colliding objects from the manifold
-			btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
-			btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
-			sim_btRigidBody* rbA = sim_btRigidBody::upcast(colObjA);
-			sim_btRigidBody* rbB = sim_btRigidBody::upcast(colObjB);
-			
-			rbA->m_manifolds.push_back( manifold );
-			rbB->m_manifolds.push_back( manifold );
-			
-		}  // for i
+			btDispatcher* dispatcher = state->m_dynamicsWorld->getCollisionWorld()->getDispatcher();
+			btPersistentManifold** manifoldPtr = dispatcher->getInternalManifoldPointer();
+			int numManifolds = dispatcher->getNumManifolds();
+			for ( int m = 0; m < numManifolds; m++ )
+			{
+				btPersistentManifold* manifold = manifoldPtr[m];
+				
+				// Extract the colliding objects from the manifold
+				btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
+				btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
+				sim_btRigidBody* rbA = sim_btRigidBody::upcast(colObjA);
+				sim_btRigidBody* rbB = sim_btRigidBody::upcast(colObjB);
+				
+				rbA->m_manifolds.push_back( manifold );
+				rbB->m_manifolds.push_back( manifold );
+				
+			}  // for i
+		}  // if
 		// *********************** //
 		
 		
@@ -403,102 +452,67 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 				//   Get Bullet impact data and add it to the Houdini object's data.
 				//   (Add Impacts data for the current Houdini body, currObject,
 				//   based on the current Bullet body's collision manifolds.)
-				bool isImpact = false;
-				int numManifolds = (bodyIt->second.bodyId)->m_manifolds.size();
-				if ( numManifolds > 0 )
+				if ( doComputeImpacts )		// THIS IF-STATEMENT ADDED BY SRH 2010-06-03
 				{
-					SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
-					btAlignedObjectArray<int> neighborObjIDs;
-					UT_String neighborsStr = "[";		// This string keeps track of IDs of objects touching this object
-					//neighborsStr.sprintf( "%s", "[" );
-					
-					// Set up the Impacts data field for currObject
-					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
-					//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, 0 );
-					//impactsData->setNumImpacts( numManifolds );
-					for ( int m = 0; m < numManifolds; m++ )
-					{	
-						// For each collision (manifold) on the Bullet rigid body,
-						//    add the impact data to the Houdini rigid body Impacts field
-						btPersistentManifold* manifold = (bodyIt->second.bodyId)->m_manifolds[m];
-						
-						// NOTE: Just because a contact manifold exists does not mean there was an impact.
-						//         Sometimes, a manifold is created with zero contacts, so it does not contribute to Impacts data.
-						//         This is probably because in Bullet, each collision point that is diverging is removed from the manifold,
-						//         so zero contacts possibly means all contacts were diverging.
-						//         *OR* this is because the manifold represents another type of constraint, where there is not contact,
-						//         in which case this manifold is properly ignored.
-						//       So, Impacts data is added only if there are more than zero contacts in any of the manifolds.
-						
-						//btVector3 rBTot( 0, 0, 0 );
-						int numContacts = manifold->getNumContacts();
-						if ( numContacts > 0 )
+					bool isImpact = false;
+					int numManifolds = (bodyIt->second.bodyId)->m_manifolds.size();
+					if ( numManifolds > 0 )
+					{
+						//SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "NeighborData", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
+						SIM_SnowNeighborData* neighborData = SIM_DATA_GET( *currObject, "NeighborData", SIM_SnowNeighborData );
+						if ( !neighborData )
 						{
-							isImpact = true;
+							neighborData = SIM_DATA_CREATE( *currObject, "NeighborData", SIM_SnowNeighborData, 0 );
+						}
+						neighborData->resetValues();
+						
+						btAlignedObjectArray<int> neighborObjIDs;
+						UT_String neighborsStr = "[";		// This string keeps track of IDs of objects touching this object
+						//neighborsStr.sprintf( "%s", "[" );
+						
+						// Set up the Impacts data field for currObject
+						//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
+						//SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, 0 );
+						//impactsData->setNumImpacts( numManifolds );
+						for ( int m = 0; m < numManifolds; m++ )
+						{	
+							// For each collision (manifold) on the Bullet rigid body,
+							//    add the impact data to the Houdini rigid body Impacts field
+							btPersistentManifold* manifold = (bodyIt->second.bodyId)->m_manifolds[m];
 							
-							// For the current manifold, get the ID of the houdini object colliding with the current rigid body
-							sim_btRigidBody* rbA = (sim_btRigidBody*)manifold->getBody0();
-							sim_btRigidBody* rbB = (sim_btRigidBody*)manifold->getBody1();
-							int otherobjid = -1;
-							if ( (bodyIt->second.bodyId) == rbA )
-							{
-								otherobjid = rbB->houObjectId;
-							}
-							else
-							{
-								otherobjid = rbA->houObjectId;
-							}
+							// NOTE: Just because a contact manifold exists does not mean there was an impact.
+							//         Sometimes, a manifold is created with zero contacts, so it does not contribute to Impacts data.
+							//         This is probably because in Bullet, each collision point that is diverging is removed from the manifold,
+							//         so zero contacts possibly means all contacts were diverging.
+							//         *OR* this is because the manifold represents another type of constraint, where there is not contact,
+							//         in which case this manifold is properly ignored.
+							//       So, Impacts data is added only if there are more than zero contacts in any of the manifolds.
 							
-							// Add Impacts data for each impact on the current manifold
-							bool getDeepestImpactOnly = true;
-							if ( getDeepestImpactOnly )			// Get only the deepest contact point (first entry in the manifold's contacts array)
+							//btVector3 rBTot( 0, 0, 0 );
+							int numContacts = manifold->getNumContacts();
+							if ( numContacts > 0 )
 							{
-								SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
-								btManifoldPoint& cp = manifold->getContactPoint( 0 );	// This gets the deepest contact point (contact points are ordered by depth, the deepest first)
+								isImpact = true;
 								
-								UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
-								UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
-								fpreal impulse = (fpreal)cp.m_appliedImpulse;
-								SIM_Time cTime = (SIM_Time)currTime;
-								
-								impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
-								
-								// Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
-								int numNeighbors = neighborObjIDs.size();
-								bool foundMatch = false;
-								for ( int i = 0; i < numNeighbors; i++ )
+								// For the current manifold, get the ID of the houdini object colliding with the current rigid body
+								sim_btRigidBody* rbA = (sim_btRigidBody*)manifold->getBody0();
+								sim_btRigidBody* rbB = (sim_btRigidBody*)manifold->getBody1();
+								int otherobjid = -1;
+								if ( (bodyIt->second.bodyId) == rbA )
 								{
-									if ( neighborObjIDs[i] == otherobjid )
-									{
-										foundMatch = true;
-										break;
-									}
-									
-								} // for i
-								
-								if ( !foundMatch )
-								{
-									char idStr[50];
-									int strSize = sprintf( idStr, "%d", otherobjid );
-									if (strSize >= 50)
-									{
-										cout << "ERROR: string size is greater than the string buffer." << endl;
-										return SIM_Solver::SIM_SOLVER_FAIL;
-									}
-									//neighborsStr.sprintf( "%s%d, ", neighborsStr.buffer(), otherobjid );
-									neighborsStr += idStr;
-									neighborsStr += ", ";
-									
-									neighborObjIDs.push_back( otherobjid );
-									neighborData->appendValue( otherobjid );
+									otherobjid = rbB->houObjectId;
 								}
-							}
-							else	// Get all contact points
-							{
-								SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
-								for ( int n = 0; n < numContacts; n++ )		// For each contact point in the manifold
+								else
 								{
-									btManifoldPoint& cp = manifold->getContactPoint( n );
+									otherobjid = rbA->houObjectId;
+								}
+								
+								// Add Impacts data for each impact on the current manifold
+								bool getDeepestImpactOnly = true;
+								if ( getDeepestImpactOnly )			// Get only the deepest contact point (first entry in the manifold's contacts array)
+								{
+									SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
+									btManifoldPoint& cp = manifold->getContactPoint( 0 );	// This gets the deepest contact point (contact points are ordered by depth, the deepest first)
 									
 									UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
 									UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
@@ -508,53 +522,99 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 									impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
 									
 									// Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
-									UT_String idStr;
-									sprintf( idStr, "%d", otherobjid );
-									neighborsStr += idStr;
-									neighborsStr += ", ";
+									int numNeighbors = neighborObjIDs.size();
+									bool foundMatch = false;
+									for ( int i = 0; i < numNeighbors; i++ )
+									{
+										if ( neighborObjIDs[i] == otherobjid )
+										{
+											foundMatch = true;
+											break;
+										}
+										
+									} // for i
 									
-									//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
-									//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
-									//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
-						
-								}  // for n
-							}  // else
+									if ( !foundMatch )
+									{
+										char idStr[50];
+										int strSize = sprintf( idStr, "%d", otherobjid );
+										if (strSize >= 50)
+										{
+											cout << "ERROR: string size is greater than the string buffer." << endl;
+											return SIM_Solver::SIM_SOLVER_FAIL;
+										}
+										//neighborsStr.sprintf( "%s%d, ", neighborsStr.buffer(), otherobjid );
+										neighborsStr += idStr;
+										neighborsStr += ", ";
+										
+										neighborObjIDs.push_back( otherobjid );
+										neighborData->appendValue( otherobjid );
+									}
+								}
+								else	// Get all contact points
+								{
+									SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
+									for ( int n = 0; n < numContacts; n++ )		// For each contact point in the manifold
+									{
+										btManifoldPoint& cp = manifold->getContactPoint( n );
+										
+										UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
+										UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
+										fpreal impulse = (fpreal)cp.m_appliedImpulse;
+										SIM_Time cTime = (SIM_Time)currTime;
+										
+										impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
+										
+										// Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
+										UT_String idStr;
+										sprintf( idStr, "%d", otherobjid );
+										neighborsStr += idStr;
+										neighborsStr += ", ";
+										
+										//btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
+										//printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
+										//rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
 							
-						}  // if
-					}  // for m
-					
-					// Assign neighbors data (indicates what objects are touching/colliding with the current object)
-					neighborsStr.strip( " " );
-					neighborsStr.replaceSuffix( ",", "" );
-					neighborsStr += "]";
-					//SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
-					
-					int numNeighbors = neighborObjIDs.size();
-					bool foundMatch = false;
-					for ( int i = 0; i < numNeighbors; i++ )
-					{
-						char idStr[50];
-						int strSize = sprintf( idStr, "%d", neighborObjIDs[i]);
-						if (strSize >= 50)
-						{
-							cout << "ERROR: string size is greater than the string buffer." << endl;
-							return SIM_Solver::SIM_SOLVER_FAIL;
-						}
-						//neighborData->setGeoNeighbors( idStr );
+									}  // for n
+								}  // else
+								
+							}  // if
+						}  // for m
 						
-					}  // for i
-					neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
-					//cout << neighborsStr << endl;
-				}  // if
-				
-				if ( !isImpact )
-				{
-					SIM_Impacts* impactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
-					if ( impactsData )
+						// Assign neighbors data (indicates what objects are touching/colliding with the current object)
+						neighborsStr.strip( " " );
+						neighborsStr.replaceSuffix( ",", "" );
+						neighborsStr += "]";
+						//SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "NeighborData", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
+						
+						int numNeighbors = neighborObjIDs.size();
+						bool foundMatch = false;
+						for ( int i = 0; i < numNeighbors; i++ )
+						{
+							char idStr[50];
+							int strSize = sprintf( idStr, "%d", neighborObjIDs[i]);
+							if (strSize >= 50)
+							{
+								cout << "ERROR: string size is greater than the string buffer." << endl;
+								return SIM_Solver::SIM_SOLVER_FAIL;
+							}
+							//neighborData->setGeoNeighbors( idStr );
+							
+						}  // for i
+						neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
+						//cout << neighborsStr << endl;
+					}  // if
+					
+					if ( !isImpact )
 					{
-						currObject->removeNamedSubData( "Impacts" );
-					}
-				}  // else
+						SIM_Impacts* impactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
+						if ( impactsData )
+						{
+							currObject->removeNamedSubData( "Impacts" );
+						}
+					}  // else
+					
+				}  // if doComputeImpacts
 				// ************************* //
 				
 				
@@ -884,119 +944,6 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 
 
 
-// ADDED BY SRH 2010-03-31, THIS CODE TAKEN FROM SIM_SolverODE.C *************** //
-std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addAffector( SIM_Object *currObject )
-{
-    //SIM_ODEWorldData *worlddata;
-    //worlddata = SIM_DATA_CREATE(*this, "ODE_World", SIM_ODEWorldData, SIM_DATA_RETURN_EXISTING);
-    //ObjectMap *odeaffectors = worlddata->getOdeAffectors();
-
-	std::map< int, bulletBody >::iterator bodyIt;
-	const SIM_Geometry *simgeo;
-	const SIM_SDF *sdf;
-	//const SIM_EmptyData *bulletInfo;
-	RBD_State *rbdState;
-	bulletBody currBody;
-
-	simgeo = currObject->getGeometry();
-
-	if (simgeo)
-	{
-		// We have geometry to work with.
-		
-		// Check if we have an sdf
-		sdf = SIM_DATA_GETCONST(*simgeo, SIM_SDF_DATANAME, SIM_SDF);
-		
-		/*if (sdf)
-		{
-		    if (sdf->getMode() == 4)	// This is a ground plane
-		    {
-				if ( !createGroundPlane(currObject, currBody) )
-				{
-				    return bodyIt;
-				}
-				
-				//Insert the body into the map
-				m_bulletAffectors->insert( std::make_pair(currObject->getObjectId(), currBody) );
-				bodyIt = m_bulletAffectors->find( currObject->getObjectId() );
-				// Store the OdeObject data for later reference
-				dGeomSetData( currBody.geomId, &bodyIt->second );
-		
-				return bodyIt;
-		    }
-		}*/
-		
-		//RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
-		SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Snow Data", SIM_SnowBulletData);
-		//odeinfo = SIM_DATA_GETCONST( *currObject, "ODE_Body", SIM_EmptyData);
-		/*if (!bulletstate)
-		{
-		    cerr << "No Bullet info found!" << endl;
-		    return bodyIt;
-		}*/
-	
-		/*
-		// Check if this is a composite object, and handle it if so
-		OdePrimType primtype = 
-			(OdePrimType)odeinfo->getData().getOptionI("primType");
-		if (primtype == odeComposite)
-		{
-		    // The relevant OdeObject data needs to already be in the 
-		    // affector map before we call createComposite, because we 
-		    // essentially need a pointer to the OdeObject to give to every 
-		    // geom that's created as part of the composite.
-		    odeaffectors->insert(std::make_pair(
-				    currobject->getObjectId(), currbody));
-		    bodyitr = odeaffectors->find(currobject->getObjectId());
-		    if (!createComposite(currobject, bodyitr, true))
-		    {
-			// If we weren't successful, remove the OdeObject
-			odeaffectors->erase(bodyitr);
-			bodyitr = odeaffectors->end();
-		    }
-		    else
-		    {
-			bodyitr->second.isStatic = false;
-			bodyitr->second.isAffector = true;
-		    }
-		    return bodyitr;
-		}
-		*/
-	
-		// Attempt to get its State
-		//state = SIM_DATA_GET(*currobject, "Position", RBD_State);
-		RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
-		
-		/*if (rbdstate) // This is an RBD object
-		{
-		    if ( !createBody(currObject, currBody, true) )
-		    {
-				return bodyIt;
-		    }
-		}
-		else	// This is a static object
-		{
-		    if ( !createStatic(currObject, currBody) )
-		    {
-				return bodyitr;
-		    }
-		}*/
-	
-		// Insert the new affector into the map
-		state->m_bulletAffectors->insert(std::make_pair( currObject->getObjectId(), currBody) );
-		bodyIt = state->m_bulletAffectors->find( currObject->getObjectId() );
-	
-		// Store the OdeObject data for later reference
-		//dGeomSetData( currBody.geomId, &bodyIt->second);
-    }
-
-    return bodyIt;
-    
-}  // addAffectors()
-// ***************************************************************************** //
-
-
-
 
 //Kill off the bullet bodies that are not needed anymore
 void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine)
@@ -1131,7 +1078,6 @@ void SIM_SnowSolverBulletState::initSystem(  )
 	m_bulletBodies = new std::map<int, bulletBody>();
 	m_bulletAffectors = new std::map<int, bulletBody>();
 
-
 	// TEMP: add groundplane
 	/*
 	cout<<"creating temp groundplane"<<endl;
@@ -1208,7 +1154,7 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
 	static PRM_Name                thePrimLength(SIM_NAME_PRIM_LENGTH, "Prim Capsule Length");
 	static PRM_Name                thePrimAutofit(SIM_NAME_PRIM_AUTOFIT, "AutoFit Primitive Spheres or Boxes to Geometry");
 	static PRM_Name                theCollisionMargin(SIM_NAME_COLLISION_MARGIN, "Collision Tolerance");
-
+	
 	static PRM_Name		theGeoRepNames[] = {
 		PRM_Name(GEO_REP_AS_IS,		"As Is"),
 		PRM_Name(GEO_REP_SPHERE,	"Sphere"),
@@ -1298,7 +1244,7 @@ SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
 	static SIM_DopDescription    theDopDescription(true,
 							"snowneighbordata",
 							getName(),
-							"Bullet Neighbor Data",
+							"NeighborData",
 							classname(),
 							theTemplates);
 	
@@ -1308,7 +1254,7 @@ SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
 const char* SIM_SnowNeighborData::getName() 
 {
 	static char name[256];
-	sprintf (name, "Bullet Neighbor Data");
+	sprintf (name, "NeighborData");
 	return name;
 }
 
@@ -1349,11 +1295,19 @@ bool SIM_SnowNeighborData::loadSubclass(UT_IStream &is)
 }
 
 SIM_Query* SIM_SnowNeighborData::createQueryObjectSubclass() const
-{
+{//cout << "querying object subclass" << endl;
     SIM_QueryArrays *query = new SIM_QueryArrays(this);
     // call addArray() for each field in your records
-    query->addArray("MyCustomValues", "neighborid", &neighborIds);
+    query->addArray("Neighbors", "neighborid", &neighborIds);
     return new SIM_QueryCombine(BaseClass::createQueryObjectSubclass(), query);
+}
+
+void SIM_SnowNeighborData::makeEqualSubclass(const SIM_Data *source)
+{
+    const SIM_SnowNeighborData *p = (const SIM_SnowNeighborData*)source;
+    BaseClass::makeEqualSubclass(source);
+    // copy all custom values
+    neighborIds = p->neighborIds;
 }
 
 

@@ -179,13 +179,16 @@ class SIM_SnowNeighborData : public SIM_Data,
 		static const char* getName();
 		
 		// Data added to this array will be used for multiple data records.
-		// Added by SRH 2010-05-29
+		// Added by SRH 2010-05-29 //
 		int getNumValues() const				// For implementing multiple data records
 			{ return neighborIds.entries(); }
     	float getValue( int i ) const			// For implementing multiple data records
     		{ return neighborIds(i); }
 	    void appendValue( float v )				// For implementing multiple data records
 	    	{ neighborIds.append(v); }
+	    void resetValues()
+	    	{ neighborIds.resize(0); }
+	    // *********************** //
 
 
 	protected:
@@ -202,6 +205,7 @@ class SIM_SnowNeighborData : public SIM_Data,
 		virtual void saveSubclass(ostream &os) const;			// For implementing multiple data records
 		virtual bool loadSubclass(UT_IStream &is);				// For implementing multiple data records
 		virtual SIM_Query *createQueryObjectSubclass() const;	// For implementing multiple data records
+		virtual void makeEqualSubclass(const SIM_Data *source);	// For implementing multiple data records
 
 		explicit             SIM_SnowNeighborData(const SIM_DataFactory *factory);
 		virtual             ~SIM_SnowNeighborData();
@@ -214,7 +218,7 @@ class SIM_SnowNeighborData : public SIM_Data,
 		DECLARE_STANDARD_GETCASTTOTYPE();
 		DECLARE_DATAFACTORY(SIM_SnowNeighborData,
 				SIM_Data,
-				"Bullet Neighbor Data",
+				"NeighborData",
 				getSnowNeighborDataDopDescription()
 			);
 };
@@ -252,10 +256,24 @@ class SIM_SnowSolverBulletState {
 };
 
 
+
+
+
+// ADDED BY SRH 2010-06-02 //
+#define SIM_NAME_COMPUTE_IMPACTS     "compute_impacts"
+#define SIM_NAME_SUBSTEPS            "substeps"
+// *********************** //
+
+
 class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 {
 	public:
 		SIM_SnowSolverBulletState       *state;
+		
+		// ADDED BY SRH 2010-06-02 //
+		GETSET_DATA_FUNCS_B(SIM_NAME_COMPUTE_IMPACTS, ComputeImpacts);	// Mark whether or not Bullet should compute impacts data (default on)
+		GETSET_DATA_FUNCS_I(SIM_NAME_SUBSTEPS, Substeps);	// Set number of substeps the Bullet Engine will take, additional to the DOP Network's substeps setting
+		// *********************** //
 
 	protected:
 		virtual void makeEqualSubclass(const SIM_Data *src)
@@ -278,9 +296,6 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 			SIM_ObjectArray &feedbacktoobjects,
 			const SIM_Time &timestep);
 		virtual std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Object *currObject);
-		// ADDED BY SRH 2010-03-31 //
-		virtual std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addAffector( SIM_Object *currObject );
-		// *********************** //
 		virtual void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine);
 		virtual void SIM_SnowSolverBullet::processSubData(SIM_Object *currObject, bulletBody &body);
 
