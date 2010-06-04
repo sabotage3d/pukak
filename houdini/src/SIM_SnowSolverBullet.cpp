@@ -6,7 +6,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btSphereSphereCollisionAlgorithm.h>
 #include <BulletCollision/CollisionDispatch/btSphereTriangleCollisionAlgorithm.h>
-#include <BulletCollision/CollisionShapes/shCompoundSphereShape.h>
+//#include <BulletCollision/CollisionShapes/shCompoundSphereShape.h>
 #include <BulletCollision/Gimpact/btGImpactShape.h>
 #include <BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h>
 
@@ -854,7 +854,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				if( bulletstate->getAutofit() )
 					fallShape = new btSphereShape( bbox.maxvec().length() );
 				else	
-					fallShape = new btSphereShape( abs(bulletstate->getPrimRadius()) );
+					fallShape = new btSphereShape( fabs(bulletstate->getPrimRadius()) );
 			}
 			else if( geoRep == GEO_REP_BOX )  // box representation
 			{
@@ -869,8 +869,8 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 			}
 			else if( geoRep == GEO_REP_CAPSULE )  // capsule representation
 			{
-				fallShape = new btCapsuleShape( abs(bulletstate->getPrimRadius()), 
-					abs(bulletstate->getPrimLength()) );
+				fallShape = new btCapsuleShape( fabs(bulletstate->getPrimRadius()), 
+					fabs(bulletstate->getPrimLength()) );
 			}
 
 			// now add the shapes to bullet
