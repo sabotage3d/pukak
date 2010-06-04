@@ -180,13 +180,13 @@ class SIM_SnowNeighborData : public SIM_Data,
 		
 		// Data added to this array will be used for multiple data records.
 		// Added by SRH 2010-05-29 //
-		int getNumValues() const				// For implementing multiple data records
+		int getNumNeighborIds() const				// For implementing multiple data records
 			{ return neighborIds.entries(); }
-    	float getValue( int i ) const			// For implementing multiple data records
+    	float getNeighborId( int i ) const			// For implementing multiple data records
     		{ return neighborIds(i); }
-	    void appendValue( float v )				// For implementing multiple data records
-	    	{ neighborIds.append(v); }
-	    void resetValues()
+	    void appendNeighborId( float id )				// For implementing multiple data records
+	    	{ neighborIds.append(id); }
+	    void resetNeighborIds()
 	    	{ neighborIds.resize(0); }
 	    // *********************** //
 

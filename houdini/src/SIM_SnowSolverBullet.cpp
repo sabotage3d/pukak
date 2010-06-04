@@ -464,7 +464,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 						{
 							neighborData = SIM_DATA_CREATE( *currObject, "NeighborData", SIM_SnowNeighborData, 0 );
 						}
-						neighborData->resetValues();
+						neighborData->resetNeighborIds();
 						
 						btAlignedObjectArray<int> neighborObjIDs;
 						UT_String neighborsStr = "[";		// This string keeps track of IDs of objects touching this object
@@ -498,13 +498,16 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 								sim_btRigidBody* rbA = (sim_btRigidBody*)manifold->getBody0();
 								sim_btRigidBody* rbB = (sim_btRigidBody*)manifold->getBody1();
 								int otherobjid = -1;
+								//bool otherobjisstatic = false;
 								if ( (bodyIt->second.bodyId) == rbA )
 								{
 									otherobjid = rbB->houObjectId;
+									//otherobjisstatic = ( rbB->mass == 0.f );
 								}
 								else
 								{
 									otherobjid = rbA->houObjectId;
+									//otherobjisstatic = ( rbA->mass == 0.f );
 								}
 								
 								// Add Impacts data for each impact on the current manifold
@@ -548,7 +551,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
 										neighborsStr += ", ";
 										
 										neighborObjIDs.push_back( otherobjid );
-										neighborData->appendValue( otherobjid );
+										neighborData->appendNeighborId( otherobjid );
 									}
 								}
 								else	// Get all contact points
