@@ -295,9 +295,9 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 			SIM_ObjectArray &newobjects,
 			SIM_ObjectArray &feedbacktoobjects,
 			const SIM_Time &timestep);
-		virtual std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Object *currObject);
-		virtual void SIM_SnowSolverBullet::removeDeadBodies(SIM_Engine &engine);
-		virtual void SIM_SnowSolverBullet::processSubData(SIM_Object *currObject, bulletBody &body);
+		virtual std::map< int, bulletBody >::iterator addBulletBody(SIM_Object *currObject);
+		virtual void removeDeadBodies(SIM_Engine &engine);
+		virtual void processSubData(SIM_Object *currObject, bulletBody &body);
 
 	private:
 		static const SIM_DopDescription	*getSolverBulletDopDescription(); 
