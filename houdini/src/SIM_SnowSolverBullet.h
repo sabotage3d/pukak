@@ -106,6 +106,7 @@ typedef struct bulletBodystr {
 #define GEO_REP_SPHERE		"sphere"
 #define GEO_REP_BOX		"box"
 #define GEO_REP_CAPSULE		"capsule"
+#define	GEO_REP_PLANE		"groundplane"
 //#define GEO_REP_PITTON		"pitton"
 //#define GEO_REP_SPHEREPACK	"spherepack"
 

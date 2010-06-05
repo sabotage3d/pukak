@@ -875,6 +875,22 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 				fallShape = new btCapsuleShape( fabs(bulletstate->getPrimRadius()), 
 					fabs(bulletstate->getPrimLength()) );
 			}
+			
+			// ADDED BY GL 2010-06-04 ******************************************** //
+			// For now, ground plane remains horizontal, can be translated vertically //
+			else if(geoRep == GEO_REP_PLANE) // plane representation
+			{
+				UT_Vector3 prim_t = bulletstate->getPrimT();
+				UT_Vector3 prim_r = bulletstate->getPrimR();
+				/*
+				btScalar x = -btSin(prim_r.z());
+				btScalar y = btCos(prim_r.z());
+				btScalar z = -btSin(prim_r.x());
+				*/
+				
+				
+				fallShape = new btStaticPlaneShape( btVector3( 0,1,0 ), prim_t.y() );
+			}
 
 			// now add the shapes to bullet
 			if( fallShape )
@@ -1163,6 +1179,7 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
 		PRM_Name(GEO_REP_SPHERE,	"Sphere"),
 		PRM_Name(GEO_REP_BOX,		"Box"),
 		PRM_Name(GEO_REP_CAPSULE,	"Capsule"),
+		PRM_Name(GEO_REP_PLANE,		"Ground Plane"),
 		PRM_Name(0)
 	};
 	static PRM_ChoiceList   theGeoRepNamesMenu((PRM_ChoiceListType)(PRM_CHOICELIST_REPLACE | PRM_CHOICELIST_EXCLUSIVE ), &(theGeoRepNames[0]) );
