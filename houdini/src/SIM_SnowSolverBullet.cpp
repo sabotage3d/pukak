@@ -878,18 +878,18 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 			
 			// ADDED BY GL 2010-06-04 ******************************************** //
 			// For now, ground plane remains horizontal, can be translated vertically //
+			// btStaticPlaneShape not getting physical parameters like friction? //
 			else if(geoRep == GEO_REP_PLANE) // plane representation
-			{
+			{	
 				UT_Vector3 prim_t = bulletstate->getPrimT();
 				UT_Vector3 prim_r = bulletstate->getPrimR();
 				/*
-				btScalar x = -btSin(prim_r.z());
-				btScalar y = btCos(prim_r.z());
-				btScalar z = -btSin(prim_r.x());
+				btScalar y = btCos(prim_r.z()) * btCos(prim_r.x());
+				btScalar x = btCos(prim_r.z()) * btSin(prim_r.x());
+				btScalar z = btSin(prim_r.z()) * btCos(prim_r.x());
 				*/
-				
-				
-				fallShape = new btStaticPlaneShape( btVector3( 0,1,0 ), prim_t.y() );
+				//fallShape = new btStaticPlaneShape( btVector3( z,y,x ), prim_t.y() );
+				fallShape = new btStaticPlaneShape( btVector3( 0,1,0 ), 0 );
 			}
 
 			// now add the shapes to bullet
