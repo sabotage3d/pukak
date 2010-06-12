@@ -4,6 +4,9 @@ set INCLUDEBULLET  = /usr/local/include
 set BULLET_LIB = /usr/local/lib
 
 hcustom -I$INCLUDEBULLET -L$BULLET_LIB -lBulletDynamics -lBulletCollision -lLinearMath src/SIM_SnowSolverBullet.cpp
+
+#the above settings allow for getting a static version of the plugin that we can distribute quickly         
+         
          
 #set BULLET_SRC=/dist/bullet/bullet-2.76-r1967/src
 #set BULLET_LIBS=/dist/bullet/bullet-2.76-r1967/lib
