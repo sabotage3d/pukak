@@ -34,12 +34,12 @@ try:
     bulletPath = os.environ['BULLET_PATH']
     bulletPath = bulletPath.replace( 'Program Files (x86)', 'PROGRA~2' )
     bulletPath = bulletPath.replace( 'Program Files', 'PROGRA~1' )
-except( ValueError ):
+except( KeyError ):
     print( 'Set up a variable called BULLET_PATH, then set BULLET_PATH to the path to your main bullet folder.' )
 
 try:
     houdiniPath = os.environ['HFS']
-except( ValueError ):
+except( KeyError ):
     print( 'Error: Cannot find environment variable $HFS.  Run this script from SideFX "Command Line Tools."' )
 
 if bulletPath and houdiniPath:
