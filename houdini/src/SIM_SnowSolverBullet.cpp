@@ -554,7 +554,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                 }
                                 
                                 // Add Impacts data for each impact on the current manifold
-                                bool getDeepestImpactOnly = true;
+                                bool getDeepestImpactOnly = false;
                                 if ( getDeepestImpactOnly )            // Get only the deepest contact point (first entry in the manifold's contacts array)
                                 {
                                     SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
@@ -621,15 +621,49 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                         
                                         impactsData->addPositionImpact( pos, norm, impulse, otherobjid, -1, -1, -1, -1, cTime, 0 );
                                         
-                                        // Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
-                                        UT_String idStr;
-                                        sprintf( idStr, "%d", otherobjid );
-                                        neighborsStr += idStr;
-                                        neighborsStr += ", ";
-                                        
                                         //btVector3 rB = posB - colObjB->getWorldTransform().getOrigin();
                                         //printf( "rB %d = %f %f %f\n", j, rB.x(), rB.y(), rB.z() );
                                         //rBTot = btVector3( rBTot.x() + rB.x(), rBTot.y() + rB.y(), rBTot.z() + rB.z() );
+                                        
+                                        // Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
+                                    	int numNeighbors = neighborObjIDs.size();
+                                    	bool foundMatch = false;
+                                    	for ( int i = 0; i < numNeighbors; i++ )
+                                   	 	{
+                                     	   if ( neighborObjIDs[i] == otherobjid )
+                                     	   {
+                                    	        foundMatch = true;
+                                    	        break;
+                                    	    }
+                                        
+                                    	} // for i
+                                    	
+                                    	if ( !foundMatch )
+                                    	{
+                                    	    char idStr[50];
+                                    	    int strSize = sprintf( idStr, "%d", otherobjid );
+                                    	    if (strSize >= 50)
+                                    	    {
+                                    	        cout << "ERROR: string size is greater than the string buffer." << endl;
+                                    	        return SIM_Solver::SIM_SOLVER_FAIL;
+                                    	    }
+                                    	    //neighborsStr.sprintf( "%s%d, ", neighborsStr.buffer(), otherobjid );
+                                    	    neighborsStr += idStr;
+                                    	    neighborsStr += ", ";
+                                    	    
+                                    	    neighborObjIDs.push_back( otherobjid );
+                                    	    neighborData->appendNeighborId( otherobjid );
+                                    	    
+                                    	    // ADDED BY SRH 2010-06-09 //
+                                    	    //   Keep count the number of static neighbors.
+                                    	    std::map< int, bulletBody >::iterator neighborIt = state->m_bulletBodies->find( otherobjid );
+                                    	    if ( neighborIt->second.isStatic )
+                                    	    {
+                                    	        staticNeighborObjIDs.push_back( otherobjid );
+                                    	        numStaticNeighbors++;
+                                    	    }  // if
+                                    	    // *********************** //
+                                    	}
                             
                                     }  // for n
                                 }  // else
@@ -954,17 +988,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                     fabs(bulletstate->getPrimLength()) );
             }
             
-            // ADDED BY CHRIS 2010-06-03 ******************************************** //
-            else if(geoRep == GEO_REP_PLANE) // plane representation
-            {
-                UT_Vector3 prim_t = bulletstate->getPrimT();
-                UT_Vector3 prim_r = bulletstate->getPrimR();
-                fallShape = new btStaticPlaneShape( btVector3(prim_r.x()/90,1-( ((prim_r.x()/90)+(prim_r.z()/90))/2  ),prim_r.z()/90), prim_t.y() );
-            }
-            
             // ADDED BY CHRIS 2010-06-04 ******************************************** //
-            // For now, ground plane remains horizontal, can be translated vertically //
-            // btStaticPlaneShape not getting physical parameters like friction? //
             else if(geoRep == GEO_REP_PLANE) // plane representation
             {    
                 UT_Vector3 prim_t = bulletstate->getPrimT();
@@ -977,9 +1001,18 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 //fallShape = new btStaticPlaneShape( btVector3( z,y,x ), prim_t.y() );
                 fallShape = new btStaticPlaneShape( btVector3( 0,1,0 ), 0 );
             }
+            
+            // ADDED BY CHRIS 2010-06-23 ******************************************** //
+            // Creates a cone primitive shape //
+            
+            else if(geoRep == GEO_REP_CONE_Y) // cone representation
+            {
+            	UT_Vector3 prim_s = bulletstate->getPrimS();
+            	fallShape = new btConeShape( prim_s.x()/2, prim_s.y() );
+            }
 
 
-            // now add the shapes to bullet
+            // now add the shapes to bullet 
             if( fallShape )
             {
                 // Physical Properties
@@ -1301,6 +1334,7 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
         PRM_Name(GEO_REP_SPHERE,        "Sphere"),
         PRM_Name(GEO_REP_BOX,           "Box"),
         PRM_Name(GEO_REP_CAPSULE,       "Capsule"),
+        PRM_Name(GEO_REP_CONE_Y,		"Cone, Y-up"),
         PRM_Name(GEO_REP_PLANE,         "Ground Plane"),
         PRM_Name(0)
     };
