@@ -34,24 +34,24 @@ class sim_btRigidBody : public btRigidBody
 {
 
 public:
-	
-	btAlignedObjectArray<btPersistentManifold*> m_manifolds;
-	int houObjectId;
-	
-	
-	// CONSTRUCTORS
+    
+    btAlignedObjectArray<btPersistentManifold*> m_manifolds;
+    int houObjectId;
+    
+    
+    // CONSTRUCTORS
     sim_btRigidBody( const btRigidBody::btRigidBodyConstructionInfo& constructionInfo ) : btRigidBody( constructionInfo )
     {
         houObjectId = -1;
     }  // CONSTRUCTOR
     
-	sim_btRigidBody( btScalar mass, btMotionState* motionState, btCollisionShape* collisionShape, const btVector3& localInertia=btVector3(0,0,0) )
-		: btRigidBody( mass, motionState, collisionShape, localInertia )
-	{
-		houObjectId = -1;
-	}  // CONSTRUCTOR
-	
-	
+    sim_btRigidBody( btScalar mass, btMotionState* motionState, btCollisionShape* collisionShape, const btVector3& localInertia=btVector3(0,0,0) )
+        : btRigidBody( mass, motionState, collisionShape, localInertia )
+    {
+        houObjectId = -1;
+    }  // CONSTRUCTOR
+    
+    
         static const sim_btRigidBody* upcast(const btCollisionObject* colObj)
     {
         if ( colObj->getInternalType() == btCollisionObject::CO_RIGID_BODY )
@@ -89,31 +89,31 @@ typedef struct bulletBodystr {
 #define __SIM_SnowBulletData__
 //#include "SIM/SIM_API.h"
 
-#define SIM_NAME_GEO_REP             "geo_representation"
-#define SIM_NAME_GEO_TRI             "geo_triangulate"
-#define SIM_NAME_GEO_CONVEX          "geo_convexhull"
-#define SIM_NAME_PRIM_T              "prim_t"
-#define SIM_NAME_PRIM_R              "prim_r"
-#define SIM_NAME_PRIM_S              "prim_s"
-#define SIM_NAME_PRIM_RADIUS         "prim_radius"
-#define SIM_NAME_PRIM_LENGTH         "prim_length"
-#define SIM_NAME_PRIM_AUTOFIT        "prim_autofit"
-#define SIM_NAME_PRIM_AUTOFIT_METHOD "prim_autofit_method"
-#define SIM_NAME_COLLISION_MARGIN    "collision_margin"
+#define SIM_NAME_GEO_REP                "geo_representation"
+#define SIM_NAME_GEO_TRI                "geo_triangulate"
+#define SIM_NAME_GEO_CONVEX             "geo_convexhull"
+#define SIM_NAME_PRIM_T                 "prim_t"
+#define SIM_NAME_PRIM_R                 "prim_r"
+#define SIM_NAME_PRIM_S                 "prim_s"
+#define SIM_NAME_PRIM_RADIUS            "prim_radius"
+#define SIM_NAME_PRIM_LENGTH            "prim_length"
+#define SIM_NAME_PRIM_AUTOFIT           "prim_autofit"
+#define SIM_NAME_PRIM_AUTOFIT_METHOD    "prim_autofit_method"
+#define SIM_NAME_COLLISION_MARGIN       "collision_margin"
 
-#define GEO_REP_AS_IS		"as-is"
-#define GEO_REP_SPHERE		"sphere"
-#define GEO_REP_BOX			"box"
-#define GEO_REP_CAPSULE		"capsule"
-#define GEO_REP_CONE_Y		"cone, y-up"
-#define	GEO_REP_PLANE		"groundplane"
-//#define GEO_REP_PITTON		"pitton"
-//#define GEO_REP_SPHEREPACK	"spherepack"
+#define GEO_REP_AS_IS           "as-is"
+#define GEO_REP_SPHERE          "sphere"
+#define GEO_REP_BOX             "box"
+#define GEO_REP_CAPSULE         "capsule"
+#define GEO_REP_CONE_Y          "cone, y-up"
+#define    GEO_REP_PLANE        "groundplane"
+//#define GEO_REP_PITTON        "pitton"
+//#define GEO_REP_SPHEREPACK    "spherepack"
 
-//#define SIM_NAME_CHANGE_THRESHOLDS	"change_thresholds"
-#define SIM_NAME_LINEAR_SLEEP_THRESHOLD		"linear_sleep_threshold"
-#define SIM_NAME_ANGULAR_SLEEP_THRESHOLD	"angular_sleep_threshold"
-#define SIM_NAME_ISKINEMATIC				"is_kinematic"
+//#define SIM_NAME_CHANGE_THRESHOLDS        "change_thresholds"
+#define SIM_NAME_LINEAR_SLEEP_THRESHOLD     "linear_sleep_threshold"
+#define SIM_NAME_ANGULAR_SLEEP_THRESHOLD    "angular_sleep_threshold"
+#define SIM_NAME_ISKINEMATIC                "is_kinematic"
 //#define DO_SNOW_STUFF   1
 
 
@@ -134,15 +134,15 @@ class SIM_SnowBulletData : public SIM_Data,
         GETSET_DATA_FUNCS_F(SIM_NAME_COLLISION_MARGIN, CollisionMargin);
         GETSET_DATA_FUNCS_B(SIM_NAME_PRIM_AUTOFIT, Autofit);
         GETSET_DATA_FUNCS_I(SIM_NAME_PRIM_AUTOFIT_METHOD, AutofitMethod);
-		
-				//Added by Chris 2010-06-07 //
-        //GETSET_DATA_FUNCS_B(SIM_NAME_CHANGE_THRESHOLDS, ChangeSleepThresholds);  // Indicates if user wants to use custom sleeping thresholds, rather than the default ones.
-        GETSET_DATA_FUNCS_F(SIM_NAME_LINEAR_SLEEP_THRESHOLD, LinearSleepThreshold);       // Sets the linear sleeping threshold value
-				GETSET_DATA_FUNCS_F(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, AngularSleepThreshold);       // Sets the linear sleeping threshold value
+        
+                //Added by Chris 2010-06-07 //
+        //GETSET_DATA_FUNCS_B(SIM_NAME_CHANGE_THRESHOLDS, ChangeSleepThresholds);       // Indicates if user wants to use custom sleeping thresholds, rather than the default ones.
+        GETSET_DATA_FUNCS_F(SIM_NAME_LINEAR_SLEEP_THRESHOLD, LinearSleepThreshold);     // Sets the linear sleeping threshold value
+                GETSET_DATA_FUNCS_F(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, AngularSleepThreshold);       // Sets the linear sleeping threshold value
         // *********************** //
         
         //Added by SRH 2010-06-10//
-        GETSET_DATA_FUNCS_B(SIM_NAME_ISKINEMATIC, IsKinematic);	//Indicates whether or not bullet should re-evaluate the static geometry; i.e. if you have animated static meshes.
+        GETSET_DATA_FUNCS_B(SIM_NAME_ISKINEMATIC, IsKinematic);    //Indicates whether or not bullet should re-evaluate the static geometry; i.e. if you have animated static meshes.
         
         
         static const char* getName();
@@ -181,31 +181,33 @@ class SIM_SnowBulletData : public SIM_Data,
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
 
-#define SIM_NAME_GEO_NEIGHBORS           "geo_neighbors"
-#define SIM_NAME_MAX_STATIC_NEIGHBORS    "max_static_neighbors"
-#define SIM_NAME_DELETE_ME               "delete_me"
+#define SIM_NAME_GEO_NEIGHBORS          "geo_neighbors"
+#define SIM_NAME_NUM_NEIGHBORS          "num_neighbors"
+//#define SIM_NAME_MAX_STATIC_NEIGHBORS    "max_static_neighbors"
+//#define SIM_NAME_DELETE_ME               "delete_me"
 
 class SIM_SnowNeighborData : public SIM_Data,
                 public SIM_OptionsUser
 {
-	public:
-		GETSET_DATA_FUNCS_S( SIM_NAME_GEO_NEIGHBORS, GeoNeighbors );
-		GETSET_DATA_FUNCS_I( SIM_NAME_MAX_STATIC_NEIGHBORS, MaxStaticNeighbors );	// ADDED SRH 2010-06-09 - Keeps track of the max # of static neighbors a given granule can have before it is deleted
-		GETSET_DATA_FUNCS_B( SIM_NAME_DELETE_ME, DeleteMe );						// ADDED SRH 2010-06-09 - Tell Houdini if this object should be culled out
+    public:
+        GETSET_DATA_FUNCS_S( SIM_NAME_GEO_NEIGHBORS, GeoNeighbors );
+        GETSET_DATA_FUNCS_I( SIM_NAME_NUM_NEIGHBORS, NumNeighbors );
+        //GETSET_DATA_FUNCS_I( SIM_NAME_MAX_STATIC_NEIGHBORS, MaxStaticNeighbors );    // ADDED SRH 2010-06-09 - Keeps track of the max # of static neighbors a given granule can have before it is deleted
+        //GETSET_DATA_FUNCS_B( SIM_NAME_DELETE_ME, DeleteMe );                         // ADDED SRH 2010-06-09 - Tell Houdini if this object should be culled out
 
         static const char* getName();
-		
-		// Data added to this array will be used for multiple data records.
-		// Added by SRH 2010-05-29 //
-		int getNumNeighborIds() const					// For implementing multiple data records
-			{ return neighborIds.entries(); }
-    	float getNeighborId( int i ) const				// For implementing multiple data records
-    		{ return neighborIds(i); }
-	    void appendNeighborId( float id )				// For implementing multiple data records
-	    	{ neighborIds.append(id); }
-	    void resetNeighborIds()
-	    	{ neighborIds.resize(0); }
-	    // *********************** //
+        
+        // Data added to this array will be used for multiple data records.
+        // Added by SRH 2010-05-29 //
+        int getNumNeighborIds() const                    // For implementing multiple data records
+            { return neighborIds.entries(); }
+        float getNeighborId( int i ) const               // For implementing multiple data records
+            { return neighborIds(i); }
+        void appendNeighborId( float id )                // For implementing multiple data records
+            { neighborIds.append(id); }
+        void resetNeighborIds()
+            { neighborIds.resize(0); }
+        // *********************** //
 
 
     protected:
@@ -219,25 +221,25 @@ class SIM_SnowNeighborData : public SIM_Data,
         // This multiple records data should also be persisted so custom implementations
         //   of saveSubclass() and loadSubclass() should be provided
         // Added by SRH 2010-05-29
-        virtual void saveSubclass(ostream &os) const;           // For implementing multiple data records
+        virtual void saveSubclass(ostream &os) const;               // For implementing multiple data records
         virtual bool loadSubclass(UT_IStream &is);                  // For implementing multiple data records
-        virtual SIM_Query *createQueryObjectSubclass() const;   // For implementing multiple data records
-        virtual void makeEqualSubclass(const SIM_Data *source); // For implementing multiple data records
+        virtual SIM_Query *createQueryObjectSubclass() const;       // For implementing multiple data records
+        virtual void makeEqualSubclass(const SIM_Data *source);     // For implementing multiple data records
 
         explicit         SIM_SnowNeighborData(const SIM_DataFactory *factory);
         virtual         ~SIM_SnowNeighborData();
 
     private:
         UT_FloatArray neighborIds;
-		
-		static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
-	
-		DECLARE_STANDARD_GETCASTTOTYPE();
-		DECLARE_DATAFACTORY(SIM_SnowNeighborData,
-				SIM_Data,
-				"Bullet Neighbor Data",
-				getSnowNeighborDataDopDescription()
-		);
+        
+        static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
+    
+        DECLARE_STANDARD_GETCASTTOTYPE();
+        DECLARE_DATAFACTORY(SIM_SnowNeighborData,
+                SIM_Data,
+                "Bullet Neighbor Data",
+                getSnowNeighborDataDopDescription()
+        );
 };
 // ********************************************************************************* //
 

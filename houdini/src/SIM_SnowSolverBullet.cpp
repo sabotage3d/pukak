@@ -692,8 +692,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                             
                         }  // for i
                         neighborData->setGeoNeighbors( (const UT_String)neighborsStr );
+                        neighborData->setNumNeighbors( numNeighbors );
                         
-                        // ADDED BY SRH 2010-06-09 //
+                        /*// ADDED BY SRH 2010-06-09 //
                         //   If more than "max_static_neighbors" number of static neighbors were found,
                         //   this object is going to be deleted,
                         //   which means its neighbors will have one less neighbor,
@@ -713,7 +714,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                 neighborsNeighborData->setMaxStaticNeighbors( maxStaticNeighbors - 1 );
                             }  // for n
                         }  // if
-                        // *********************** //
+                        // *********************** //*/
                         
                     }  // if
                     
@@ -1021,8 +1022,8 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 btScalar friction = 0.2;
                 //btScalar linear_damping = 0;
                 //btScalar angular_damping = 0;
-                btScalar linear = bulletstate->getLinearSleepThreshold();
-                btScalar angular = bulletstate->getAngularSleepThreshold();
+                //btScalar linear = bulletstate->getLinearSleepThreshold();
+                //btScalar angular = bulletstate->getAngularSleepThreshold();
                 
                 
                 SIM_PhysicalParms *physicalparms = SIM_DATA_GET(*currObject,
@@ -1062,8 +1063,8 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 fallRigidBodyCI.m_restitution = restitution;
                 
                 //ADDED BY CHRIS
-                fallRigidBodyCI.m_linearSleepingThreshold = linear;
-                fallRigidBodyCI.m_angularSleepingThreshold = angular;
+                //fallRigidBodyCI.m_linearSleepingThreshold = linear;
+                //fallRigidBodyCI.m_angularSleepingThreshold = angular;
                 
        
                 // Initialize a new body
@@ -1414,8 +1415,9 @@ const SIM_DopDescription*
 SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
 {
     static PRM_Name             theGeoNeighbors( SIM_NAME_GEO_NEIGHBORS, "Geometry Neighbors" );
-    static PRM_Name             theMaxStaticNeighbors( SIM_NAME_MAX_STATIC_NEIGHBORS, "Max Static Neighbors" );
-    static PRM_Name             theDeleteMe( SIM_NAME_DELETE_ME, "Delete Me" );
+    static PRM_Name             theNumNeighbors( SIM_NAME_NUM_NEIGHBORS, "Num Neighbors" );
+    //static PRM_Name             theMaxStaticNeighbors( SIM_NAME_MAX_STATIC_NEIGHBORS, "Max Static Neighbors" );
+    //static PRM_Name             theDeleteMe( SIM_NAME_DELETE_ME, "Delete Me" );
     
     static PRM_Default          defGeoNeighbors( 0, "[]" );
     static PRM_Default          defThree( 3 );
@@ -1423,8 +1425,9 @@ SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
     
     static PRM_Template         theTemplates[] = {
         PRM_Template( PRM_STRING,       1, &theGeoNeighbors, &defGeoNeighbors ),
-        PRM_Template( PRM_INT_J,        1, &theMaxStaticNeighbors, &defThree ),
-        PRM_Template( PRM_TOGGLE_J,     1, &theDeleteMe, &defZero ),
+        PRM_Template( PRM_INT_J,        1, &theNumNeighbors, &defZero ),
+        //PRM_Template( PRM_INT_J,        1, &theMaxStaticNeighbors, &defThree ),
+        //PRM_Template( PRM_TOGGLE_J,     1, &theDeleteMe, &defZero ),
         PRM_Template()
     };
     
