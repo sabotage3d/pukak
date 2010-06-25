@@ -201,7 +201,7 @@ class SIM_SnowNeighborData : public SIM_Data,
         // Added by SRH 2010-05-29 //
         int getNumNeighborIds() const                    // For implementing multiple data records
             { return neighborIds.entries(); }
-        float getNeighborId( int i ) const               // For implementing multiple data records
+        int getNeighborId( int i ) const               // For implementing multiple data records
             { return neighborIds(i); }
         void appendNeighborId( float id )                // For implementing multiple data records
             { neighborIds.append(id); }
@@ -230,7 +230,7 @@ class SIM_SnowNeighborData : public SIM_Data,
         virtual         ~SIM_SnowNeighborData();
 
     private:
-        UT_FloatArray neighborIds;
+        UT_IntArray neighborIds;
         
         static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
     

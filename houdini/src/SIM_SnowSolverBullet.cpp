@@ -1463,7 +1463,7 @@ void SIM_SnowNeighborData::saveSubclass(ostream &os) const
     saveOptionPacket(os, classname(), 0);
     int n = neighborIds.entries();
     UTwrite(os, &n);                                            // Write out size of the data array
-    UTwrite(os, (const float *)neighborIds.getRawArray(), n);   // Write out data in the data array
+    UTwrite(os, (const int *)neighborIds.getRawArray(), n);   // Write out data in the data array
 }
 
 
@@ -1480,7 +1480,7 @@ bool SIM_SnowNeighborData::loadSubclass(UT_IStream &is)
     if(ok)
     {
     neighborIds.resize(n);
-    ok = is.read((float *)neighborIds.getRawArray(), n);    // Read in data from the data array
+    ok = is.read((int *)neighborIds.getRawArray(), n);    // Read in data from the data array
     }
     return ok;
 }
