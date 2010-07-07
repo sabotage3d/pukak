@@ -45,6 +45,7 @@
 #include <SIMZ/SIM_PopGeometry.h>
 #include <GEO/GEO_Detail.h>
 #include <GEO/GEO_PrimSphere.h>
+#include <GB/GB_Group.h>
 #include <OP/OP_Node.h>
 #include <UT/UT_Quaternion.h>
 
@@ -965,35 +966,104 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
             }
             else if( geoRep == GEO_REP_BOX )  // box representation
             {
-                UT_DMatrix4 xform;
-                myGeo->getTransform( xform );
-                gdp->getBBox( &bbox );
-                if( bulletstate->getAutofit() )
+                int nspheres = 0;
+                GEO_Primitive *prim;
+                FOR_ALL_PRIMITIVES (gdp, prim)
                 {
-                    // ADDED BY SRH 2010-06-28 //
-                    // Retrieve the bounding box's scale information from Houdini to give the box appropriate scale
-                    UT_XformOrder xformOrder;
-                    UT_Vector3 rotation, scale, translation;
-                    xform.explode( xformOrder, rotation, scale, translation );      // Get the object's scale
-                    
-                    // Compute the size and scale of the bounding box in all dimensions
-                    //   bbox.size is divided by 2 to compute the radius of the bbox
-                    float xScale = ( bbox.xsize() / 2.0 ) * scale.x();
-                    float yScale = ( bbox.ysize() / 2.0 ) * scale.y();
-                    float zScale = ( bbox.zsize() / 2.0 ) * scale.z();
-                    
-                    // This line was update by SRH to take the bounding box's scale into account
-                    fallShape = new btBoxShape( btVector3( xScale, yScale, zScale ) );
-                    // ************************ //
+                    if (prim->getPrimitiveId() & GEOPRIMSPHERE)
+                        nspheres++;
                 }
+                
+                if ( nspheres == 0 )
+                {
+                    gdp->getBBox( &bbox );
+                    if( bulletstate->getAutofit() )
+                    {
+                        // ADDED BY SRH 2010-06-28 //
+                        // Retrieve the bounding box's scale information from Houdini to give the box appropriate scale
+                        UT_DMatrix4 xform;
+                        myGeo->getTransform( xform );
+                        UT_XformOrder xformOrder;
+                        UT_Vector3 rotation, scale, translation;
+                        xform.explode( xformOrder, rotation, scale, translation );      // Get the object's scale
+                        
+                        // Compute the size and scale of the bounding box in all dimensions
+                        //   bbox.size is divided by 2 to compute the radius of the bbox
+                        float xScale = ( bbox.xsize() / 2.0 ) * scale.x();
+                        float yScale = ( bbox.ysize() / 2.0 ) * scale.y();
+                        float zScale = ( bbox.zsize() / 2.0 ) * scale.z();
+                        
+                        // This line was update by SRH to take the bounding box's scale into account
+                        fallShape = new btBoxShape( btVector3( xScale, yScale, zScale ) );
+                        // ************************ //
+                    }
+                    else
+                    {
+                        UT_Vector3 prim_s = bulletstate->getPrimS();
+                        // UPDATED BY SRH 2010-06-28 //
+                        //   It now divides the scale by two since the btBoxShape takes in the radii of the bounding box, not the diameter
+                        fallShape = new btBoxShape( btVector3(prim_s.x()/2.0, prim_s.y()/2.0, prim_s.z()/2.0) );
+                        // ************************* //
+                    }
+                }
+                // ADDED BY SRH 2010-06-29 //
+                //   If there are spheres, make a btCompound objects with a box at each Sphere
+                //   (For now, this actually puts a box at each prim, even if they are not sphere prims).
                 else
                 {
-                    UT_Vector3 prim_s = bulletstate->getPrimS();
-                    // UPDATED BY SRH 2010-06-28 //
-                    //   It now divides the scale by two since the btBoxShape takes in the radii of the bounding box, not the diameter
-                    fallShape = new btBoxShape( btVector3(prim_s.x()/2.0, prim_s.y()/2.0, prim_s.z()/2.0) );
-                    // ************************* //
+                    fallShape = new btCompoundShape();
+                    
+                    //GB_PrimitiveGroup *grp = gdp->findPrimitiveGroup("group");
+                    //FOR_ALL_GROUP_PRIMITIVES( gdp, grp, prim )
+                    FOR_ALL_PRIMITIVES (gdp, prim)
+                    {
+                        gdp->getBBox( &bbox );
+                        
+                        int rot_index = gdp->findPrimAttrib( "rot", 3 * sizeof(float), GB_ATTRIB_VECTOR );
+                        UT_Vector3* rot = prim->castAttribData<UT_Vector3>( rot_index );
+                        
+                        btMatrix3x3 rotMatrix;
+                        if ( rot_index >= 0 )
+                            rotMatrix = btMatrix3x3( btQuaternion(rot->x(), rot->y(), rot->z(), 1) );
+                        else
+                            rotMatrix.setIdentity();
+                            
+                        btTransform curTransform( rotMatrix );
+                        
+                        UT_Vector3 center = bbox.center();
+                        curTransform.setOrigin( btVector3( center.x(), center.y(), center.z() ) );
+                        
+                        btBoxShape* boxShape;
+                        if( bulletstate->getAutofit() )
+                        {
+                            UT_DMatrix4 xform;
+                            myGeo->getTransform( xform );
+                            UT_XformOrder xformOrder;
+                            UT_Vector3 rotation, scale, translation;
+                            xform.explode( xformOrder, rotation, scale, translation );      // Get the object's scale
+                            
+                            // Compute the size and scale of the bounding box in all dimensions
+                            //   bbox.size is divided by 2 to compute the radius of the bbox
+                            float xScale = ( bbox.xsize() / 4.0 ) * scale.x();
+                            float yScale = ( bbox.ysize() / 4.0 ) * scale.y();
+                            float zScale = ( bbox.zsize() / 4.0 ) * scale.z();
+                            
+                            //cout << "x y z scale = " << xScale << " " << yScale << " " << zScale << endl;
+                            
+                            boxShape = new btBoxShape( btVector3( xScale, yScale, zScale ) );
+                            ((btCompoundShape*)fallShape)->addChildShape( curTransform, boxShape );
+                        }
+                        else
+                        {
+                            UT_Vector3 prim_s = bulletstate->getPrimS();
+                            boxShape = new btBoxShape( btVector3(prim_s.x()/2.0, prim_s.y()/2.0, prim_s.z()/2.0) );
+                        }
+                        
+                        ((btCompoundShape*)fallShape)->addChildShape( curTransform, boxShape );
+                        
+                    }
                 }
+                // *************************** //
             }
             else if( geoRep == GEO_REP_CAPSULE )  // capsule representation
             {
