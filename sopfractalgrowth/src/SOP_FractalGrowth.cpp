@@ -74,7 +74,7 @@ SOP_FractalGrowth::~SOP_FractalGrowth() {}
 
 
 
-UT_Vector4 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, fpreal radius )
+UT_Vector4 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius )
 {
     UT_Vector4 p2p1 = p1 - p2;
     fpreal p2p1Mag = p2p1.length();
@@ -96,15 +96,35 @@ UT_Vector4 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2
         fpreal negcostheta = -1 * costheta;
         fpreal negsintheta = -1 * sintheta;
         
+        norm.normalize();
+        
         //UT_Matrix4 rotX( 1,    0,        0,           0,
         //                 0,    costheta, negsintheta, 0,
         //                 0,    sintheta, costheta,    0,
         //                 0,    0,        0,           1  );
-        
-        UT_Matrix4 rotY( costheta,    0,    sintheta, 0,
-                         0,           1,    0,        0,
-                         negsintheta, 0,    costheta, 0,
-                         0,           0,    0,        1  );
+        UT_Matrix4 rotY;
+        if ( cross(p2p1,norm).y() < 0 )
+        {
+            rotY = UT_Matrix4( costheta,     0,    sintheta,    0,
+                               0,            1,    0,           0,
+                               negsintheta,  0,    costheta,    0,
+                               0,            0,    0,           1  );
+            
+            p2p1Norm.rowVecMult( rotY );
+            p2p1Norm *= hypotenuse;
+            p2p1Norm = p2 + p2p1Norm;
+        }
+        else
+        {
+            rotY = UT_Matrix4( negcostheta,  0,    negsintheta, 0,
+                               0,            1,    0,           0,
+                               sintheta,     0,    negcostheta, 0,
+                               0,            0,    0,           1  );
+            
+            p2p1Norm.rowVecMult( rotY );
+            p2p1Norm *= hypotenuse;
+            p2p1Norm = p1 + p2p1Norm;
+        }
         
         //UT_Matrix4 rotZ( costheta, negsintheta, 0, 0,
         //                 sintheta, costheta,    0, 0,
@@ -112,12 +132,12 @@ UT_Vector4 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2
         //                 0,        0,           0, 1  );
         
         //p2p1Norm.rowVecMult( rotX );
-        p2p1Norm.rowVecMult( rotY );
+        //p2p1Norm.rowVecMult( rotY );
         //p2p1Norm.rowVecMult( rotZ );
         
-        p2p1Norm *= hypotenuse;
+        //p2p1Norm *= hypotenuse;
         
-        p2p1Norm = p2 + p2p1Norm;
+        //p2p1Norm = p2 + p2p1Norm;
     }
         
     return p2p1Norm;
@@ -148,7 +168,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
         GB_GroupList& ptgrp = gdp->pointGroups();
         int nextGroupNum = ptgrp.length();
         
-        for ( int i = 0; i < 5; i++ )
+        for ( int i = 0; i < 18; i++ )
         {
             // Get all the geometry points
             GEO_PointList& pts = gdp->points();
@@ -181,6 +201,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 
                 // Get the point positions of all the points in the selected group
                 GEO_Point *ppt;
+                GEO_Point *pt0;
+                GEO_Point *pt1;
                 fpreal numPts = 0;
                 UT_Vector4 avgPos( 0.0, 0.0, 0.0 );
                 FOR_ALL_OPT_GROUP_POINTS( gdp, curGroup, ppt )
@@ -188,13 +210,23 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     UT_Vector4 p = ppt->getPos();
                     points.append( p );
                     
+                    if ( numPts == 0 )
+                        pt0 = ppt;
+                    else if ( numPts == 1 )
+                        pt1 = ppt;
+                    
                     avgPos += p;
                     numPts += 1;
                 }
                 
                 // Average the points' positions
                 //avgPos /= numPts;
-                avgPos = computeChildPosition( points[0], points[1], 1 );
+                int norm_index = gdp->findPointAttrib( "N", 3 * sizeof(float), GB_ATTRIB_VECTOR );
+                UT_Vector3* n0 = pt0->castAttribData<UT_Vector3>( norm_index );
+                UT_Vector4 norm0( n0->x(), n0->y(), n0->z() );
+                UT_Vector3* n1 = pt1->castAttribData<UT_Vector3>( norm_index );
+                UT_Vector4 norm1( n1->x(), n1->y(), n1->z() );
+                avgPos = computeChildPosition( points[0], points[1], norm0, 1 );
                 
                 // Now build a sphere between those points
                 GEO_Point *newPt = gdp->appendPoint();
@@ -205,6 +237,11 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 sphParms.ppt = newPt;
                 GU_PrimSphere* newSphere = (GU_PrimSphere*)GU_PrimSphere::build( sphParms );
                 //newPt = newSphere->getVertex(0).getPt();
+                
+                //UT_Vector4 newNorm( (norm0->x()+norm1->x())/2.0, (norm0->y()+norm1->y())/2.0, (norm0->z()+norm1->z())/2.0 );
+                newPt->castAttribData<UT_Vector3>( norm_index )->x() = (norm0.x()+norm1.x())/2.0;
+                newPt->castAttribData<UT_Vector3>( norm_index )->y() = (norm0.y()+norm1.y())/2.0;
+                newPt->castAttribData<UT_Vector3>( norm_index )->z() = (norm0.z()+norm1.z())/2.0;
                 
                 // Create the new groups, the new point grouped with each point in the old group
                 FOR_ALL_OPT_GROUP_POINTS( gdp, curGroup, ppt )
