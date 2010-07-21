@@ -178,7 +178,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
         
         // For each loop, create a new fractally-grown particle, group it with each of its neighbors,
         //   then get rid of the old group that consisted of its neighbors
-        for ( int i = 0; i < 30; i++ )
+        for ( int i = 0; i < 40; i++ )
         {
             // Get a list of all the point groups
             GB_GroupList& pointGroups = gdp->pointGroups();
@@ -206,6 +206,14 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 int randomNumber = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
                 int randGroupIndex = randomNumber % numGroups;
                 GB_PointGroup* curGroup = (GB_PointGroup*)( ((UT_LinkList&)pointGroups).find(randGroupIndex) );
+                
+                cout << "   Cur group = " << " ";
+                GEO_Point *bob;
+                FOR_ALL_OPT_GROUP_POINTS( gdp, curGroup, bob )
+                {
+                    cout << bob->getNum() << "  ";
+                }
+                cout << endl;
                 
                 // Array to keep track of the point positions in the current group
                 UT_Vector4Array pointPositions;
@@ -261,23 +269,20 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 
                 // Figure out which direction to go around the ring
                 int dir = 0;
-                UT_Vector4 pt0pt1 = pt0->getPos() - pt1->getPos();
-                if ( cross( pt0pt1, avgNorm ).y() < 0 )
+                //UT_Vector4 pt0pt1 = pt0->getPos() - pt1->getPos();
+                //if ( cross( pt0pt1, avgNorm ).y() < 0 )
+                //    dir = 1;
+                //else
+                //    dir = -1;
+                if ( pts.find( pt0 ) > pts.find( pt1 ) )
                     dir = 1;
                 else
                     dir = -1;
                 
-                int errIndex0 = -1;
-                int errIndex1 = 88888888;
-                if ( dir == -1 )
-                {
-                    errIndex0 = 88888888;
-                    errIndex1 = -1;
-                }
-                
                 // Set up data for computing which particles to group the new child particle with
                 int numPts = pts.entries();
-                int minDist = 4 * sphRad * sphRad;      // (2r)^2 is the minimum squared distance that the new sphere's groups' particles can be from any other sphere in the wavefront
+                //int minDist = 4 * sphRad * sphRad;    // (2r)^2 is the minimum squared distance that the new sphere's groups' particles can be from any other sphere in the wavefront
+                int minDist = 2 * sphRad;               // (2r) is the minimum squared distance that the new sphere's groups' particles can be from any other sphere in the wavefront
                 
                 cout << "   pts = ";
                 for ( int p = 0; p < numPts; p++ )
@@ -286,6 +291,117 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 
                 UT_Vector4 newPos = newPt->getPos();    // Position of the child point
                 
+                bool doContinue = false;
+                int indexPt0 = (pts.find( pt0 ) + dir + numPts) % numPts;
+                for ( int c = 0; c < numPts-2; c++, indexPt0 = (indexPt0+dir+numPts)%numPts )
+                {
+                    GEO_Point* curPt = pts.entry( indexPt0 );
+                    UT_Vector4 curPos = curPt->getPos();
+                    
+                    fpreal dist = ( newPos - curPos ).length();
+                    
+                    if ( dist < minDist )
+                    {
+                        cout << "   Collided with " << curPt->getNum() << endl;
+                        cout << "      " << dist << " < " << minDist << endl;
+                        cout << "      destroying group" << endl;
+                        gdp->destroyPointGroup( curGroup );
+                        
+                        UT_Vector4 pos0 = pt0->getPos();
+                        UT_Vector4 pos1 = pt1->getPos();
+                        
+                        fpreal dist0 = ( curPos - pos0 ).length();
+                        fpreal dist1 = ( curPos - pos1 ).length();
+                        
+                        int rand01 = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
+                        rand01 = rand01 % 2;
+                        if ( pt0->getNum() < pt1->getNum() )   // Use pt0
+                        {
+                            // Get rid of pt0 groups
+                            cout << "      deleting pt0 #" << pt0->getNum() << " ";
+                                
+                            GB_GroupList& pointGroups0 = gdp->pointGroups();
+                            GB_Group *curr = pointGroups0.head();
+                            while( curr )
+                            {
+                                GB_Group *tmp = curr;
+                                curr = (GB_Group*)curr->next();
+                                
+                                if ( tmp->contains( pt0 ) )
+                                {
+                                    gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                }  // if
+                            }  // while
+                            
+                            // Set up new group with pt1 and nextPt
+                            int i0 = pts.find( pt0 );
+                            int iNext = ( i0 + dir + numPts ) % numPts;
+                            GEO_Point* nextPt = pts.entry( iNext );
+                            cout << "and adding " << nextPt->getNum() << endl;
+                            cout << "      dir = " << dir << endl;
+                            UT_String newGroupName( "group_" );
+                            int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
+                            char numstr[UT_NUMBUF];
+                            UT_String::itoa( numstr, newGroupNum );
+                            newGroupName += numstr;
+                            GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
+                            cout << "      created a group " << newGroupName << endl;
+                            newGroup->add( pt1 );
+                            newGroup->add( nextPt );
+                            
+                            // Get rid of pt0
+                            pts.remove( pt0 );
+                        }
+                        else        // Use pt1
+                        {
+                            // Get rid pt1 groups
+                            cout << "      deleting pt1 #" << pt1->getNum() << " ";
+                            
+                            GB_GroupList& pointGroups0 = gdp->pointGroups();
+                            GB_Group *curr = pointGroups0.head();
+                            while( curr )
+                            {
+                                GB_Group *tmp = curr;
+                                curr = (GB_Group*)curr->next();
+                                
+                                if ( tmp->contains( pt1 ) )
+                                {
+                                    gdp->destroyPointGroup( (GB_PointGroup*)tmp );    
+                                }  // if
+                            }  // while
+                            
+                            // Set up new group with pt1 and nextPt
+                            int i1 = pts.find( pt1 );
+                            int iNext = ( i1 - dir + numPts ) % numPts;
+                            GEO_Point* nextPt = pts.entry( iNext );
+                            cout << "and adding " << nextPt->getNum() << endl;
+                            UT_String newGroupName( "group_" );
+                            int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
+                            char numstr[UT_NUMBUF];
+                            UT_String::itoa( numstr, newGroupNum );
+                            newGroupName += numstr;
+                            GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
+                            cout << "      created a group " << newGroupName << endl;
+                            newGroup->add( pt0 );
+                            newGroup->add( nextPt );
+                            
+                            // Get rid of pt1
+                            pts.remove( pt1 );
+                        }
+                        
+                        doContinue = true;
+                        break;
+                    }  // if
+                
+                }  // for c
+                
+                if ( doContinue )
+                {
+                    gdp->deletePoint( newPt->getNum() );
+                    continue;
+                }
+                
+                /*
                 // Get rid of the group between the two parents that are creating the new child
                 cout << "  destroying group ";
                 GEO_Point *bob;
@@ -344,7 +460,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     {
                         GEO_Point* oldPt = pt0;
                         pt0 = curPt;
-                        errIndex0 = c;
                         
                         GB_Group *curr = pointGroups0.head();
                         while( curr )
@@ -381,7 +496,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 cout << "  pt1 num = " << pt1->getNum() << endl;
                 int indexPt1 = (pts.find( pt1 ) - dir + numPts) % numPts;
                 cout << "   ";
-                errIndex1 = 88888888;
                 for ( int c = 0; c < numPts-2; c++, indexPt1 = (indexPt1-dir+numPts)%numPts )
                 {
                     GEO_Point* curPt = pts[indexPt1];
@@ -420,7 +534,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     {
                         GEO_Point* oldPt = pt1;
                         pt1 = curPt;
-                        errIndex1 = c;
                         
                         GB_Group *curr = pointGroups1.head();
                         while( curr )
@@ -461,15 +574,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     pts.remove( ptsToDelete[dp] );
                 }
                 cout << endl;
-                
-                /*if ( dir == 1 )
-                    if ( errIndex0 >= errIndex1 )
-                        continue;
-                else
-                    if ( errIndex0 <= errIndex1 )
-                        continue;
                 */
-                        
+                
                 /*
                 // Get rid of groups with pt0 and pt1 that have the new child particle within radius of its other point
                 GB_Group *curr = pointGroups.head();
@@ -484,6 +590,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     }  // if
                 }  // for
                 */
+                
+                gdp->destroyPointGroup( curGroup );
                 
                 if ( pt0->getNum() == pt1->getNum() )
                     cout << "   YIKES: " << pt0->getNum() << " == " << pt1->getNum() << "!!!!!" << endl;
@@ -525,49 +633,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 numPts = pts.entries();
                 
                 cout << "  inputting point " << newPt->getNum() << endl;
-                
-                // Create the new groups, the new point grouped with each point in the old group
-                /*int count = 0;
-                FOR_ALL_OPT_GROUP_POINTS( gdp, curGroup, ppt )
-                {
-                    UT_String newGroupName( "group_" );
-                    int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
-                    char numstr[UT_NUMBUF];
-                    UT_String::itoa( numstr, newGroupNum );
-                    newGroupName += numstr;
-                    
-                    GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
-                    
-                    if ( count == 0 )
-                    {
-                        //newGroup->add( ppt );
-                        newGroup->add( pt0 );
-                        newGroup->add( newPt );
-                        int newPtIndex = pts.find( ppt );
-                        pts.insert( newPt, newPtIndex );
-                    }
-                    else
-                    {
-                        newGroup->add( newPt );
-                        newGroup->add( pt1 );
-                        //newGroup->add( ppt );
-                    }
-                    
-                    count++;
-                }  // FOR_ALL_OPT_GROUP_POINTS*/
-                
-                
-                /*
-                cout << "start" << endl;
-                int numPts = pts.entries();
-                for ( int a = 0; a < numPts; a++ )
-                {
-                    GEO_Point* p = pts.entry( a );
-                    UT_Vector4 v = p->getPos();
-                    //cout << "pos " << a << ": (" << v.x() << ", " << v.y() << ", " << v.z() << ")" << endl;
-                }
-                cout << endl;*/
-                //numGroups--;    // Decrement the number of groups, since we are going to delete curGroup
                 
             }  // if
             else
