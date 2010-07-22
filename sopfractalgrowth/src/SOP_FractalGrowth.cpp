@@ -289,11 +289,14 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 newSphere->getTransform4( sphTrans );
                 sphTrans.scale( sphRad, sphRad, sphRad );
                 newSphere->setTransform4( sphTrans );
-                /*
-                // Fix pt0's or pt1's normal if it's not pointing outward (it may be pointing back inward against the direction of fractal growth)
+                
+                
                 UT_Vector4 pos0 = pt0->getPos();
                 UT_Vector4 pos1 = pt1->getPos();
                 UT_Vector4 posNew = newPt->getPos();
+                
+                /*
+                // Fix pt0's or pt1's normal if it's not pointing outward (it may be pointing back inward against the direction of fractal growth)
                 UT_Vector4 p0new = posNew - pos0;       // Vector from the center of pt0 to the center of newPt
                 UT_Vector4 p1new = posNew - pos1;       // Vector from the center of pt1 to the center of newPt
                 UT_Vector3 P0xP1 = cross( p0new, p1new );
@@ -325,6 +328,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     pt1->castAttribData<UT_Vector3>( norm_index )->z() = norm1.z();
                 }  // if
                 */
+                
                 // Average the points' normals (to be assigned to the fractally grown particle)
                 UT_Vector4 avgNorm( (norm0.x()+norm1.x())/2.0, (norm0.y()+norm1.y())/2.0, (norm0.z()+norm1.z())/2.0, 1 );
                 newPt->castAttribData<UT_Vector3>( norm_index )->x() = avgNorm.x();  //(norm0.x()+norm1.x())/2.0;
@@ -343,7 +347,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 //    dir = 1;
                 //else
                 //    dir = -1;
-                if ( pts.find( pt0 ) > pts.find( pt1 ) || ( pts.find( pt0 ) == 0 && pts.find( pt1 ) == numPts-1 ) )
+                if ( pts.find( pt0 ) > pts.find( pt1 ) && !( pts.find( pt1 ) == 0 && pts.find( pt0 ) == numPts-1 ) 
+                        || ( pts.find( pt0 ) == 0 && pts.find( pt1 ) == numPts-1 ) )
                     dir = 1;
                 else
                     dir = -1;
@@ -374,27 +379,54 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                         UT_Vector4 pos0 = pt0->getPos();
                         UT_Vector4 pos1 = pt1->getPos();
                         
-                        int rand01 = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
-                        rand01 = rand01 % 2;
-                        if ( pt0->getNum() < pt1->getNum() )   // Get rid of pt0 if it is the older point (has a lower point number) - else, pt1 will be rid of (see else below)
+                        int j0 = pts.find( pt0 );
+                        int j1 = pts.find( pt1 );
+                        int jC = pts.find( curPt );
+                        int ct0 = 0;
+                        int ct1 = 0;
+                        while( j0 != jC )
                         {
-                            // Find iNext, the next neighbor to pt0 that has a point number greater than pt0 (younger than pt0)
+                            j0 = ( j0 + dir + numPts ) % numPts;
+                            ct0++;
+                        }  // while
+                        while( j1 != jC )
+                        {
+                            j1 = ( j1 - dir + numPts ) % numPts;
+                            ct1++;
+                        }  // while
+                        cout << "   ct0 ct1 = " << ct0 << " " << ct1 << endl;
+                        //int rand01 = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
+                        //rand01 = rand01 % 2;
+                        //if ( pt0->getNum() < pt1->getNum() )   // Get rid of pt0 if it is the older point (has a lower point number) - else, pt1 will be rid of (see else below)
+                        if ( ct0 < ct1 )      // Get rid of pt0 if it is the close point to the collision sphere (curPt)
+                        {
                             cout << "      deleting pt0 #" << pt0->getNum() << " ";
-                            GEO_PointList ptsToDelete;
+                            //GEO_PointList ptsToDelete;
                             int i0 = pts.find( pt0 );
-                            int iNext = ( i0 + dir + numPts ) % numPts;
-                            GEO_Point* nextPt;
+                            int iNext0 = ( i0 + dir + numPts ) % numPts;
+                            GEO_Point* pt0Next = pts.entry( iNext0 );
+                            UT_Vector4 nextPos0 = pt0Next->getPos();
+                            
+                            /*
+                            // Find iNext, the next neighbor to pt0 that will not potentially intersect the point we're removing from the wavefront
                             for ( int n = 0; n < numPts-2; n++, iNext = (iNext+dir+numPts)%numPts )
                             {
-                                /*nextPt = pts.entry( iNext );
-                                UT_Vector4 nextPos = nextPt->getPos();
-                                dist0N = ( nextPos - pos0 ).length();
-                                dist1N = ( nextPos - pos0 ).length();
-                                if ( dist0N*/
+                                //nextPt = pts.entry( iNext );
+                                //UT_Vector4 nextPos = nextPt->getPos();
+                                //dist0N = ( nextPos - pos0 ).length();
+                                //dist1N = ( nextPos - pos0 ).length();
+                                //if ( dist0N
                                 
                                 nextPt = pts.entry( iNext );
-                                if ( pt0->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
+                                nextPos = nextPt->getPos();
+                                UT_Vector4 tmpPos = computeChildPosition( pos1, nextPos, norm0, sphRad );
+                                fpreal tmpDist = ( pos0 - tmpPos ).length();
+                                if ( tmpDist >= 2 * sphRad )
                                     break;
+                                
+                                //nextPt = pts.entry( iNext );
+                                //if ( pt0->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
+                                //    break;
                                 
                                 // If the point to replace pt0 in the group (nextPt) is older than pt0, it cannot replace pt0 and must be deleted with all its groups
                                 GB_GroupList& pointGroups0 = gdp->pointGroups();
@@ -412,9 +444,102 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                                 
                                 pts.remove( nextPt );
                                 numPts = pts.entries();
-                                //if ( ptsToDelete.find( nextPt ) == -1 )
-                                //ptsToDelete.append( nextPt );*/
                                 
+                            }  // for n
+                            */
+                            
+                            // Get rid of pt0's groups
+                            GB_GroupList& pointGroups0 = gdp->pointGroups();
+                            GB_Group *curr = pointGroups0.head();
+                            while( curr )
+                            {
+                                GB_Group *tmp = curr;
+                                curr = (GB_Group*)curr->next();
+                                
+                                if ( tmp->contains( pt0 ) )
+                                {
+                                    gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                }  // if
+                            }  // while
+                            
+                            // Get rid of pt0
+                            pts.remove( pt0 );
+                            numPts = pts.entries();
+                            
+                            // If the angle between vectors pt0Next->pt1 and pt0Next->pt0NextNext is less than 120 degrees, replace pt0Next with pt0NextNext
+                            iNext0 = pts.find( pt0Next );
+                            int iNextNext0 = ( iNext0 + dir + numPts ) % numPts;
+                            for ( int n = 0; n < numPts-2; n++, iNextNext0 = (iNextNext0+dir+numPts)%numPts )
+                            {
+                                GEO_Point* pt0NextNext = pts.entry( iNextNext0 );
+                                UT_Vector4 nextNextPos0 = pt0NextNext->getPos();
+                                UT_Vector4 vN01 = pos1 - nextPos0;
+                                UT_Vector4 vN0NN0 = nextNextPos0 - nextPos0;
+                                if ( vN01.dot( vN0NN0 ) > -0.5 ) //&& norm0.dot( vN01 ) > 0 )
+                                {
+                                    // Get rid of pt0's groups
+                                    GB_GroupList& pointGroups0 = gdp->pointGroups();
+                                    GB_Group *curr = pointGroups0.head();
+                                    while( curr )
+                                    {
+                                        GB_Group *tmp = curr;
+                                        curr = (GB_Group*)curr->next();
+                                        
+                                        if ( tmp->contains( pt0Next ) )
+                                        {
+                                            gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                        }  // if
+                                    }  // while
+                                    
+                                    pts.remove( pt0Next );
+                                    numPts = pts.entries();
+                                    
+                                    pt0Next = pt0NextNext;
+                                    nextPos0 = nextNextPos0;
+                                    iNext0 = pts.find( pt0Next );
+                                    iNextNext0 = iNext0;
+                                }  // if
+                                else
+                                {
+                                    break;
+                                }
+                            }  // for n
+                            
+                            // If the angle between vectors pt1->pt0Next and p1->pt1Next is less than 120 degrees, replace pt1 with pt1Next
+                            int i1 = pts.find( pt1 );
+                            int iNext1 = ( i1 - dir + numPts ) % numPts;
+                            for ( int n = 0; n < numPts-2; n++, iNext1 = (iNext1-dir+numPts)%numPts )
+                            {
+                                GEO_Point* pt1Next = pts.entry( iNext1 );
+                                UT_Vector4 nextPos1 = pt1Next->getPos();
+                                UT_Vector4 v1N1 = nextPos1 - pos1;
+                                UT_Vector4 v1N0 = nextPos0 - pos1;
+                                if ( v1N1.dot( v1N0 ) > -0.5 ) //&& norm1.dot( v1N1 ) > 0 )
+                                {
+                                    // Get rid of pt1's groups
+                                    GB_GroupList& pointGroups1 = gdp->pointGroups();
+                                    GB_Group *curr = pointGroups1.head();
+                                    while( curr )
+                                    {
+                                        GB_Group *tmp = curr;
+                                        curr = (GB_Group*)curr->next();
+                                        
+                                        if ( tmp->contains( pt1 ) )
+                                        {
+                                            gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                        }  // if
+                                    }  // while
+                                    
+                                    pts.remove( pt1 );
+                                    numPts = pts.entries();
+                                    
+                                    pt1 = pt1Next;
+                                    pos1 = nextPos1;
+                                }  // if
+                                else
+                                {
+                                    break;
+                                }
                             }  // for n
                             
                             /*// Delete points that are no longer on the wavefront
@@ -426,8 +551,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                                 pts.remove( ptsToDelete[dp] );
                             }*/
                             
-                            // Set up new group with pt1 and nextPt
-                            cout << "and adding " << nextPt->getNum() << endl;
+                            // Set up new group with pt1 and pt0Next
+                            cout << "and adding " << pt0Next->getNum() << endl;
                             cout << "      dir = " << dir << endl;
                             UT_String newGroupName( "group_" );
                             int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
@@ -435,71 +560,39 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             UT_String::itoa( numstr, newGroupNum );
                             newGroupName += numstr;
                             GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
-                            cout << "      created a group " << newGroupName << endl;
+                            //cout << "      created a group " << newGroupName << endl;
                             
-                            // Get rid of pt0, UNLESS IT'S FARTHER AWAY FROM THE COLLIDED POINT THAN pt1
-                            UT_Vector4 curPos = curPt->getPos();
-                            fpreal dist0N = ( curPos - pos0 ).length();
-                            fpreal dist1N = ( curPos - pos1 ).length();
-                            //if ( dist0N > dist1N )
-                            //{
-                                newGroup->add( pt1 );
-                                newGroup->add( nextPt );
-                                
-                                // Get rid of pt0's groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( pt0 ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );
-                                    }  // if
-                                }  // while
-                                
-                                // Get rid of pt0
-                                pts.remove( pt0 );
-                            /*}
-                            else
-                            {
-                                newGroup->add( pt0 );
-                                newGroup->add( nextPt );
-                                
-                                // Get rid of pt1's groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( pt1 ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );    
-                                    }  // if
-                                }  // while
-                                
-                                // Get rid of pt1
-                                pts.remove( pt1 );
-                            }*/
+                            // Get rid of pt0
+                            //UT_Vector4 curPos = curPt->getPos();
+                            //fpreal dist0N = ( curPos - pos0 ).length();
+                            //fpreal dist1N = ( curPos - pos1 ).length();
                             
-                        }
-                        else        // pt1 is older than pt0, so get rid of pt1
+                            newGroup->add( pt1 );
+                            newGroup->add( pt0Next );
+                            
+                        }  // if
+                        else        // pt1 is closer to curPt than pt0, so get rid of pt1
                         {
                             cout << "      deleting pt1 #" << pt1->getNum() << " ";
                             
-                            // Find iNext, the next neighbor to pt1 that has a point number greater than pt1 (younger than pt1)
                             int i1 = pts.find( pt1 );
-                            int iNext = ( i1 - dir + numPts ) % numPts;
-                            GEO_Point* nextPt;
-                            for ( int n = 0; n < numPts-2; n++, iNext = (iNext-dir+numPts)%numPts )
+                            int iNext1 = ( i1 - dir + numPts ) % numPts;
+                            GEO_Point* pt1Next = pts.entry( iNext1 );
+                            UT_Vector4 nextPos1 = pt1Next->getPos();
+                            
+                            // Find iNext, the next neighbor to pt1 that has a point number greater than pt1 (younger than pt1)
+                            /*for ( int n = 0; n < numPts-2; n++, iNext = (iNext-dir+numPts)%numPts )
                             {
                                 nextPt = pts.entry( iNext );
-                                if ( pt1->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
+                                nextPos = nextPt->getPos();
+                                UT_Vector4 tmpPos = computeChildPosition( pos0, nextPos, norm0, sphRad );
+                                fpreal tmpDist = ( pos0 - tmpPos ).length();
+                                if ( tmpDist >= 2 * sphRad )
                                     break;
+                                
+                                //nextPt = pts.entry( iNext );
+                                //if ( pt1->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
+                                //    break;
                                 
                                 // If the point to replace pt0 in the group (nextPt) is older than pt0, it cannot replace pt0 and must be deleted with all its groups
                                 GB_GroupList& pointGroups0 = gdp->pointGroups();
@@ -519,69 +612,121 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                                 numPts = pts.entries();
                                 
                             }  // for n
+                            */
+                            
+                            // Get rid of pt1's groups
+                            GB_GroupList& pointGroups1 = gdp->pointGroups();
+                            GB_Group *curr = pointGroups1.head();
+                            while( curr )
+                            {
+                                GB_Group *tmp = curr;
+                                curr = (GB_Group*)curr->next();
+                                
+                                if ( tmp->contains( pt1 ) )
+                                {
+                                    gdp->destroyPointGroup( (GB_PointGroup*)tmp );    
+                                }  // if
+                            }  // while
+                            
+                            // Get rid of pt1
+                            pts.remove( pt1 );
+                            numPts = pts.entries();
+                            
+                            // If the angle between vectors pt1Next->pt0 and pt1Next->pt1NextNext is less than 120 degrees, replace pt1Next with pt1NextNext
+                            iNext1 = pts.find( pt1Next );
+                            int iNextNext1 = ( iNext1 - dir + numPts ) % numPts;
+                            for ( int n = 0; n < numPts-2; n++, iNextNext1 = (iNextNext1-dir+numPts)%numPts )
+                            {
+                                GEO_Point* pt1NextNext = pts.entry( iNextNext1 );
+                                UT_Vector4 nextNextPos1 = pt1NextNext->getPos();
+                                UT_Vector4 vN10 = pos0 - nextPos1;
+                                UT_Vector4 vN1NN1 = nextNextPos1 - nextPos1;
+                                if ( vN10.dot( vN1NN1 ) > -0.5 ) // && norm1.dot( vN10 ) > 0 )
+                                {
+                                    // Get rid of pt0's groups
+                                    GB_GroupList& pointGroups0 = gdp->pointGroups();
+                                    GB_Group *curr = pointGroups0.head();
+                                    while( curr )
+                                    {
+                                        GB_Group *tmp = curr;
+                                        curr = (GB_Group*)curr->next();
+                                        
+                                        if ( tmp->contains( pt1Next ) )
+                                        {
+                                            gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                        }  // if
+                                    }  // while
+                                    
+                                    pts.remove( pt1Next );
+                                    numPts = pts.entries();
+                                    
+                                    pt1Next = pt1NextNext;
+                                    nextPos1 = nextNextPos1;
+                                    iNext1 = pts.find( pt1Next );
+                                    iNextNext1 = iNext1;
+                                }  // if
+                                else
+                                {
+                                    break;
+                                }
+                            }  // for n
+                            
+                            // If the angle between vectors p0->pt1Next and p0->pt0Next is less than 120 degrees, replace pt0 with pt0Next
+                            int i0 = pts.find( pt0 );
+                            int iNext0 = ( i0 + dir + numPts ) % numPts;
+                            for ( int n = 0; n < numPts-2; n++, iNext0 = (iNext0+dir+numPts)%numPts )
+                            {
+                                GEO_Point* pt0Next = pts.entry( iNext0 );
+                                UT_Vector4 nextPos0 = pt0Next->getPos();
+                                UT_Vector4 v0N0 = nextPos0 - pos0;
+                                UT_Vector4 v0N1 = nextPos1 - pos0;
+                                if ( v0N0.dot( v0N1 ) > -0.5 ) //&& norm0.dot( v0N0 ) > 0 )
+                                {
+                                    // Get rid of pt1's groups
+                                    GB_GroupList& pointGroups0 = gdp->pointGroups();
+                                    GB_Group *curr = pointGroups0.head();
+                                    while( curr )
+                                    {
+                                        GB_Group *tmp = curr;
+                                        curr = (GB_Group*)curr->next();
+                                        
+                                        if ( tmp->contains( pt0 ) )
+                                        {
+                                            gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                                        }  // if
+                                    }  // while
+                                    
+                                    pts.remove( pt0 );
+                                    numPts = pts.entries();
+                                    
+                                    pt0 = pt0Next;
+                                    pos0 = nextPos0;
+                                }  // if
+                                else
+                                {
+                                    break;
+                                }
+                            }  // for n
                             
                             // Set up new group with pt1 and nextPt
-                            cout << "and adding " << nextPt->getNum() << endl;
+                            cout << "and adding " << pt1Next->getNum() << endl;
                             UT_String newGroupName( "group_" );
                             int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
                             char numstr[UT_NUMBUF];
                             UT_String::itoa( numstr, newGroupNum );
                             newGroupName += numstr;
                             GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
-                            cout << "      created a group " << newGroupName << endl;
+                            //cout << "      created a group " << newGroupName << endl;
                             
-                            // Get rid of pt1, UNLESS IT'S FARTHER AWAY FROM THE COLLIDED POINT THAN pt0
-                            UT_Vector4 curPos = curPt->getPos();
-                            fpreal dist0N = ( curPos - pos0 ).length();
-                            fpreal dist1N = ( curPos - pos1 ).length();
-                            //if ( dist0N < dist1N )
-                            //{
-                                newGroup->add( pt0 );
-                                newGroup->add( nextPt );
-                                
-                                // Get rid of pt1's groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( pt1 ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );    
-                                    }  // if
-                                }  // while
-                                
-                                // Get rid of pt1
-                                pts.remove( pt1 );
-                                
-                            /*}
-                            else
-                            {
-                                newGroup->add( pt1 );
-                                newGroup->add( nextPt );
-                                
-                                // Get rid of pt0's groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( pt0 ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );
-                                    }  // if
-                                }  // while
-                                
-                                // Get rid of pt0
-                                pts.remove( pt0 );
-                            }
-                            */
+                            // Get rid of pt1
+                            //UT_Vector4 curPos = curPt->getPos();
+                            //fpreal dist0N = ( curPos - pos0 ).length();
+                            //fpreal dist1N = ( curPos - pos1 ).length();
                             
-                        }
+                            newGroup->add( pt0 );
+                            newGroup->add( pt1Next );
+                            
+                        }  // else
                         
                         doContinue = true;
                         break;
@@ -595,11 +740,88 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     continue;
                 }
                 
+                
                 gdp->destroyPointGroup( curGroup );
                 
                 
+                int iNext0 = ( pts.find( pt0 ) + dir + numPts ) % numPts;
+                for ( int n = 0; n < numPts-2; n++, iNext0 = (iNext0+dir+numPts)%numPts )
+                {
+                    GEO_Point* nextPt0 = pts.entry( iNext0 );
+                    UT_Vector4 nextPos0 = nextPt0->getPos();
+                    UT_Vector4 v0New = newPos - pos0;
+                    UT_Vector4 v0Next = nextPos0 - pos0;
+                    if ( v0New.dot( v0Next ) > -0.5 && norm0.dot( v0New ) > 0 )
+                    {
+                        // Get rid of groups containing pt0
+                        GB_GroupList& pointGroups0 = gdp->pointGroups();
+                        GB_Group *curr = pointGroups0.head();
+                        while( curr )
+                        {
+                            GB_Group *tmp = curr;
+                            curr = (GB_Group*)curr->next();
+                            
+                            if ( tmp->contains( pt0 ) )
+                            {
+                                gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                            }  // if
+                        }  // while
+                        
+                        // Remove pt0 from the wavefront
+                        pts.remove( pt0 );
+                        
+                        pt0 = nextPt0;
+                        pos0 = pt0->getPos();
+                        numPts = pts.entries();
+                        iNext0 = pts.find( pt0 );
+                    }  // if
+                    else
+                    {
+                        break;
+                    }
+                }  // for n
+                
+                
+                int iNext1 = ( pts.find( pt1 ) - dir + numPts ) % numPts;
+                for ( int n = 0; n < numPts-2; n++, iNext1 = (iNext1-dir+numPts)%numPts )
+                {
+                    GEO_Point* nextPt1 = pts.entry( iNext1 );
+                    UT_Vector4 nextPos1 = nextPt1->getPos();
+                    UT_Vector4 v1New = newPos - pos1;
+                    UT_Vector4 v1Next = nextPos1 - pos1;
+                    if ( v1New.dot( v1Next ) > -0.5 && norm1.dot( v1New ) > 0 )
+                    {
+                        // Get rid of groups containing pt0
+                        GB_GroupList& pointGroups0 = gdp->pointGroups();
+                        GB_Group *curr = pointGroups0.head();
+                        while( curr )
+                        {
+                            GB_Group *tmp = curr;
+                            curr = (GB_Group*)curr->next();
+                            
+                            if ( tmp->contains( pt1 ) )
+                            {
+                                gdp->destroyPointGroup( (GB_PointGroup*)tmp );
+                            }  // if
+                        }  // while
+                        
+                        // Remove pt0 from the wavefront
+                        pts.remove( pt1 );
+                        
+                        pt1 = nextPt1;
+                        pos1 = pt1->getPos();
+                        numPts = pts.entries();
+                        iNext1 = pts.find( pt1 );
+                    }  // if
+                    else
+                    {
+                        break;
+                    }
+                }  // for n
+                
+                
                 // If p0's normal intersects the new sphere, delete p0 and set p0's neighbor to p0
-                if ( intersectRaySphere( pt0->getPos(), norm0, newPt->getPos(), sphRad ) )
+                /*if ( intersectRaySphere( pt0->getPos(), norm0, newPt->getPos(), sphRad ) )
                 {
                     int iNext = ( pts.find( pt0 ) + dir + numPts ) % numPts;
                     GEO_Point* nextPt = pts.entry( iNext );
@@ -648,7 +870,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     pts.remove( pt1 );
                     
                     pt1 = nextPt;
-                }  // if
+                }  // if*/
                 
                 
                 if ( pt0->getNum() == pt1->getNum() )
