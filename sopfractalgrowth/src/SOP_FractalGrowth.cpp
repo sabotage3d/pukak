@@ -207,7 +207,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
             // Get a list of all the point groups
             GB_GroupList& pointGroups = gdp->pointGroups();
             int numGroups = pointGroups.length();
-            cout << "numgroups = " << numGroups << endl;
+            /*cout << "numgroups = " << numGroups << endl;
             
             cout << "  ";
             for ( int j = 0; j < numGroups; j++ )
@@ -220,7 +220,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 }
                 cout << " ";
             }
-            cout << endl;
+            cout << endl;*/
             
             // If there are still point groups left, do a fractal growth;
             //   Otherwise, exit the loop
@@ -231,13 +231,13 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 int randGroupIndex = randomNumber % numGroups;
                 GB_PointGroup* curGroup = (GB_PointGroup*)( ((UT_LinkList&)pointGroups).find(randGroupIndex) );
                 
-                cout << "   Cur group = " << " ";
-                GEO_Point *bob;
+                //cout << "   Cur group = " << " ";
+                /*GEO_Point *bob;
                 FOR_ALL_OPT_GROUP_POINTS( gdp, curGroup, bob )
                 {
                     cout << bob->getNum() << "  ";
                 }
-                cout << endl;
+                cout << endl;*/
                 
                 // Array to keep track of the point positions in the current group
                 UT_Vector4Array pointPositions;
@@ -353,10 +353,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 else
                     dir = -1;
                 
-                cout << "   pts = ";
-                for ( int p = 0; p < numPts; p++ )
-                    cout << pts[p]->getNum() << " ";
-                cout << endl;
+                //cout << "   pts = ";
+                //for ( int p = 0; p < numPts; p++ )
+                //    cout << pts[p]->getNum() << " ";
+                //cout << endl;
                 
                 UT_Vector4 newPos = newPt->getPos();    // Position of the child point
                 
@@ -371,9 +371,9 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     
                     if ( dist < minDist )
                     {
-                        cout << "   Collided with " << curPt->getNum() << endl;
-                        cout << "      " << dist << " < " << minDist << endl;
-                        cout << "      destroying group" << endl;
+                        //cout << "   Collided with " << curPt->getNum() << endl;
+                        //cout << "      " << dist << " < " << minDist << endl;
+                        //cout << "      destroying group" << endl;
                         gdp->destroyPointGroup( curGroup );
                         
                         UT_Vector4 pos0 = pt0->getPos();
@@ -394,13 +394,13 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             j1 = ( j1 - dir + numPts ) % numPts;
                             ct1++;
                         }  // while
-                        cout << "   ct0 ct1 = " << ct0 << " " << ct1 << endl;
+                        //cout << "   ct0 ct1 = " << ct0 << " " << ct1 << endl;
                         //int rand01 = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
                         //rand01 = rand01 % 2;
                         //if ( pt0->getNum() < pt1->getNum() )   // Get rid of pt0 if it is the older point (has a lower point number) - else, pt1 will be rid of (see else below)
                         if ( ct0 < ct1 )      // Get rid of pt0 if it is the close point to the collision sphere (curPt)
                         {
-                            cout << "      deleting pt0 #" << pt0->getNum() << " ";
+                            //cout << "      deleting pt0 #" << pt0->getNum() << " ";
                             //GEO_PointList ptsToDelete;
                             int i0 = pts.find( pt0 );
                             int iNext0 = ( i0 + dir + numPts ) % numPts;
@@ -552,8 +552,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             }*/
                             
                             // Set up new group with pt1 and pt0Next
-                            cout << "and adding " << pt0Next->getNum() << endl;
-                            cout << "      dir = " << dir << endl;
+                            //cout << "and adding " << pt0Next->getNum() << endl;
+                            //cout << "      dir = " << dir << endl;
                             UT_String newGroupName( "group_" );
                             int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
                             char numstr[UT_NUMBUF];
@@ -573,7 +573,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                         }  // if
                         else        // pt1 is closer to curPt than pt0, so get rid of pt1
                         {
-                            cout << "      deleting pt1 #" << pt1->getNum() << " ";
+                            //cout << "      deleting pt1 #" << pt1->getNum() << " ";
                             
                             int i1 = pts.find( pt1 );
                             int iNext1 = ( i1 - dir + numPts ) % numPts;
@@ -709,7 +709,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             }  // for n
                             
                             // Set up new group with pt1 and nextPt
-                            cout << "and adding " << pt1Next->getNum() << endl;
+                            //cout << "and adding " << pt1Next->getNum() << endl;
                             UT_String newGroupName( "group_" );
                             int newGroupNum = nextGroupNum++;          // A new group is being added, so the number of groups increments
                             char numstr[UT_NUMBUF];
@@ -873,8 +873,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 }  // if*/
                 
                 
-                if ( pt0->getNum() == pt1->getNum() )
-                    cout << "   YIKES: " << pt0->getNum() << " == " << pt1->getNum() << "!!!!!" << endl;
+                //if ( pt0->getNum() == pt1->getNum() )
+                //    cout << "   YIKES: " << pt0->getNum() << " == " << pt1->getNum() << "!!!!!" << endl;
                 
                 // Set up new group with pt0
                 UT_String newGroupName( "group_" );
@@ -883,7 +883,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 UT_String::itoa( numstr, newGroupNum );
                 newGroupName += numstr;
                 GB_PointGroup* newGroup = gdp->newPointGroup( newGroupName );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
-                cout << "   created a group" << endl;
+                //cout << "   created a group" << endl;
                 newGroup->add( pt0 );
                 newGroup->add( newPt );
                 
@@ -894,7 +894,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 UT_String::itoa( numstr1, newGroupNum1 );
                 newGroupName1 += numstr1;
                 GB_PointGroup* newGroup1 = gdp->newPointGroup( newGroupName1 );   //new GB_PointGroup( &pointGroups, newGroupName, 0 );    // 3rd parameter, hidden = 0
-                cout << "   created a group" << endl;
+                //cout << "   created a group" << endl;
                 newGroup1->add( newPt );
                 newGroup1->add( pt1 );
                 
@@ -912,7 +912,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 }
                 numPts = pts.entries();
                 
-                cout << "  inputting point " << newPt->getNum() << endl;
+                //cout << "  inputting point " << newPt->getNum() << endl;
                 
             }  // if
             else
