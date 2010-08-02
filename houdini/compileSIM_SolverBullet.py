@@ -48,7 +48,7 @@ if bulletPath and houdiniPath:
     bulletCollisionPath = bulletPath + '\\src\\BulletCollision'
     linearMathPath = bulletPath + '\\src\\LinearMath'
     
-    simSolverBulletSrcPath = houdiniPath + '\\toolkit\\SIM_SolverBullet-0.11\\src'
+    simSolverBulletSrcPath = houdiniPath + '\\toolkit\\SIM_SnowBulletSolver\\src'
     simSolverBulletSrcPath = simSolverBulletSrcPath.replace( '\\', '/' )
     
     bulletSrcPath = bulletPath + '\\src'

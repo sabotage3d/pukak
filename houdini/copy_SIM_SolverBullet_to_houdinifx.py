@@ -17,7 +17,7 @@ houdiniPath = ''
 simSolverBulletSrcPath = ''
 try:    # If you have access to the Houdini environment variables, find the files relative to HFS
     houdiniPath = os.environ['HFS']
-    simSolverBulletSrcPath = houdiniPath + '\\toolkit\\SIM_SolverBullet-0.11\\src'
+    simSolverBulletSrcPath = houdiniPath + '\\toolkit\\SIM_SnowBulletSolver\\src'
     simSolverBulletSrcPath = simSolverBulletSrcPath.replace( '\\', '/' )
 except( KeyError ):   # Otherwise, find the files relative to the current working directory
     houdiniPath = os.getcwd()
