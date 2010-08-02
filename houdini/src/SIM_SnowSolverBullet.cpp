@@ -183,7 +183,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
            
         //This is a new body (that is, it doesn't match any key in the map), make a bullet body to match
         if(bodyIt == state->m_bulletBodies->end())
+        {
             bodyIt = addBulletBody( currObject );
+        }
            
         if(bodyIt != state->m_bulletBodies->end())
         {
@@ -202,7 +204,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             if( houMass > 0 )
             {
                 //Velocity
-                v = rbdstate->getVelocity();            
+                v = rbdstate->getVelocity();
                 (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) ); 
                 //Angular Velocity
                 w = rbdstate->getAngularVelocity();
@@ -780,7 +782,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
 
     // Get the Geometry...  
     myGeo = (SIM_Geometry *)currObject->getGeometry();
-       
+    
     //We have geomoetry
     if(myGeo)
     {
@@ -790,6 +792,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
            
         RBD_State *rbdstate = SIM_DATA_GET(*currObject, "Position", RBD_State);
         SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Snow Data", SIM_SnowBulletData);
+        
         if(rbdstate) //This is an rbd object
         {
             UT_DMatrix4 xform;
@@ -809,14 +812,14 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
             // default motion state, will be set by sim loop later
             btDefaultMotionState* fallMotionState = new btDefaultMotionState(
                     btTransform( btQuaternion(rot.x(),rot.y(),rot.z(),rot.w()),btVector3(p[0],p[1],p[2]) ) );
-               
+            
             UT_String geoRep;
             geoRep = GEO_REP_AS_IS;
             if( bulletstate )
             {
                 bulletstate->getGeoRep(geoRep);
             }
-               
+            
             if( geoRep == GEO_REP_AS_IS ) // geometry as-is
             {
                 GEO_Primitive *prim;
@@ -1073,7 +1076,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
             
             // ADDED BY CHRIS 2010-06-04 ******************************************** //
             else if(geoRep == GEO_REP_PLANE) // plane representation
-            {    
+            {
                 UT_Vector3 prim_t = bulletstate->getPrimT();
                 UT_Vector3 prim_r = bulletstate->getPrimR();
                 /*
@@ -1093,8 +1096,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
             	UT_Vector3 prim_s = bulletstate->getPrimS();
             	fallShape = new btConeShape( prim_s.x()/2, prim_s.y() );
             }
-
-
+            
             // now add the shapes to bullet 
             if( fallShape )
             {
@@ -1154,7 +1156,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 state->m_dynamicsWorld->addRigidBody(fallRigidBody);
                 //cout<<"creating new body, id:"<<currObject->getObjectId()
                 //      <<"  isStaticObject:"<<fallRigidBody->isStaticObject()<<endl;
-                   
+                
                 // ADDED BY SRH 2010-05-03 //
                 //   Assign to the Bullet rigid body the ID of the corresponding Houdini object.
                 fallRigidBody->houObjectId = currObject->getObjectId();
