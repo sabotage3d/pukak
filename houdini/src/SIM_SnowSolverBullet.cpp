@@ -387,7 +387,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         // THIS IS WHERE IT ALL HAPPENS IN BULLET!!!!!! //
         // ALTERED BY SRH 2010-06-01 //
         //   Implement substepping by using the timestep of the simulation
-        if ( substeps > 1 )
+        // ALTERED AGAIN BY SRH 2010-08-04 //
+        //   Moved Impacts setup inside the for-loop to pick up all the manifolds
+        if ( substeps > 1 || doComputeImpacts )     // The default "internally decide number of substeps" will not work when getting impacts data, but that's okay for film work, where we explicitly decide the number of substeps
         {
             // If a Bullet Data node indicates higher than one substep, take that many substeps
             //   With 0 as the second arg in "stepSimulation()", Bullet does not take internal substeps.
@@ -395,14 +397,57 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             float stepSize = timestep / (float)substeps;
             for ( int i = 0; i < substeps; i++ )
             {
+                int nm = 0;
                 state->m_dynamicsWorld->stepSimulation( stepSize, 0 );
+                // ADDED BY SRH 2010-04-29 //
+                //   Attach each collision manifold to its corresponding Bullet rigid bodies.
+                //   This is used later down the code to attach Impacts data to each rigid body.
+                //   Manifolds are attached to their corresponding sim_btRigidBody objects by appending the manifold
+                //     to the sim_btRigidBody->m_manifolds array variable
+                //     (sim_btRigidBody class inherits from btRigidBody and is defined in SIM_SnowSolverBullet.h).
+                //   m_manifolds is cleared out at the start of each step when removeDeadBodies() is called above.
+                if ( doComputeImpacts )        // THIS IF-STATEMENT ADDED BY SRH 2010-06-03
+                {
+                    btDispatcher* dispatcher = state->m_dynamicsWorld->getCollisionWorld()->getDispatcher();
+                    btPersistentManifold** manifoldPtr = dispatcher->getInternalManifoldPointer();
+                    int numManifolds = dispatcher->getNumManifolds();
+                    for ( int m = 0; m < numManifolds; m++ )
+                    {
+                        btPersistentManifold* manifold = manifoldPtr[m];
+                        
+                        int numContacts = manifold->getNumContacts();
+                        if ( numContacts > 0 )
+                        {
+                            // Extract the colliding objects from the manifold
+                            btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
+                            btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
+                            sim_btRigidBody* rbA = sim_btRigidBody::upcast(colObjA);
+                            sim_btRigidBody* rbB = sim_btRigidBody::upcast(colObjB);
+                            
+                            // Copy the current manifold, or else its data will be lost by the time we get through all the substeps
+                            btPersistentManifold manifoldCopy( manifold->getBody0(), manifold->getBody1(), 0, manifold->getContactBreakingThreshold(), manifold->getContactProcessingThreshold() );
+                            for ( int cur = 0; cur < numContacts; cur++ )
+                            {
+                                manifoldCopy.addManifoldPoint( manifold->getContactPoint( cur ) );
+                            }  // for cur
+                            
+                            rbA->m_manifolds.push_back( manifoldCopy );
+                            rbB->m_manifolds.push_back( manifoldCopy );
+
+                        }  // if
+                    }  // for i
+                }  // if
+                // *********************** //
             }
         }
         else
         {
             state->m_dynamicsWorld->stepSimulation( /*1/24.f*/ timestep, 10 );
         }
-        // ************************* //
+        
+        
+        
+        // ******************************************** //
         // ******************************************** //
         // ******************************************** //
         // ******************************************** //
@@ -414,34 +459,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         
         
         
-        // ADDED BY SRH 2010-04-29 //
-        //   Attach each collision manifold to its corresponding Bullet rigid bodies.
-        //   This is used later down the code to attach Impacts data to each rigid body.
-        //   Manifolds are attached to their corresponding sim_btRigidBody objects by appending the manifold
-        //     to the sim_btRigidBody->m_manifolds array variable
-        //     (sim_btRigidBody class inherits from btRigidBody and is defined in SIM_SnowSolverBullet.h).
-        //   m_manifolds is cleared out at the start of each step when removeDeadBodies() is called above.
-        if ( doComputeImpacts )        // THIS IF-STATEMENT ADDED BY SRH 2010-06-03
-        {
-            btDispatcher* dispatcher = state->m_dynamicsWorld->getCollisionWorld()->getDispatcher();
-            btPersistentManifold** manifoldPtr = dispatcher->getInternalManifoldPointer();
-            int numManifolds = dispatcher->getNumManifolds();
-            for ( int m = 0; m < numManifolds; m++ )
-            {
-                btPersistentManifold* manifold = manifoldPtr[m];
-                
-                // Extract the colliding objects from the manifold
-                btCollisionObject* colObjA = (btCollisionObject*)manifold->getBody0();
-                btCollisionObject* colObjB = (btCollisionObject*)manifold->getBody1();
-                sim_btRigidBody* rbA = sim_btRigidBody::upcast(colObjA);
-                sim_btRigidBody* rbB = sim_btRigidBody::upcast(colObjB);
-                
-                rbA->m_manifolds.push_back( manifold );
-                rbB->m_manifolds.push_back( manifold );
-                
-            }  // for i
-        }  // if
-        // *********************** //
+        // Impacts setup moved from here to the substeps loop above 2010-08-03
         
         
         
@@ -524,7 +542,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                         {    
                             // For each collision (manifold) on the Bullet rigid body,
                             //    add the impact data to the Houdini rigid body Impacts field
-                            btPersistentManifold* manifold = (bodyIt->second.bodyId)->m_manifolds[m];
+                            btPersistentManifold& manifold = (bodyIt->second.bodyId)->m_manifolds[m];
                             
                             // NOTE: Just because a contact manifold exists does not mean there was an impact.
                             //         Sometimes, a manifold is created with zero contacts, so it does not contribute to Impacts data.
@@ -535,14 +553,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                             //       So, Impacts data is added only if there are more than zero contacts in any of the manifolds.
                             
                             //btVector3 rBTot( 0, 0, 0 );
-                            int numContacts = manifold->getNumContacts();
+                            int numContacts = manifold.getNumContacts();
                             if ( numContacts > 0 )
                             {
                                 isImpact = true;
                                 
                                 // For the current manifold, get the ID of the houdini object colliding with the current rigid body
-                                sim_btRigidBody* rbA = (sim_btRigidBody*)manifold->getBody0();
-                                sim_btRigidBody* rbB = (sim_btRigidBody*)manifold->getBody1();
+                                sim_btRigidBody* rbA = (sim_btRigidBody*)manifold.getBody0();
+                                sim_btRigidBody* rbB = (sim_btRigidBody*)manifold.getBody1();
                                 int otherobjid = -1;
                                 //bool otherobjisstatic = false;
                                 if ( (bodyIt->second.bodyId) == rbA )
@@ -561,7 +579,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                 if ( getDeepestImpactOnly )            // Get only the deepest contact point (first entry in the manifold's contacts array)
                                 {
                                     SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
-                                    btManifoldPoint& cp = manifold->getContactPoint( 0 );    // This gets the deepest contact point (contact points are ordered by depth, the deepest first)
+                                    btManifoldPoint& cp = manifold.getContactPoint( 0 );    // This gets the deepest contact point (contact points are ordered by depth, the deepest first)
                                     
                                     UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
                                     UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );
@@ -615,7 +633,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                     SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
                                     for ( int n = 0; n < numContacts; n++ )        // For each contact point in the manifold
                                     {
-                                        btManifoldPoint& cp = manifold->getContactPoint( n );
+                                        btManifoldPoint& cp = manifold.getContactPoint( n );
                                         
                                         UT_Vector3 pos( cp.m_positionWorldOnB.x(), cp.m_positionWorldOnB.y(), cp.m_positionWorldOnB.z() );
                                         UT_Vector3 norm( cp.m_normalWorldOnB.x(), cp.m_normalWorldOnB.y(), cp.m_normalWorldOnB.z() );

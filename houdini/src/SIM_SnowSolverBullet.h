@@ -35,7 +35,7 @@ class sim_btRigidBody : public btRigidBody
 
 public:
     
-    btAlignedObjectArray<btPersistentManifold*> m_manifolds;
+    btAlignedObjectArray<btPersistentManifold> m_manifolds;
     int houObjectId;
     
     
