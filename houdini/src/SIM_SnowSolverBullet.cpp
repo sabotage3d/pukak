@@ -31,17 +31,21 @@
 #include <SIM/SIM_QueryCombine.h>               // Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
 #include <SIM/SIM_Utils.h>
 #include <RBD/RBD_State.h>
+#include <SIM/SIM_ConAnchorObjPointPos.h>
+#include <SIM/SIM_ConAnchorObjSpacePos.h>
+#include <SIM/SIM_ConAnchorWorldSpacePos.h>
+#include <SIM/SIM_ConAnchorObjSpatial.h>
+#include <SIM/SIM_ConAnchor.h>
+#include <SIM/SIM_ConRel.h>
+#include <SIM/SIM_Constraint.h>
+#include <SIM/SIM_ConstraintIterator.h>
 #include <SIM/SIM_Container.h>
 #include <SIM/SIM_Engine.h>
 #include <SIM/SIM_Force.h>
 #include <SIM/SIM_ForcePoint.h>
 #include <SIM/SIM_ForceUniform.h>
 #include <SIM/SIM_ForceGravity.h>
-#include <SIM/SIM_Constraint.h>
-#include <SIM/SIM_ConAnchorObjSpacePos.h>
-#include <SIM/SIM_ConAnchorWorldSpacePos.h>
-#include <SIM/SIM_ConAnchor.h>
-#include <SIM/SIM_ConRel.h>
+#include <SIM/SIM_Relationship.h>
 #include <SIMZ/SIM_PopGeometry.h>
 #include <GEO/GEO_Detail.h>
 #include <GEO/GEO_PrimSphere.h>
@@ -141,11 +145,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     // ADDED BY SRH 2010-03-31 //
     std::map< int, bulletBody >::iterator affectorIt;
     // *********************** //
+    // ADDED BY SRH 2010-08-11 //
+    std::map< string, bulletConstraint >::iterator constraintIt;
+    btAlignedObjectArray<string> newConstraints;
+    // *********************** //
     btTransform btrans;
     int totalDopObjects = engine.getNumSimulationObjects();
     int totalUpdateObjects = engine.getNumSimulationObjects();
     float currTime = engine.getSimulationTime();
-       
        
     // ADDED BY SRH 2010-03-30 FOR AFFECTOR CODE//
     SIM_ObjectArray collisionAffectors;
@@ -161,7 +168,35 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     }
        
     // Remove any that have been deleted from dops in system: state->m_dynamicsWorld
-    removeDeadBodies( engine );    
+    removeDeadBodies( engine );
+    
+    
+    
+    // ADDED BY SRH 2010-08-13 //
+    //   Clear out constraints
+    //for ( constraintIt = state->m_bulletConstraints->begin(); constraintIt != state->m_bulletConstraints->end(); constraintIt++ )
+    //{
+    //    state->m_dynamicsWorld->removeConstraint( constraintIt->second.constraint );
+    //}
+    //state->m_bulletConstraints->clear();
+    // *********************** //
+    
+    
+    // Initialize constraints on all objects.
+    for (i = 0; i < newobjects.entries(); i++)
+    {
+        SIM_ConstraintIterator::initConstraints(*newobjects(i),
+    			engine.getSimulationTime());
+    }
+    
+    // Initialize constraints on all objects.
+    for (i = 0; i < objects.entries(); i++)
+    {
+        SIM_ConstraintIterator::initConstraints(*objects(i),
+    			engine.getSimulationTime());
+    }
+    
+    
        
        
     // ADDED BY SRH 2010-04-01 - Now, instead of looping over all objects in the engine
@@ -201,7 +236,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             (bodyIt->second.bodyId)->getMotionState()->setWorldTransform(btrans);
             
             btScalar houMass = rbdstate->getMass();
-            if( houMass > 0 )
+            if( houMass > 0 )       // If this is not a static object
             {
                 //Velocity
                 v = rbdstate->getVelocity();
@@ -212,10 +247,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 
                 
                 // ADDED BY SRH 2010-05-27 //
-                //  If the mass of the Houdini RBD object has been turned from zero to nonzero,
-                //  then update the Bullet objects mass.
-                //Mass
-                //cout << currObject->getName() << " mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
+                //  If the mass of the Houdini RBD object has just been turned from zero to nonzero,
+                //    then rbdstate->getMass is nonzero but the Bullet object's mass is still at zero.
+                //    So, if the Bullet object's mass is currently set at zero,
+                //    update the Bullet object's mass to the Houdini value, and make it no longer static.
                 if ( (bodyIt->second.bodyId)->getInvMass() == 0. )
                 {
                     btVector3 fallInertia(0,0,0);
@@ -264,11 +299,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             
             
             // ADDED BY SRH43 2010-04-27 //
-            //   If the mass is set to zero on any frame during the Houdini simulation,
-            //   this should trigger the bullet object to freeze
-                //   (it still affects other objects but is immovable and unaffected by others).
-            //   To do this, the bullet object's mass is set to zero (essentially giving it infinite mass)
-            //   and its velocities are set to zero.
+            //   If in the Houdini simulation, the mass is set to zero
+            //     this should trigger the bullet object to freeze (be static) but NOT go inactive
+            //     (it still affects other objects but is immovable and unaffected by others).
+            //     To do this, the bullet object's mass is set to zero (essentially giving it infinite mass)
+            //     and its velocities are set to zero.
             if ( (rbdstate->getMass() == 0 && !bodyIt->second.isStatic) )
             {
                 (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
@@ -277,16 +312,78 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 (bodyIt->second.bodyId)->updateInertiaTensor();
                 
                 bodyIt->second.isStatic = true;
-                // MAKE THE HOUDINI OBJECT INACTIVE ??????  NO!!!!!
-                //(affectorIt->second.bodyId)->setCollisionFlags( btCollisionObject::CF_STATIC_OBJECT );
-            }
+                
+                // MAKE THE HOUDINI OBJECT INACTIVE??  NO!!!!!
+                //   This way, this object is still present in the solver though not affected.
+                //   If you truly want it inactive (not present in the solver),
+                //   set the object's Active State to zero as well as (or instead of) setting the mass to zero
+                
+            }  // if
             // ************************* //
+            
             
             //Add forces and such from the rest of the subdata
             processSubData(currObject, bodyIt->second);
+            
+            
+            
+            
+            
+            
+            
+            // ADDED BY SRH 2010-08-10 //
+            //   Constraints
+            //   Get constraint information from each object
+            
+            // Store Anchors
+            SIM_ConstDataArray reldata;
+            const SIM_Constraint *constraint;
+            const SIM_Relationship *rel;
+            currObject->filterConstRelationships(true, SIM_DataFilterByType("SIM_Constraint"), reldata);
+            unsigned int relCount = reldata.entries();
+            for(int f=0; f<relCount; f++)
+            {
+                rel = SIM_DATA_CASTCONST(reldata(f), SIM_Relationship);
+                
+                //UT_String strId;
+                //const UT_Guid& guid = rel->getUniqueId();
+                //guid.getString( strId );
+                string strIdString = (string)rel->getName();  //strId.buffer();
+                constraintIt = state->m_bulletConstraints->find( strIdString );
+                
+                // If this is a new body (that is, it doesn't match any key in the map), make a bullet constraint to match
+                if( constraintIt == state->m_bulletConstraints->end())
+                {
+                    bulletConstraint currConstraint;
+                    currConstraint.type = CONSTRAINTTYPE_POINT2POINT;
+                    currConstraint.rel = rel;
+                    currConstraint.obj0 = currObject;
+                    currConstraint.obj1 = NULL;
+                    state->m_bulletConstraints->insert(std::make_pair( strIdString, currConstraint ));
+                    //constraintIt = state->m_bulletConstraints->find( subStrId );
+                    
+                    newConstraints.push_back( strIdString );
+                }
+                // Else atach this object to obj1 if it is the constraint's second object
+                else if ( currObject != constraintIt->second.obj0 && constraintIt->second.obj1 == NULL )
+                {
+                    constraintIt->second.obj1 = currObject;
+                }
+                
+            }  // for f
+            
+            // ************************ //   Constraints
+            
+            
+            
+            
+            
+            
         }
         
     }  // for each object(i)
+    
+    
     
     
     // ADDED BY SRH 2010-04-01 *************************************** //
@@ -353,6 +450,77 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         }  // for each affector(a) of the current object
     }  // for each object(i), look for additional affectors
     // *************************************************************** //
+    
+    
+    
+    
+    // ADDED BY SRH 2010-08-11 //
+    //   Compute the constraints for Bullet
+    int numNewConstraints = newConstraints.size();
+    for ( int c = 0; c < numNewConstraints; c++ )
+    {
+        // Get the constraint relationship
+        constraintIt = state->m_bulletConstraints->find( newConstraints[c] );
+        const SIM_Relationship* rel = constraintIt->second.rel;
+        
+        // Compute the constraint anchor
+        const SIM_Constraint* constraint = SIM_DATA_CASTCONST(rel->getConstRelationshipTypeData(), SIM_Constraint);
+        SIM_ConAnchor* anchor = (SIM_ConAnchor*)constraint->getAnchor(0);
+        SIM_ConAnchor* anchorGoal = (SIM_ConAnchor*)constraint->getAnchor(1);
+        
+        // Store the anchors in our constraint iterator
+        constraintIt->second.anchor = anchor;
+        constraintIt->second.anchorGoal = anchorGoal;
+        
+        // Get the position of the Houdini constraint
+        const SIM_ConAnchorObjSpacePos* spatialanchor = SIM_DATA_CASTCONST( anchor, SIM_ConAnchorObjSpacePos );
+        UT_Vector3 wsposAnchor = spatialanchor->getWorldSpacePosition();    // World space position of anchor
+        UT_Vector3 wsposObj0;                                               // World space position of obj0
+        (constraintIt->second.obj0)->getPosition()->getPosition( wsposObj0 );
+        UT_Vector3 lsposAnchor0 = wsposAnchor - wsposObj0;                  // Position of the anchor in obj0's local space
+        btVector3 pivotInA( lsposAnchor0.x(), lsposAnchor0.y(), lsposAnchor0.z() ); // Position of the Bullet constraint
+        
+        // Apply constraint in Bullet
+        std::map< int, bulletBody >::iterator bodyIt0;
+        std::map< int, bulletBody >::iterator bodyIt1;
+        btPoint2PointConstraint* point2Point;
+        if ( constraintIt->second.obj1 == NULL )
+        {
+            bodyIt0 = state->m_bulletBodies->find( (constraintIt->second.obj0)->getObjectId() );
+            btRigidBody* body0 = (btRigidBody*)bodyIt0->second.bodyId;
+            
+            point2Point = new btPoint2PointConstraint( *body0, pivotInA );
+        }
+        else
+        {
+            bodyIt0 = state->m_bulletBodies->find( (constraintIt->second.obj0)->getObjectId() );
+            bodyIt1 = state->m_bulletBodies->find( (constraintIt->second.obj1)->getObjectId() );
+            btRigidBody* body0 = (btRigidBody*)bodyIt0->second.bodyId;
+            btRigidBody* body1 = (btRigidBody*)bodyIt1->second.bodyId;
+            
+            UT_Vector3 wsposObj1;                                               // World space position of obj1
+            (constraintIt->second.obj1)->getPosition()->getPosition( wsposObj1 );
+            UT_Vector3 lsposAnchor1 = wsposAnchor - wsposObj1;                  // Position of the anchor in obj0's local space
+            btVector3 pivotInB(0.0, 0.0, 0.0);
+            pivotInB.setValue( lsposAnchor1.x(), lsposAnchor1.y(), lsposAnchor1.z() );
+            
+            point2Point = new btPoint2PointConstraint( *body0, *body1, pivotInA, pivotInB );
+        }
+        
+        state->m_dynamicsWorld->addConstraint( point2Point );
+        constraintIt->second.constraint = point2Point;
+        
+    }  // for constraintIt
+    
+    newConstraints.clear();
+    
+    // *********************** //
+    
+    
+    
+    
+    
+    
     
     
     
@@ -775,7 +943,35 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             }    
         }
     }
-
+    
+    
+    
+    // ADDED BY SRH 2010-08-12 //
+    //   Update the constraint anchors
+    /*for ( constraintIt = state->m_bulletConstraints->begin(); constraintIt != state->m_bulletConstraints->end(); constraintIt++ )
+    {
+        // Get the local space constraint position from Bullet
+        btVector3 lsAnchorPos = ((btPoint2PointConstraint*)(constraintIt->second.constraint))->getPivotInA();
+        
+        // Compute the world space constraint position
+        bodyIt = state->m_bulletBodies->find( (constraintIt->second.obj0)->getObjectId() );
+        //btTransform transform = (bodyIt->second.bodyId)->getCenterOfMassTransform();
+        btTransform transform;
+        (bodyIt->second.bodyId)->getMotionState()->getWorldTransform(transform);
+        btVector3 wsAnchorPos = transform * lsAnchorPos;
+        btVector3 wsPivotPos = transform.getOrigin();
+        btVector3 wsAnchorOffset = wsAnchorPos - wsPivotPos;
+        
+        //((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchor))->setUseWorldSpacePosition( true );
+        //((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchor))->setWorldSpacePosition( UT_Vector3( wsPivotPos.x(), wsPivotPos.y(), wsPivotPos.z() ) );
+        ((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchor))->setOffsetInput( UT_Vector3( wsAnchorPos.x(), wsAnchorPos.y(), wsAnchorPos.z() ) );
+        
+        //((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchorGoal))->setUseWorldSpacePosition( false );
+        //((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchorGoal))->setWorldSpacePosition( UT_Vector3( wsPivotPos.x(), wsPivotPos.y(), wsPivotPos.z() ) );
+        ((SIM_ConAnchorObjSpacePos*)(constraintIt->second.anchorGoal))->setOffsetInput( UT_Vector3( wsPivotPos.x(), wsPivotPos.y(), wsPivotPos.z() ) );
+        
+    }  // for constraintIt
+    // *********************** //*/
                 
 
 
@@ -1188,7 +1384,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 
                 // CHRIS *** If it errors out at this point, it means you're not linking to the right bullet libraries/source files *** ///
                 //cout<<"Is this where its erroring out again?"<<endl;
-                state->m_bulletBodies->insert(std::make_pair( currObject->getObjectId(), currBody ));  
+                state->m_bulletBodies->insert(std::make_pair( currObject->getObjectId(), currBody ));
                 bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
             }
         }      
@@ -1335,6 +1531,7 @@ void SIM_SnowSolverBulletState::initSystem(  )
 
     m_bulletBodies = new std::map<int, bulletBody>();
     m_bulletAffectors = new std::map<int, bulletBody>();
+    m_bulletConstraints = new std::map<string, bulletConstraint>();
 
     // TEMP: add groundplane
     /*

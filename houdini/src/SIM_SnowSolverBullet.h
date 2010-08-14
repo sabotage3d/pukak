@@ -19,6 +19,9 @@
 #define SIM_NAME_RAND "rand"
 #define SIM_NAME_SHOWPRIM "showprim"
 
+#define CONSTRAINTTYPE_POINT2POINT      "point2point"
+
+
 class SIM_ObjectArray;
 class SIM_Geometry;
 class SIM_GeometryCopy;
@@ -81,7 +84,27 @@ typedef struct bulletBodystr {
     int dopId;
     sim_btRigidBody* bodyId;
     UT_BoundingBox bbox;
+    // ADDED BY SRH 2010-08-10 //
+    //   Constraint stuff
+    //std::vector<SIM_ConAnchor*> anchors;
+    //std::vector<btPoint2PointConstraint*> btPoint2PointConstraints;
+    //std::vector<btHingeConstraint*> btHingeConstraints;
+    // *********************** //
 } bulletBody;
+
+
+
+
+typedef struct bulletConstraintstr {
+    UT_String type;
+    btTypedConstraint* constraint;
+    SIM_ConAnchor* anchor;
+    SIM_ConAnchor* anchorGoal;
+    const SIM_Relationship* rel;
+    SIM_Object* obj0;
+    SIM_Object* obj1;
+} bulletConstraint;
+
 
 
 
@@ -254,6 +277,7 @@ class SIM_SnowSolverBulletState {
     public:
         int  refCount;
         std::map<int, bulletBody> *m_bulletBodies;
+        std::map<string, bulletConstraint> *m_bulletConstraints;
         // ADDED BY SRH 2010-03-31 //
         std::map<int, bulletBody> *m_bulletAffectors;
         // *********************** //
