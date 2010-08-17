@@ -159,12 +159,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     const SIM_Geometry  *geometry = 0;
     // *********************** //
 
-
+    cout << "bob = " << bob << endl;
     if( !state )
     {
-        //cerr<<"creating new state"<<endl;
+        cerr<<"creating new state"<<endl;
         state = new SIM_SnowSolverBulletState();
         state->addReference();
+        bob = 18;
     }
        
     // Remove any that have been deleted from dops in system: state->m_dynamicsWorld
@@ -197,6 +198,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     }
     
     
+    cout << "num constraints: " << state->m_bulletConstraints->size() << endl;
        
        
     // ADDED BY SRH 2010-04-01 - Now, instead of looping over all objects in the engine
@@ -363,6 +365,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     //constraintIt = state->m_bulletConstraints->find( subStrId );
                     
                     newConstraints.push_back( strIdString );
+                    cout << "adding " << strIdString << endl;
                 }
                 // Else atach this object to obj1 if it is the constraint's second object
                 else if ( currObject != constraintIt->second.obj0 && constraintIt->second.obj1 == NULL )
@@ -373,6 +376,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             }  // for f
             
             // ************************ //   Constraints
+            cout << endl;
             
             
             
@@ -466,11 +470,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         // Compute the constraint anchor
         const SIM_Constraint* constraint = SIM_DATA_CASTCONST(rel->getConstRelationshipTypeData(), SIM_Constraint);
         SIM_ConAnchor* anchor = (SIM_ConAnchor*)constraint->getAnchor(0);
-        SIM_ConAnchor* anchorGoal = (SIM_ConAnchor*)constraint->getAnchor(1);
+        //SIM_ConAnchor* anchorGoal = (SIM_ConAnchor*)constraint->getAnchor(1);
         
         // Store the anchors in our constraint iterator
         constraintIt->second.anchor = anchor;
-        constraintIt->second.anchorGoal = anchorGoal;
+        //constraintIt->second.anchorGoal = anchorGoal;
         
         // Get the position of the Houdini constraint
         const SIM_ConAnchorObjSpacePos* spatialanchor = SIM_DATA_CASTCONST( anchor, SIM_ConAnchorObjSpacePos );
@@ -504,7 +508,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             btVector3 pivotInB(0.0, 0.0, 0.0);
             pivotInB.setValue( lsposAnchor1.x(), lsposAnchor1.y(), lsposAnchor1.z() );
             
+            //pivotInA = btVector3( 0.0, 0.0, 0.0 );
+            //pivotInB = body0->getCenterOfMassTransform().getOrigin() - body1->getCenterOfMassTransform().getOrigin();
+            
             point2Point = new btPoint2PointConstraint( *body0, *body1, pivotInA, pivotInB );
+            cout << "name = " << (constraintIt->second.rel)->getName() << endl;
+            cout << "pivotInA = " << pivotInA.x() << " " << pivotInA.y() << " " << pivotInA.z() << endl;
+            cout << "pivotInB = " << pivotInB.x() << " " << pivotInB.y() << " " << pivotInB.z() << endl;
+            cout << endl;
         }
         
         state->m_dynamicsWorld->addConstraint( point2Point );

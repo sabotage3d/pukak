@@ -99,7 +99,7 @@ typedef struct bulletConstraintstr {
     UT_String type;
     btTypedConstraint* constraint;
     SIM_ConAnchor* anchor;
-    SIM_ConAnchor* anchorGoal;
+    //SIM_ConAnchor* anchorGoal;
     const SIM_Relationship* rel;
     SIM_Object* obj0;
     SIM_Object* obj1;
@@ -324,16 +324,21 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 
     protected:
         virtual void makeEqualSubclass(const SIM_Data *src)
-        {
+        {cout << "making equal subclass" << endl;
             //cout<<"makeequalSubclass called, start "<<endl;
             SIM_SnowSolverBullet *world;
             world = const_cast<SIM_SnowSolverBullet *> SIM_DATA_CASTCONST(src, SIM_SnowSolverBullet);
+            cout << "  world = " << world << endl;
+            cout << "  world->state = " << world->state << endl;
             if( world && world->state )
-            {
+            {cout << "    in here" << endl;
                 state = world->state;
                 state->addReference();
             }
+            bob = world->bob;
         }
+        
+        int bob;
 
         explicit SIM_SnowSolverBullet(const SIM_DataFactory *factory);
         virtual ~SIM_SnowSolverBullet();
