@@ -262,41 +262,35 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     bodyIt->second.isStatic = false;
                 }
                 // *********************** //
+                
+                // Chris - sleepThresholds
+
             }
             
             
             // ADDED BY CHRIS 2010-06-07 *********** //
             // Add comment stuff //
-            /*
-            btScalar linearSleep = 0.1;
-            btScalar angularSleep = 1.0f; 
             
-            cout<<"Got to thresholds area."<<endl;
+            btScalar linearSleep = 0.000000001f;
+            btScalar angularSleep = 0.00000000005f; 
+            btScalar test1 = (bodyIt->second.bodyId)->getLinearSleepingThreshold();
+            btScalar test2 = (bodyIt->second.bodyId)->getAngularSleepingThreshold();
+               
+            cout<<"Got to thresholds area."<<endl;          
+            //(bodyIt->second.bodyId)->setSleepingThresholds(linearSleep, angularSleep);
+            cout<<test1<<endl;
+            cout<<test2<<endl;
+            cout<<"Just about to set sleeping thresholds"<<endl;
+
             
-            cout<<bulletstate<<endl;
-            OP_Node* thisbulletdataSolverNode = bulletstate->getCreatorNode();
-            cout<<"Created thisbulletdataSolverNode"<<endl;
-            //bool doChangeSleepThresholds = thisbulletdataSolverNode->evalInt( SIM_NAME_CHANGE_THRESHOLDS, 0, currTime );
-            
-            // Changes Sleeping Thresholds, OLD VERSION //
-            
-            cout<<bulletstate<<endl;
-            OP_Node* thisbulletdataSolverNode = bulletstate->getCreatorNode();
-            cout<<"Created thisbulletdataSolverNode"<<endl;
-            bool doChangeSleepThresholds = thisbulletdataSolverNode->evalInt( SIM_NAME_CHANGE_THRESHOLDS, 0, currTime );                
-                
-            if (doChangeSleepThresholds)
-            {
-                cout<<"inside of sleepThresholds loop"<<endl;
-                
-                    linearSleep = thisbulletdataSolverNode->evalInt( SIM_NAME_LINEAR_SLEEP_THRESHOLD, 0, 1 );
+            //linearSleep = 393;
+            //angularSleep = 424;
                     
-                    (bodyIt->second.bodyId)->setSleepingThresholds(linearSleep, angularSleep);
-            }
-            
-            linearSleep = thisbulletdataSolverNode->evalInt( SIM_NAME_LINEAR_SLEEP_THRESHOLD, 0, 1 );
             (bodyIt->second.bodyId)->setSleepingThresholds(linearSleep, angularSleep);
-             */     
+            cout<<(bodyIt->second.bodyId)->getLinearSleepingThreshold()<<endl;
+            cout<<(bodyIt->second.bodyId)->getAngularSleepingThreshold()<<endl;
+            cout<<"done..."<<endl;
+                 
             // ********************************** //
             
             
@@ -1298,7 +1292,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 fallShape = new btCapsuleShape( fabs(bulletstate->getPrimRadius()),
                     fabs(bulletstate->getPrimLength()) );
             }
-            
+                        
             // ADDED BY CHRIS 2010-06-04 ******************************************** //
             else if(geoRep == GEO_REP_PLANE) // plane representation
             {
@@ -1319,9 +1313,18 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
             else if(geoRep == GEO_REP_CONE_Y) // cone representation
             {
             	UT_Vector3 prim_s = bulletstate->getPrimS();
-            	fallShape = new btConeShape( prim_s.x()/2, prim_s.y() );
+            	fallShape = new btConeShape( prim_s.x(), prim_s.y() );
             }
+           
+            // ADDED BY CHRIS 2010-08-20
+            // Creates cylinder shape //
             
+            else if(geoRep == GEO_REP_CYLINDER_Y)
+            {
+                fallShape = new btCylinderShape( btVector3(fabs(bulletstate->getPrimRadius()), fabs(bulletstate->getPrimLength()) , fabs(bulletstate->getPrimRadius())) );
+            }
+
+ 
             // now add the shapes to bullet 
             if( fallShape )
             {
@@ -1379,7 +1382,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 // Initialize a new body
                 sim_btRigidBody* fallRigidBody = new sim_btRigidBody(fallRigidBodyCI);
                 state->m_dynamicsWorld->addRigidBody(fallRigidBody);
-                //cout<<"creating new body, id:"<<currObject->getObjectId()
+                cout<<"creating new body, id:"<<currObject->getObjectId()<<endl;
                 //      <<"  isStaticObject:"<<fallRigidBody->isStaticObject()<<endl;
                 
                 // ADDED BY SRH 2010-05-03 //
@@ -1515,7 +1518,7 @@ void SIM_SnowSolverBulletState::initSystem(  )
     //cout<<"creating world: start"<<endl;
     m_collisionConfiguration = new btDefaultCollisionConfiguration();
     m_dispatcher = new      btCollisionDispatcher( m_collisionConfiguration);
-    m_broadphase = new btDbvtBroadphase();
+    m_broadphase = new      btDbvtBroadphase();
 #ifdef DO_SNOW_STUFF
     m_solver = new shMolecularDynamicsConstraintSolver();
 #else
@@ -1613,19 +1616,19 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
     // ADDED BY CHRIS 2010-06-02 //
     //static PRM_Name            theChangeSleepThresholds(SIM_NAME_CHANGE_THRESHOLDS, "Change Sleeping Thresholds");
     
-    static PRM_Default        defLinearSleep(0.1);
-    static PRM_Default        defAngularSleep(1.0f);
+    static PRM_Default          defLinearSleep(0.1);
+    static PRM_Default          defAngularSleep(1.0f);
     
-    static PRM_Name            theLinearSleepThreshold(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Linear Sleeping Threshold");
-    static PRM_Range        linearsleepthresholdRange(PRM_RANGE_UI, 0.0, PRM_RANGE_UI, 1.0);
+    static PRM_Name             theLinearSleepThreshold(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Linear Sleeping Threshold");
+    static PRM_Range            linearsleepthresholdRange(PRM_RANGE_UI, 0.0, PRM_RANGE_UI, 1.0);
     
-    static PRM_Name            theAngularSleepThreshold(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, "Angular Sleeping Threshold");
-    static PRM_Range        angularsleepthresholdRange(PRM_RANGE_UI, 0.0, PRM_RANGE_UI, 1.0);
+    static PRM_Name             theAngularSleepThreshold(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, "Angular Sleeping Threshold");
+    static PRM_Range            angularsleepthresholdRange(PRM_RANGE_UI, 0.0, PRM_RANGE_UI, 1.0);
     
-    //static PRM_Name            theAngularSleepThreshold(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Angular Sleeping Threshold");
-    //static PRM_Name            theDeactivationTime(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Linear Sleeping Threshold");
+    //static PRM_Name           theAngularSleepThreshold(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Angular Sleeping Threshold");
+    //static PRM_Name           theDeactivationTime(SIM_NAME_LINEAR_SLEEP_THRESHOLD, "Linear Sleeping Threshold");
     
-    static PRM_Name            theIsKinematic(SIM_NAME_ISKINEMATIC, "Kinematic (Deforming Geometry)");
+    static PRM_Name             theIsKinematic(SIM_NAME_ISKINEMATIC, "Kinematic (Deforming Geometry)");
     
     // *********************** //
 
@@ -1645,7 +1648,8 @@ SIM_SnowBulletData::getSnowBulletDataDopDescription()
         PRM_Name(GEO_REP_SPHERE,        "Sphere"),
         PRM_Name(GEO_REP_BOX,           "Box"),
         PRM_Name(GEO_REP_CAPSULE,       "Capsule"),
-        PRM_Name(GEO_REP_CONE_Y,		"Cone, Y-up"),
+        PRM_Name(GEO_REP_CONE_Y,        "Cone, Y-up"),
+	PRM_Name(GEO_REP_CYLINDER_Y,	"Cylinder, Y-up"),
         PRM_Name(GEO_REP_PLANE,         "Ground Plane"),
         PRM_Name(0)
     };
@@ -1846,4 +1850,4 @@ SIM_SnowSolverBulletState::~SIM_SnowSolverBulletState()
     if( m_dynamicsWorld != NULL )
         cleanSystem();
 }
-
+ 	

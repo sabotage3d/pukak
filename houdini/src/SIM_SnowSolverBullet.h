@@ -129,7 +129,8 @@ typedef struct bulletConstraintstr {
 #define GEO_REP_BOX             "box"
 #define GEO_REP_CAPSULE         "capsule"
 #define GEO_REP_CONE_Y          "cone, y-up"
-#define    GEO_REP_PLANE        "groundplane"
+#define GEO_REP_PLANE        "groundplane"
+#define GEO_REP_CYLINDER_Y	"cylinder, y-up"
 //#define GEO_REP_PITTON        "pitton"
 //#define GEO_REP_SPHEREPACK    "spherepack"
 
@@ -158,14 +159,14 @@ class SIM_SnowBulletData : public SIM_Data,
         GETSET_DATA_FUNCS_B(SIM_NAME_PRIM_AUTOFIT, Autofit);
         GETSET_DATA_FUNCS_I(SIM_NAME_PRIM_AUTOFIT_METHOD, AutofitMethod);
         
-                //Added by Chris 2010-06-07 //
-        //GETSET_DATA_FUNCS_B(SIM_NAME_CHANGE_THRESHOLDS, ChangeSleepThresholds);       // Indicates if user wants to use custom sleeping thresholds, rather than the default ones.
-        GETSET_DATA_FUNCS_F(SIM_NAME_LINEAR_SLEEP_THRESHOLD, LinearSleepThreshold);     // Sets the linear sleeping threshold value
-                GETSET_DATA_FUNCS_F(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, AngularSleepThreshold);       // Sets the linear sleeping threshold value
+        //Added by Chris 2010-06-07 //
+        //GETSET_DATA_FUNCS_B(SIM_NAME_CHANGE_THRESHOLDS, ChangeSleepThresholds);       	// Indicates if user wants to use custom sleeping thresholds, rather than the default ones.
+        GETSET_DATA_FUNCS_F(SIM_NAME_LINEAR_SLEEP_THRESHOLD, LinearSleepThreshold);     	// Sets the linear sleeping threshold value
+        GETSET_DATA_FUNCS_F(SIM_NAME_ANGULAR_SLEEP_THRESHOLD, AngularSleepThreshold);      	// Sets the linear sleeping threshold value
         // *********************** //
         
         //Added by SRH 2010-06-10//
-        GETSET_DATA_FUNCS_B(SIM_NAME_ISKINEMATIC, IsKinematic);    //Indicates whether or not bullet should re-evaluate the static geometry; i.e. if you have animated static meshes.
+        GETSET_DATA_FUNCS_B(SIM_NAME_ISKINEMATIC, IsKinematic);    				//Indicates whether or not bullet should re-evaluate the static geometry; i.e. if you have animated static meshes.
         
         
         static const char* getName();
