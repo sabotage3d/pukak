@@ -265,7 +265,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 // Get the parent points' normals.
                 //   The normals will determine which direction the new particle should be created in
                 //   as well as compute the child particle's normal
-                int norm_index = gdp->findPointAttrib( "N", 3 * sizeof(float), GB_ATTRIB_VECTOR );
+                GB_AttributeRef norm_index = gdp->findPointAttrib( "N", 3 * sizeof(float), GB_ATTRIB_VECTOR );
                 UT_Vector3* n0 = pt0->castAttribData<UT_Vector3>( norm_index );
                 UT_Vector4 norm0( n0->x(), n0->y(), n0->z() );
                 UT_Vector3* n1 = pt1->castAttribData<UT_Vector3>( norm_index );
