@@ -325,14 +325,11 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
 
     protected:
         virtual void makeEqualSubclass(const SIM_Data *src)
-        {cout << "making equal subclass" << endl;
-            //cout<<"makeequalSubclass called, start "<<endl;
+        {
             SIM_SnowSolverBullet *world;
             world = const_cast<SIM_SnowSolverBullet *> SIM_DATA_CASTCONST(src, SIM_SnowSolverBullet);
-            cout << "  world = " << world << endl;
-            cout << "  world->state = " << world->state << endl;
             if( world && world->state )
-            {cout << "    in here" << endl;
+            {
                 state = world->state;
                 state->addReference();
             }

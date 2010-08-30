@@ -159,10 +159,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     const SIM_Geometry  *geometry = 0;
     // *********************** //
 
-    cout << "bob = " << bob << endl;
     if( !state )
     {
-        cerr<<"creating new state"<<endl;
+        //cerr<<"creating new state"<<endl;
         state = new SIM_SnowSolverBulletState();
         state->addReference();
         bob = 18;
@@ -198,7 +197,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     }
     
     
-    cout << "num constraints: " << state->m_bulletConstraints->size() << endl;
+    //cout << "num constraints: " << state->m_bulletConstraints->size() << endl;
        
        
     // ADDED BY SRH 2010-04-01 - Now, instead of looping over all objects in the engine
@@ -359,7 +358,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     //constraintIt = state->m_bulletConstraints->find( subStrId );
                     
                     newConstraints.push_back( strIdString );
-                    cout << "adding " << strIdString << endl;
                 }
                 // Else atach this object to obj1 if it is the constraint's second object
                 else if ( currObject != constraintIt->second.obj0 && constraintIt->second.obj1 == NULL )
@@ -370,7 +368,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             }  // for f
             
             // ************************ //   Constraints
-            cout << endl;
             
             
             
@@ -506,11 +503,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             //pivotInB = body0->getCenterOfMassTransform().getOrigin() - body1->getCenterOfMassTransform().getOrigin();
             
             point2Point = new btPoint2PointConstraint( *body0, *body1, pivotInA, pivotInB );
-            cout << "name = " << (constraintIt->second.rel)->getName() << endl;
-            cout << "pivotInA = " << pivotInA.x() << " " << pivotInA.y() << " " << pivotInA.z() << endl;
-            cout << "pivotInB = " << pivotInB.x() << " " << pivotInB.y() << " " << pivotInB.z() << endl;
-            cout << endl;
-        }
+         }
         
         state->m_dynamicsWorld->addConstraint( point2Point );
         constraintIt->second.constraint = point2Point;
@@ -1241,11 +1234,11 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                     {
                         gdp->getBBox( &bbox );
                         
-                        int rot_index = gdp->findPrimAttrib( "rot", 3 * sizeof(float), GB_ATTRIB_VECTOR );
+                        GB_AttributeRef rot_index = gdp->findPrimAttrib( "rot", 3 * sizeof(float), GB_ATTRIB_VECTOR );
                         UT_Vector3* rot = prim->castAttribData<UT_Vector3>( rot_index );
                         
                         btMatrix3x3 rotMatrix;
-                        if ( rot_index >= 0 )
+                        if ( rot_index.isValid() )  // >= 0 )
                             rotMatrix = btMatrix3x3( btQuaternion(rot->x(), rot->y(), rot->z(), 1) );
                         else
                             rotMatrix.setIdentity();

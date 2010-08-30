@@ -64,9 +64,9 @@ if bulletPath and houdiniPath:
     
     if doCopy:
         userPath = os.environ['USERPROFILE']
-        houdiniDllPath = userPath + '\\My Documents\\houdini10.0\\dso'
+        houdiniDllPath = userPath + '\\My Documents\\houdini11.0\\dso'
         if not os.path.exists( houdiniDllPath ):
-            houdiniUserPath = userPath + '\\My Documents\\houdini10.0'
+            houdiniUserPath = userPath + '\\My Documents\\houdini11.0'
             if not os.path.exists( houdiniUserPath ):
                 os.mkdir( houdiniUserPath )
             os.mkdir( houdiniDllPath )
