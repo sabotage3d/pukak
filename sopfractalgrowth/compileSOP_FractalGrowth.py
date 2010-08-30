@@ -42,16 +42,17 @@ sopFractalGrowthSrcPath = houdiniPath + '\\toolkit\\SOP_FractalGrowth\\src'
 sopFractalGrowthSrcPath = sopFractalGrowthSrcPath.replace( '\\', '/' )
 os.chdir( sopFractalGrowthSrcPath )
 
-hcustomCommand = 'hcustom -i ../lib SOP_FractalGrowth.cpp'
+#hcustomCommand = 'hcustom -i ../lib SOP_FractalGrowth.cpp'
+hcustomCommand = 'hcustom SOP_FractalGrowth.cpp'
 os.system( hcustomCommand )
 
-if doCopy:
-    os.chdir( "../lib" )
-    userPath = os.environ['USERPROFILE']
-    houdiniDllPath = userPath + '\\My Documents\\houdini11.0\\dso'
-    if not os.path.exists( houdiniDllPath ):
-        houdiniUserPath = userPath + '\\My Documents\\houdini11.0'
-        if not os.path.exists( houdiniUserPath ):
-            os.mkdir( houdiniUserPath )
-        os.mkdir( houdiniDllPath )
-    shutil.copy( 'SOP_FractalGrowth.dll', houdiniDllPath )
+#if doCopy:
+#    os.chdir( "../lib" )
+#    userPath = os.environ['USERPROFILE']
+#    houdiniDllPath = userPath + '\\My Documents\\houdini11.0\\dso'
+#    if not os.path.exists( houdiniDllPath ):
+#        houdiniUserPath = userPath + '\\My Documents\\houdini11.0'
+#        if not os.path.exists( houdiniUserPath ):
+#            os.mkdir( houdiniUserPath )
+#        os.mkdir( houdiniDllPath )
+#    shutil.copy( 'SOP_FractalGrowth.dll', houdiniDllPath )
