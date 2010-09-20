@@ -261,11 +261,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     bodyIt->second.isStatic = false;
                 }
                 // *********************** //
-                
-                // Chris - sleepThresholds
-
             }
             
+			// Chris - sleepThresholds
             
             // ADDED BY CHRIS 2010-06-07 *********** //
             // Add comment stuff //
@@ -275,7 +273,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             btScalar test1 = (bodyIt->second.bodyId)->getLinearSleepingThreshold();
             btScalar test2 = (bodyIt->second.bodyId)->getAngularSleepingThreshold();
                
-            cout<<"Got to thresholds area."<<endl;          
+            /*cout<<"Got to thresholds area."<<endl;          
             //(bodyIt->second.bodyId)->setSleepingThresholds(linearSleep, angularSleep);
             cout<<test1<<endl;
             cout<<test2<<endl;
@@ -289,7 +287,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             cout<<(bodyIt->second.bodyId)->getLinearSleepingThreshold()<<endl;
             cout<<(bodyIt->second.bodyId)->getAngularSleepingThreshold()<<endl;
             cout<<"done..."<<endl;
-                 
+            */
             // ********************************** //
             
             
@@ -1263,8 +1261,6 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                             float yScale = ( bbox.ysize() / 4.0 ) * scale.y();
                             float zScale = ( bbox.zsize() / 4.0 ) * scale.z();
                             
-                            //cout << "x y z scale = " << xScale << " " << yScale << " " << zScale << endl;
-                            
                             boxShape = new btBoxShape( btVector3( xScale, yScale, zScale ) );
                             ((btCompoundShape*)fallShape)->addChildShape( curTransform, boxShape );
                         }
@@ -1375,7 +1371,7 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 // Initialize a new body
                 sim_btRigidBody* fallRigidBody = new sim_btRigidBody(fallRigidBodyCI);
                 state->m_dynamicsWorld->addRigidBody(fallRigidBody);
-                cout<<"creating new body, id:"<<currObject->getObjectId()<<endl;
+                //cout<<"creating new body, id:"<<currObject->getObjectId()<<endl;
                 //      <<"  isStaticObject:"<<fallRigidBody->isStaticObject()<<endl;
                 
                 // ADDED BY SRH 2010-05-03 //
