@@ -158,13 +158,14 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     SIM_ObjectArray collisionAffectors;
     const SIM_Geometry  *geometry = 0;
     // *********************** //
-
+	
+	//cout << "newobjs = " << newobjects.entries() << ",  oldobjs = " << objects.entries() << endl;
     if( !state )
     {
         //cerr<<"creating new state"<<endl;
         state = new SIM_SnowSolverBulletState();
         state->addReference();
-        bob = 18;
+        //bob = 18;
     }
        
     // Remove any that have been deleted from dops in system: state->m_dynamicsWorld
@@ -1792,7 +1793,7 @@ SIM_Query* SIM_SnowNeighborData::createQueryObjectSubclass() const
 {//cout << "querying object subclass" << endl;
     SIM_QueryArrays *query = new SIM_QueryArrays(this);
     // call addArray() for each field in your records
-    query->addArray("Neighbors", "neighborid", &neighborIds);
+    query->addArray( "Neighbors", "neighborid", &neighborIds );
     return new SIM_QueryCombine(BaseClass::createQueryObjectSubclass(), query);
 }
 

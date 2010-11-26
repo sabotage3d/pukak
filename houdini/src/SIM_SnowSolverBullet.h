@@ -333,10 +333,10 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
                 state = world->state;
                 state->addReference();
             }
-            bob = world->bob;
+            //bob = world->bob;
         }
         
-        int bob;
+        //int bob;
 
         explicit SIM_SnowSolverBullet(const SIM_DataFactory *factory);
         virtual ~SIM_SnowSolverBullet();
