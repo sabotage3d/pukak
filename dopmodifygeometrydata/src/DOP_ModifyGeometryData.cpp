@@ -152,10 +152,16 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
             //{
             
             SIM_Object *currObject = filtered(i);
-            SIM_Geometry* geom = (SIM_Geometry *)currObject->getGeometry();
+            //SIM_Geometry* geom = (SIM_Geometry *)currObject->getGeometry();
             int objid = currObject->getObjectId();
+			
+			SIM_GeometryCopy *copygeo = SIM_DATA_GET( *currObject, SIM_GEOMETRY_DATANAME, SIM_GeometryCopy );
+			if ( !copygeo )
+			{
+				copygeo = SIM_DATA_CREATE( *currObject, SIM_GEOMETRY_DATANAME, SIM_GeometryCopy, SIM_DATA_ADOPT_EXISTING_ON_DELETE );
+			}  // if
             
-            if( geom )
+            if( copygeo )
             {
                 //GU_DetailHandleAutoReadLock gdl( geom->getGeometry() );
                 //GU_Detail *gdp = (GU_Detail *)gdl.getGdp();
@@ -167,14 +173,24 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                 geomAttrClass = GEOMATTRCLASS( time );
                 geomAttrType = GEOMATTRTYPE( time );
                 
-                SIM_GeometryCopy *copygeo = 0;
-                copygeo = (SIM_GeometryCopy*)( SIM_DATA_GET( *currObject, SIM_GEOMETRY_DATANAME, SIM_Geometry ) );
-                if ( !copygeo )
-                {
-                    continue;
-                }
-                GU_DetailHandleAutoReadLock gdl = GU_DetailHandleAutoReadLock( copygeo->getGeometry() );
-                GU_Detail* gdp = (GU_Detail *)gdl.getGdp();
+                //SIM_GeometryCopy *copygeo = 0;
+                //copygeo = (SIM_GeometryCopy*)( SIM_DATA_GET( *currObject, SIM_GEOMETRY_DATANAME, SIM_Geometry ) );
+				
+				//copygeo = SIM_DATA_GET( *currObject, SIM_GEOMETRY_DATANAME, SIM_GeometryCopy );
+				//if ( !copygeo )
+				//{
+				//	cout << "creating new geom" << endl;
+				//	copygeo = SIM_DATA_CREATE( *currObject, SIM_GEOMETRY_DATANAME, SIM_GeometryCopy, 0 );
+				//}  // if
+                //if ( !copygeo )
+                //{
+				//	cout << "no copy geo found" << endl;
+                //    continue;
+                //}
+				
+                //GU_DetailHandleAutoReadLock gdl = GU_DetailHandleAutoReadLock( copygeo->getGeometry() );
+				GU_DetailHandleAutoWriteLock gdl( copygeo->lockGeometry() );
+                GU_Detail* gdp = gdl.getGdp();
                 
                 if ( geomAttrClass == POINT_CLASS )
                 {
@@ -353,6 +369,8 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                 {
                     addError( DOP_INVALIDINPUT, "Bad Attribute Class" );
                 }
+                
+                copygeo->releaseGeometry();
             }  // if
             else
             {
