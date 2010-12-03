@@ -198,6 +198,13 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     if ( geomAttrType == INT_TYPE )
                     {
                         GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_INT );
+                        
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attRef = gdp->addPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+                        }  // if
+                        
                         if ( attRef.isValid() )
                         {
                             int valueNumber = (int)VALUENUMBER( time );
@@ -214,6 +221,12 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     else if ( geomAttrType == FLOAT_TYPE )
                     {
                         GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_FLOAT );
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+                        }  // if
+                        
                         if ( attRef.isValid() )
                         {
                             float valueNumber = VALUENUMBER( time );
@@ -271,6 +284,12 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     if ( geomAttrType == INT_TYPE )
                     {
                         GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_INT );
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attRef = gdp->addPrimAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+                        }  // if
+                        
                         if ( attRef.isValid() )
                         {
                             int valueNumber = (int)VALUENUMBER( time );
@@ -287,6 +306,12 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     else if ( geomAttrType == FLOAT_TYPE )
                     {
                         GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_FLOAT );
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attRef = gdp->addPrimAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+                        }  // if
+                        
                         if ( attRef.isValid() )
                         {
                             float valueNumber = VALUENUMBER( time );
@@ -331,6 +356,12 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
 						int valueNumber = (int)VALUENUMBER( time );
 						
 						GB_AttributeRef attrOffset = gdp->attribs().getOffset( geomAttrName, GB_ATTRIB_INT );
+                        if ( attrOffset.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attrOffset = gdp->addAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+                        }  // if
+                        
 						if ( attrOffset.isValid() )
                         {
 							//gdp->attribs().getElement().setValue<int>( attrOffset, valueNumber );
@@ -347,6 +378,12 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
 						int valueNumber = VALUENUMBER( time );
 						
 						GB_AttributeRef attrOffset = gdp->attribs().getOffset( geomAttrName, GB_ATTRIB_FLOAT );
+                        if ( attrOffset.isInvalid() )
+                        {
+                            // Create the point attribute
+                            attrOffset = gdp->addAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+                        }  // if
+                        
                         if ( attrOffset.isValid() )
                         {
 							gdp->setDetailAttributeF( geomAttrName, valueNumber );
