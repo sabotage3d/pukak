@@ -1710,7 +1710,7 @@ SIM_SnowBulletData::~SIM_SnowBulletData()
 
 
 // ADDED BY SRH 2010-05-10 ********************************************************* //
-
+/*
 // The SIM_SnowNeighborData defines a DOPs data type that
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
@@ -1805,7 +1805,7 @@ void SIM_SnowNeighborData::makeEqualSubclass(const SIM_Data *source)
     neighborIds = p->neighborIds;
 }
 
-
+*/
 // ********************************************************************************* //
 
 
