@@ -204,7 +204,7 @@ class SIM_SnowBulletData : public SIM_Data,
 // The SIM_SnowNeighborData defines a DOPs data type that
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
-
+/*
 #define SIM_NAME_GEO_NEIGHBORS          "geo_neighbors"
 #define SIM_NAME_NUM_NEIGHBORS          "num_neighbors"
 //#define SIM_NAME_MAX_STATIC_NEIGHBORS    "max_static_neighbors"
@@ -265,6 +265,7 @@ class SIM_SnowNeighborData : public SIM_Data,
                 getSnowNeighborDataDopDescription()
         );
 };
+*/
 // ********************************************************************************* //
 
 

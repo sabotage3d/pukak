@@ -54,6 +54,7 @@
 #include <UT/UT_Quaternion.h>
 
 #include "SIM_SnowSolverBullet.h"
+#include "SIM_SnowNeighborData.h"
 
 
 #ifdef WIN32            // this prevents warnings when dependencies built
@@ -1593,7 +1594,7 @@ void initializeSIM(void *)
     //
     IMPLEMENT_DATAFACTORY(SIM_SnowSolverBullet);
     IMPLEMENT_DATAFACTORY(SIM_SnowBulletData);
-    IMPLEMENT_DATAFACTORY(SIM_SnowNeighborData);
+    //IMPLEMENT_DATAFACTORY(SIM_SnowNeighborData);
 }
 
 

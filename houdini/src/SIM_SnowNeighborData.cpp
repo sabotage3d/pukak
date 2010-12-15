@@ -4,6 +4,15 @@
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
 
+
+void initializeSIM(void *)
+{
+    //register our stuff with houdini
+    //
+    IMPLEMENT_DATAFACTORY(SIM_SnowNeighborData);
+}
+
+
 const SIM_DopDescription*
 SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
 {
