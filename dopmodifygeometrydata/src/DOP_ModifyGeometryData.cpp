@@ -169,9 +169,9 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                 UT_String geomAttrName;
                 int geomAttrClass;
                 int geomAttrType;
-                GEOMATTRNAME( geomAttrName, time );
-                geomAttrClass = GEOMATTRCLASS( time );
-                geomAttrType = GEOMATTRTYPE( time );
+                GEOMATTRNAME( geomAttrName, time );     // Gets a string
+                geomAttrClass = GEOMATTRCLASS( time );  // Gets a number
+                geomAttrType = GEOMATTRTYPE( time );    // Gets a number
                 
                 //SIM_GeometryCopy *copygeo = 0;
                 //copygeo = (SIM_GeometryCopy*)( SIM_DATA_GET( *currObject, SIM_GEOMETRY_DATANAME, SIM_Geometry ) );
