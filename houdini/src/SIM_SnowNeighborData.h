@@ -1,3 +1,21 @@
+#ifndef SIM_SNOWNEIGHBORDATA
+#define SIM_SNOWNEIGHBORDATA
+
+#include <SIM/SIM_Data.h>
+#include <SIM/SIM_OptionsUser.h>
+#include <SIM/SIM_Solver.h>
+
+
+#include <map>
+#include <vector>
+#include <string>
+
+
+class SIM_ObjectArray;
+class SIM_Geometry;
+class SIM_GeometryCopy;
+
+
 // The SIM_SnowNeighborData defines a DOPs data type that
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
@@ -62,3 +80,6 @@ class SIM_SnowNeighborData : public SIM_Data,
                 getSnowNeighborDataDopDescription()
         );
 };
+
+
+#endif

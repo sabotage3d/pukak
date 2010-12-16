@@ -27,8 +27,8 @@
 #include <SIM/SIM_Data.h>
 #include <SIM/SIM_Impacts.h>
 #include <SIM/SIM_Query.h>
-#include <SIM/SIM_QueryArrays.h>                // Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
-#include <SIM/SIM_QueryCombine.h>               // Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
+//#include <SIM/SIM_QueryArrays.h>                // Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
+//#include <SIM/SIM_QueryCombine.h>               // Added by SRH 2010-05-29, for implementing multiple records in SIM_SnowNeighborData
 #include <SIM/SIM_Utils.h>
 #include <RBD/RBD_State.h>
 #include <SIM/SIM_ConAnchorObjPointPos.h>

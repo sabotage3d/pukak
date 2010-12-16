@@ -1,5 +1,15 @@
 #include "SIM_SnowNeighborData.h"
 
+#include <UT/UT_DSOVersion.h>
+#include <UT/UT_XformOrder.h>
+#include <PRM/PRM_Include.h>
+#include <SIM/SIM_DopDescription.h>
+#include <SIM/SIM_Options.h>
+#include <SIM/SIM_PhysicalParms.h>
+#include <SIM/SIM_QueryArrays.h>
+#include <SIM/SIM_QueryCombine.h> 
+#include <SIM/SIM_ActiveValue.h>
+
 // The SIM_SnowNeighborData defines a DOPs data type that
 //   keeps track of which other objects a given DOPs object
 //   is currently contacting against.
