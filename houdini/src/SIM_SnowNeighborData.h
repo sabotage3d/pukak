@@ -22,6 +22,7 @@ class SIM_GeometryCopy;
 
 #define SIM_NAME_GEO_NEIGHBORS          "geo_neighbors"
 #define SIM_NAME_NUM_NEIGHBORS          "num_neighbors"
+#define SIM_NAME_IS_SURFACE_GRANULE     "issurfacegranule"
 //#define SIM_NAME_MAX_STATIC_NEIGHBORS    "max_static_neighbors"
 //#define SIM_NAME_DELETE_ME               "delete_me"
 
@@ -31,6 +32,7 @@ class SIM_SnowNeighborData : public SIM_Data,
     public:
         GETSET_DATA_FUNCS_S( SIM_NAME_GEO_NEIGHBORS, GeoNeighbors );
         GETSET_DATA_FUNCS_I( SIM_NAME_NUM_NEIGHBORS, NumNeighbors );
+        GETSET_DATA_FUNCS_I( SIM_NAME_IS_SURFACE_GRANULE, IsSurfaceGranule );
         //GETSET_DATA_FUNCS_I( SIM_NAME_MAX_STATIC_NEIGHBORS, MaxStaticNeighbors );    // ADDED SRH 2010-06-09 - Keeps track of the max # of static neighbors a given granule can have before it is deleted
         //GETSET_DATA_FUNCS_B( SIM_NAME_DELETE_ME, DeleteMe );                         // ADDED SRH 2010-06-09 - Tell Houdini if this object should be culled out
 
@@ -38,6 +40,7 @@ class SIM_SnowNeighborData : public SIM_Data,
         
         // Data added to this array will be used for multiple data records.
         // Added by SRH 2010-05-29 //
+        // neighborIds //
         int getNumNeighborIds() const                    // For implementing multiple data records
             { return neighborIds.entries(); }
         int getNeighborId( int i ) const               // For implementing multiple data records
@@ -47,6 +50,16 @@ class SIM_SnowNeighborData : public SIM_Data,
         void resetNeighborIds()
             { neighborIds.resize(0); }
         // *********************** //
+        
+        // neighborImpulses //
+        int getNeighborImpulse( int i ) const               // For implementing multiple data records
+            { return neighborImpulses(i); }
+        void setNeighborImpulse( int i, float impulse )
+            { neighborImpulses(i) = impulse; }
+        void appendNeighborImpulse( float impulse )                // For implementing multiple data records
+            { neighborImpulses.append(impulse); }
+        void resetNeighborImpulses()
+            { neighborImpulses.resize(0); }
 
 
     protected:
@@ -70,6 +83,7 @@ class SIM_SnowNeighborData : public SIM_Data,
 
     private:
         UT_IntArray neighborIds;
+        UT_FloatArray neighborImpulses;
         
         static const SIM_DopDescription     *getSnowNeighborDataDopDescription();
     

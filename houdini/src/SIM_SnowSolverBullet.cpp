@@ -689,6 +689,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                             neighborData = SIM_DATA_CREATE( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData, 0 );
                         }
                         neighborData->resetNeighborIds();
+                        neighborData->resetNeighborImpulses();
                         
                         btAlignedObjectArray<int> neighborObjIDs;
                         UT_String neighborsStr = "[";        // This string keeps track of IDs of objects touching this object
@@ -762,6 +763,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                         if ( neighborObjIDs[i] == otherobjid )
                                         {
                                             foundMatch = true;
+                                            
+                                            // Override the match's impulse if the current impulse is higher
+                                            if ( impulse > neighborData->getNeighborImpulse( i ) )
+                                                neighborData->setNeighborImpulse( i, impulse );
+                                            
                                             break;
                                         }
                                         
@@ -782,6 +788,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                         
                                         neighborObjIDs.push_back( otherobjid );
                                         neighborData->appendNeighborId( otherobjid );
+                                        neighborData->appendNeighborImpulse( impulse );
                                         
                                         // ADDED BY SRH 2010-06-09 //
                                         //   Keep count the number of static neighbors.
@@ -840,6 +847,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                     	    
                                     	    neighborObjIDs.push_back( otherobjid );
                                     	    neighborData->appendNeighborId( otherobjid );
+                                            neighborData->appendNeighborImpulse( impulse );
                                     	    
                                     	    // ADDED BY SRH 2010-06-09 //
                                     	    //   Keep count the number of static neighbors.
