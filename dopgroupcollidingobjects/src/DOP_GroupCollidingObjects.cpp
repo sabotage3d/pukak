@@ -1,5 +1,6 @@
 #include "DOP_GroupCollidingObjects.h"
 #include <UT/UT_DSOVersion.h>
+#include <RBD/RBD_State.h>
 #include <SIM/SIM_DataFilter.h>
 #include <SIM/SIM_Geometry.h>
 #include <SIM/SIM_GeometryCopy.h>
@@ -15,6 +16,7 @@
 #include "../SIM_SnowBulletSolver/src/SIM_SnowNeighborData.h"
 
 #include <iostream>
+
 
 
 void
@@ -122,6 +124,10 @@ DOP_GroupCollidingObjects::processObjectsSubclass(fpreal time, int,
     GROUP(group, time);
     SIM_DataFilterRootData       filter(group);
     objects.filter(filter, filtered);
+    
+    
+    UT_String groupName = "group_collided";
+    
 	
 	//for( i = 0; i < objects.entries(); i++ )
 	//	cout << objects(i)->getName() << endl;
@@ -157,48 +163,53 @@ DOP_GroupCollidingObjects::processObjectsSubclass(fpreal time, int,
             
             int numImpacts = 0;
             SIM_Impacts* impactsData = SIM_DATA_GET( *(filtered(i)), "Impacts", SIM_Impacts );
-            if ( impactsData )
+            /*if ( impactsData )
             {
                 numImpacts = impactsData->getNumImpacts();
             }  // if
             if ( numImpacts > 0 )
             {
                 addToGroup = true;
-            }  // if
+            }  // if*/
             
             //if ( doCompareIssurfacegranule )
             //{
-            RBD_State* rbdstate = SIM_DATA_GET( *(filtered(i)), "Position", RBD_State );
-            SIM_Options options = rbdstate->getOptions();
+            SIM_SnowNeighborData* curobjNeighbordata = SIM_DATA_GET( *(filtered(i)), "Bullet Neighbor Data", SIM_SnowNeighborData );
             //options.hasOption(theGuideShowName.getToken())
-            UT_String optionName = "issurfacegranule";
-            if ( options.hasOption( optionName ) )
+            //UT_String optionName = "issurfacegranule";
+            if ( curobjNeighbordata )
             {
-                int curIssurfacegranule = options.getOptionI( optionName );
+                int curIssurfacegranule = curobjNeighbordata->getIsSurfaceGranule();
                 
                 // If the current object is colliding against an object with a DIFFERENT value
                 //   for issurfacegranule, then this object should be added to the group
-                SIM_SnowNeighborData* neighborData = SIM_DATA_GET( *(filtered(i)), "Bullet Neighbor Data", SIM_SnowNeighborData );
-                if ( neighborData )
+                //SIM_SnowNeighborData* neighborData = SIM_DATA_GET( *(filtered(i)), "Bullet Neighbor Data", SIM_SnowNeighborData );
+                //if ( neighborData )
+                //{
+                int numNeighbors = curobjNeighbordata->getNumNeighborIds();
+                for ( int n = 0; n < numNeighbors; n++ )
                 {
-                    int numNeighbors = neighborData->getNumNeighborIds();
-                    for ( int n = 0; n < numNeighbors; n++ )
-                    {
-                        int neighborId = neighborData->getNeighborId( n );
-                        SIM_Object neighborObj = engine.getSimulationObjectFromId( neighborId );
-                        RBD_State* neighborRbdstate = SIM_DATA_GET( neighborObj, "Position", RBD_State );
-                        SIM_Options neighborOptions = neighborRbdstate->getOptions();
-                        if ( neighborOptions.hasOption( optionName ) )
+                    int neighborId = curobjNeighbordata->getNeighborId( n );
+                    float impulseForce = curobjNeighbordata->getNeighborImpulse( n );
+                    
+                    SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
+                    if ( impulseForce > 25.0 && neighborObj )
+                    {//cout << "impulse for " << neighborObj->getName() << " = " << impulseForce << endl;
+                        SIM_SnowNeighborData* neighborNeighbordata = SIM_DATA_GET( *neighborObj, "Bullet Neighbor Data", SIM_SnowNeighborData );
+                        
+                        //SIM_Options neighborOptions = neighborRbdstate->getOptions();
+                        if ( neighborNeighbordata )
                         {
-                            int neighborIssurfacegranule = neighborOptions.getOptionI( optionName );
+                            int neighborIssurfacegranule = neighborNeighbordata->getIsSurfaceGranule();
                             if ( neighborIssurfacegranule != curIssurfacegranule )
-                            {
+                            {//cout << "cur nb = " << curIssurfacegranule << "  " << neighborIssurfacegranule << endl;
                                 addToGroup = true;
                                 break;
                             }  // if
                         }  // if
-                    }  // for n
-                }  // if
+                    }  // if
+                }  // for n
+                //}  // if
                 
             }  // if
             //}  // if
@@ -207,7 +218,7 @@ DOP_GroupCollidingObjects::processObjectsSubclass(fpreal time, int,
             // and add the object to the group.
             if( addToGroup )
             {
-                relationship = engine.addRelationship(groupName,
+                SIM_Relationship *relationship = engine.addRelationship(groupName,
                                   SIM_DATA_RETURN_EXISTING);
                 if ( relationship )
                 {
