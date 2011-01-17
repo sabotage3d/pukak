@@ -37,15 +37,16 @@ newDopOperator(OP_OperatorTable *table)
 
 
 
-
+/*
 #define     POINT_CLASS     0
 #define     PRIM_CLASS      1
 #define     DETAIL_CLASS    2
 #define     INT_TYPE        0
 #define     FLOAT_TYPE      1
 #define     STRING_TYPE     2
+*/
 
-//static PRM_Name         theInputIndexName("inputindex", "Input Index");
+/*
 static PRM_Name         theValueNumber( "valuenumber", "Value Number" );
 static PRM_Name         theValueString( "valuestring", "Value String" );
 static PRM_Name         theGeomAttrName( "geomattrname", "Geom Attr Name" );
@@ -66,10 +67,14 @@ static PRM_Name        theGeomAttrTypeNames[] = {
 
 static PRM_ChoiceList   theGeomAttrClassesMenu((PRM_ChoiceListType)(PRM_CHOICELIST_REPLACE | PRM_CHOICELIST_EXCLUSIVE ), &(theGeomAttrClassNames[0]) );
 static PRM_ChoiceList   theGeomAttrTypesMenu((PRM_ChoiceListType)(PRM_CHOICELIST_REPLACE | PRM_CHOICELIST_EXCLUSIVE ), &(theGeomAttrTypeNames[0]) );
+*/
+
+static PRM_Name         theMinImpulse( "minimpulse", "Minimum Impulse" );
+static PRM_Name         theNewGroup( "newgroup", "New Group" );
 
 static PRM_Default      defaultNull( 0, "" );
 static PRM_Default      defaultZero( 0, "" );
-static PRM_Default      defaultObjid( 0, "objid" );
+//static PRM_Default      defaultObjid( 0, "objid" );
 
 PRM_Template
 DOP_GroupCollidingObjects::myTemplateList[] = {
@@ -79,15 +84,14 @@ DOP_GroupCollidingObjects::myTemplateList[] = {
     // Standard group parameter with group menu.
     PRM_Template(PRM_STRING,    1, &DOPgroupName, &DOPgroupDefault,
                                 &DOPgroupMenu),
-    // The input index that determines which data will be attached to
-    // each object.
-    //PRM_Template( PRM_INT_J,    1, &theInputIndexName, &defaultNull),
-    
-    PRM_Template( PRM_FLT_J,    1, &theValueNumber, &defaultZero ),
+    // My added parameters
+    PRM_Template( PRM_STRING,   1, &theNewGroup, &defaultNull ),
+    PRM_Template( PRM_FLT_J,    1, &theMinImpulse, &defaultZero ),
+    /*PRM_Template( PRM_FLT_J,    1, &theValueNumber, &defaultZero ),
     PRM_Template( PRM_STRING,   1, &theValueString, &defaultNull ),
     PRM_Template( PRM_STRING,   1, &theGeomAttrName, &defaultObjid ),        // The name template is a string, has 1 channel, is name attrname, and defaults to empty string
     PRM_Template( PRM_INT_J,    1, &theGeomAttrClass, &defaultZero, &theGeomAttrClassesMenu ),
-    PRM_Template( PRM_INT_J,    1, &theGeomAttrType, &defaultZero, &theGeomAttrTypesMenu ),
+    PRM_Template( PRM_INT_J,    1, &theGeomAttrType, &defaultZero, &theGeomAttrTypesMenu ),*/
     PRM_Template()
 };
 
@@ -126,7 +130,8 @@ DOP_GroupCollidingObjects::processObjectsSubclass(fpreal time, int,
     objects.filter(filter, filtered);
     
     
-    UT_String groupName = "group_collided";
+    UT_String groupName;
+    NEWGROUP( groupName, time);       //"group_collided";
     
 	
 	//for( i = 0; i < objects.entries(); i++ )
@@ -193,7 +198,7 @@ DOP_GroupCollidingObjects::processObjectsSubclass(fpreal time, int,
                     float impulseForce = curobjNeighbordata->getNeighborImpulse( n );
                     
                     SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
-                    if ( impulseForce > 25.0 && neighborObj )
+                    if ( impulseForce > MINIMPULSE(time) && neighborObj )
                     {//cout << "impulse for " << neighborObj->getName() << " = " << impulseForce << endl;
                         SIM_SnowNeighborData* neighborNeighbordata = SIM_DATA_GET( *neighborObj, "Bullet Neighbor Data", SIM_SnowNeighborData );
                         
@@ -251,18 +256,32 @@ DOP_GroupCollidingObjects::getOutputInfoSubclass(int /*outputidx*/, DOP_InOutInf
     info = DOP_InOutInfo(DOP_INOUT_OBJECTS, false);
 }
 
+
 void
 DOP_GroupCollidingObjects::GROUP(UT_String &str, fpreal t)
 {
     evalString(str, DOPgroupName.getToken(), 0, t);
 }
 
+
+void DOP_GroupCollidingObjects::NEWGROUP( UT_String &str, float t )
+{
+    evalString( str, theNewGroup.getToken(), 0, t );
+}  // NEWGROUP
+
+
+float DOP_GroupCollidingObjects::MINIMPULSE( float t )
+{
+    return evalInt( theMinImpulse.getToken(), 0, t );
+}  // VALUENUMBER
+
+
 //int
 //DOP_GroupCollidingObjects::INPUTINDEX(float t)
 //{
 //    return evalInt( theInputIndexName.getToken(), 0, t );
 //}  // INPUTINDEX
-
+/*
 float DOP_GroupCollidingObjects::VALUENUMBER( float t )
 {
     return evalInt( theValueNumber.getToken(), 0, t );
@@ -287,5 +306,5 @@ int DOP_GroupCollidingObjects::GEOMATTRTYPE( float t )
 {
     return evalInt( theGeomAttrType.getToken(), 0, t );
 }  // GEOMATTRTYPE
-
+*/
 

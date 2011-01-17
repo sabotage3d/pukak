@@ -28,13 +28,17 @@ protected:
                                         DOP_InOutInfo &info);
 
 private:
-    void            GROUP(UT_String &str, fpreal t);
+    void            GROUP( UT_String &str, fpreal t );
+    void            NEWGROUP( UT_String &str, float t );
+    float           MINIMPULSE( float t );
     //int             INPUTINDEX(float t);
+    /*
     float           VALUENUMBER( float t );
     void            VALUESTRING( UT_String &str, float t );
     void            GEOMATTRNAME( UT_String &str, float t );        // Get the attribute name for updating at time t
     int             GEOMATTRCLASS( float t );       // Get the attribute class (point or prim) at time t
     int             GEOMATTRTYPE( float t );        // Get the attribute type (int, float, or string) at time t
+    */
 };
 
 
