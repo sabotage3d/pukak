@@ -1,16 +1,16 @@
-#ifndef DOP_GROUPSHELLGRANULES
-#define DOP_GROUPSHELLGRANULES
+#ifndef DOP_GROUPSHELLGRANULENEIGHBORS
+#define DOP_GROUPSHELLGRANULENEIGHBORS
 
 
 #include <DOP/DOP_Node.h>
 
 
-class DOP_GroupShellGranules : public DOP_Node
+class DOP_GroupShellGranuleNeighbors : public DOP_Node
 {
 public:
-             DOP_GroupShellGranules(OP_Network *net, const char *name,
+             DOP_GroupShellGranuleNeighbors(OP_Network *net, const char *name,
                                OP_Operator *op);
-    virtual ~DOP_GroupShellGranules();
+    virtual ~DOP_GroupShellGranuleNeighbors();
 
     static OP_Node              *myConstructor(OP_Network *net,
                                                const char *name,
@@ -29,10 +29,9 @@ protected:
 
 private:
     void            GROUP(UT_String &str, fpreal t);
-    void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
     void            SHELLGRANULESGROUPNAME( UT_String &str, float t );
-    void            MESHGRANULESGROUP( UT_String &str, float t );
-    void            SHELLGRANULESFORNEWMESHGROUPNAME( UT_String &str, float t );
+    void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
+    void            NEIGHBORGROUPPREFIX( UT_String &str, float t );
 };
 
 

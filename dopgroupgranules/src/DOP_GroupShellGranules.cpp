@@ -48,6 +48,8 @@ newDopOperator(OP_OperatorTable *table)
 
 static PRM_Name         theInteriorGranulesGroupName( "interiorgranulesgroupname", "Interior Granules Group" );
 static PRM_Name         theShellGranulesGroupName( "shellgranulesgroupname", "Shell Granules Group" );
+static PRM_Name         theMeshGranulesGroupName( "meshgranulesgroup", "Mesh Granules Group" );
+static PRM_Name         theShellGranulesForNewMeshGroupName( "shellgranulesfornewmeshgroupname", "Shells for New Mesh Group" );   // Shell granules that will not connect into an already existing granular mesh but will help form a new one
 
 static PRM_Default      defaultNull( 0, "" );
 static PRM_Default      defaultZero( 0, "" );
@@ -62,6 +64,8 @@ DOP_GroupShellGranules::myTemplateList[] = {
     // My added parameters
     PRM_Template( PRM_STRING,   1, &theInteriorGranulesGroupName, &defaultNull ),
     PRM_Template( PRM_STRING,   1, &theShellGranulesGroupName, &defaultNull ),
+    PRM_Template( PRM_STRING,   1, &theMeshGranulesGroupName, &defaultNull ),
+    PRM_Template( PRM_STRING,   1, &theShellGranulesForNewMeshGroupName, &defaultNull ),
     PRM_Template()
 };
 
@@ -117,9 +121,20 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
     SHELLGRANULESGROUPNAME( shellGranulesGroupName, time );
     if ( shellGranulesGroupName == "" )
         return;
+        
+    // Group all the shell granules that are not collided against mesh granules (mesh granules can also be interior granules).
+    //   If they are not collided against mesh granules, they will be used to create new granule meshes.
+    UT_String meshGranulesGroupName = "";
+    MESHGRANULESGROUP( meshGranulesGroupName, time );
+    const SIM_Relationship* meshGranulesGroup = NULL;
+    if ( meshGranulesGroupName != "" )
+        meshGranulesGroup = engine.getRelationship( meshGranulesGroupName );
+    
+    UT_String shellGranulesForNewMeshGroupName = "";
+    SHELLGRANULESFORNEWMESHGROUPNAME( shellGranulesForNewMeshGroupName, time );
     
     //GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
-	
+	cout << "looking for shell granules" << endl;
     // Loop through all the objects that passed the filter.
     for( i = 0; i < filtered.entries(); i++ )
     {
@@ -146,6 +161,9 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
             SIM_SnowNeighborData* currNeighborData = SIM_DATA_GET( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
             if ( currNeighborData )
             {
+                bool isNewShellGranule = false;
+                bool isShellGranule = false;
+                
                 // For each neighboring object to the current object, see if the neighbor is an interior granule
                 int numNeighbors = currNeighborData->getNumNeighbors();
                 for ( int n = 0; n < numNeighbors; n++ )
@@ -154,21 +172,48 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
                     //   then add currObject to the shell granules group.
                     int neighborId = currNeighborData->getNeighborId( n );
                     SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
+                    
                     if ( !neighborObj )
                         continue;
+                    
                     if ( interiorGranulesGroup->getGroupHasObject( neighborObj ) )
-                    {
+                    {cout << "adding obj " << neighborObj->getName() << endl;
                         SIM_Relationship *shellGroup = engine.addRelationship( shellGranulesGroupName, SIM_DATA_RETURN_EXISTING );
-                        if ( shellGroup )
+                        if ( shellGroup && !isShellGranule)
                         {
                             shellGroup->addGroup( currObject );
                             SIM_DATA_CREATE( *shellGroup, SIM_RELGROUP_DATANAME,
                                             SIM_RelationshipGroup,
                                             SIM_DATA_RETURN_EXISTING );
-                            break;
+                            isShellGranule = true;
+                        }  // if
+                        
+                        isNewShellGranule = true;
+                        
+                        // If this is a shell granule and its neighbor is a mesh granule, then this shell granule will not be part of a new granular mesh
+                        //   (it will join onto an old one).
+                        if ( meshGranulesGroup && shellGranulesForNewMeshGroupName != "" )
+                        {
+                            if ( meshGranulesGroup->getGroupHasObject( neighborObj ) )
+                            {
+                                isNewShellGranule = false;
+                                break;
+                            }  // if
                         }  // if
                     }  // if
                 }  // for n
+                
+                if ( isNewShellGranule )
+                {cout << "  new shell granule " << currObject->getName() << endl;
+                    SIM_Relationship *shellGranulesForNewMeshGroup = engine.addRelationship( shellGranulesForNewMeshGroupName, SIM_DATA_RETURN_EXISTING );
+                    if ( shellGranulesForNewMeshGroup )
+                    {
+                        shellGranulesForNewMeshGroup->addGroup( currObject );
+                        SIM_DATA_CREATE( *shellGranulesForNewMeshGroup, SIM_RELGROUP_DATANAME,
+                                        SIM_RelationshipGroup,
+                                        SIM_DATA_RETURN_EXISTING );
+                    }  // if
+                }  // if
             }  // if
         }  // if
     }  // for each object
@@ -201,11 +246,21 @@ DOP_GroupShellGranules::GROUP(UT_String &str, fpreal t)
 void DOP_GroupShellGranules::INTERIORGRANULESGROUPNAME( UT_String &str, float t )
 {
     evalString( str, theInteriorGranulesGroupName.getToken(), 0, t );
-}  // NEWGROUPNAME
+}  // INTERIORGRANULESGROUPNAME
 
 void DOP_GroupShellGranules::SHELLGRANULESGROUPNAME( UT_String &str, float t )
 {
     evalString( str, theShellGranulesGroupName.getToken(), 0, t );
-}  // MESHNAME
+}  // SHELLGRANULESGROUPNAME
+
+void DOP_GroupShellGranules::MESHGRANULESGROUP( UT_String &str, float t )
+{
+    evalString( str, theMeshGranulesGroupName.getToken(), 0, t );
+}  // MESHGRANULESGROUP
+
+void DOP_GroupShellGranules::SHELLGRANULESFORNEWMESHGROUPNAME( UT_String &str, float t )
+{
+    evalString( str, theShellGranulesForNewMeshGroupName.getToken(), 0, t );
+}  // SHELLGRANULESFORNEWMESHGROUPNAME
 
 
