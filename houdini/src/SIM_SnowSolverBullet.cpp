@@ -100,16 +100,20 @@ const SIM_DopDescription *
 SIM_SnowSolverBullet::getSolverBulletDopDescription()
 {
     // ADDED BY SRH 2010-06-02 //
-    static PRM_Name                theComputeImpacts(SIM_NAME_COMPUTE_IMPACTS, "Compute Impact Data");
-    static PRM_Name                theSubsteps(SIM_NAME_SUBSTEPS, "Substeps for Bullet Solver");
+    static PRM_Name                 theComputeImpacts( SIM_NAME_COMPUTE_IMPACTS, "Compute Impact Data" );
+    static PRM_Name                 theSubsteps( SIM_NAME_SUBSTEPS, "Substeps for Bullet Solver" );
+    static PRM_Name                 theGravityForce( SIM_NAME_GRAVITY_FORCE, "Gravity Force" );
        
-    static PRM_Default             defOne(1);
+    static PRM_Default              defOne(1);
+    static PRM_Default              defGravity( 9.8 );
        
-    static PRM_Range               substepsRange(PRM_RANGE_UI, 1, PRM_RANGE_UI, 5);
+    static PRM_Range                substepsRange( PRM_RANGE_UI, 1, PRM_RANGE_UI, 5 );
+    static PRM_Range                gravityRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 50 );
        
-    static PRM_Template            theTemplates[] = {
-        PRM_Template(PRM_TOGGLE_J,  1, &theComputeImpacts, &defOne),
-        PRM_Template(PRM_INT_J,     1, &theSubsteps, &defOne, 0, &substepsRange),
+    static PRM_Template             theTemplates[] = {
+        PRM_Template( PRM_TOGGLE_J, 1, &theComputeImpacts, &defOne ),
+        PRM_Template( PRM_INT_J,    1, &theSubsteps, &defOne, 0, &substepsRange ),
+        PRM_Template( PRM_FLT_J,    1, &theGravityForce, &defGravity, 0, &gravityRange ),
         PRM_Template()
     };
     // *********************** //
@@ -184,6 +188,18 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     // *********************** //
     
     
+    
+    
+    // ADDED BY SRH 2010-06-03 //
+    // Get the parameter values from this Bullet Solver's node for computing impacts and getting the current substeps
+    //   and set the matching data to those values.
+    OP_Node* thisbulletSolverNode = getCreatorNode();
+    bool doComputeImpacts = thisbulletSolverNode->evalInt( SIM_NAME_COMPUTE_IMPACTS, 0, currTime );
+    int substeps = thisbulletSolverNode->evalInt( SIM_NAME_SUBSTEPS, 0, currTime );
+    //setComputeImpacts( doComputeImpacts );
+    //setSubsteps( substeps );
+    // *********************** //
+    
     // Initialize constraints on all objects.
     for (i = 0; i < newobjects.entries(); i++)
     {
@@ -197,6 +213,16 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         SIM_ConstraintIterator::initConstraints(*objects(i),
     			engine.getSimulationTime());
     }
+    
+    
+    //float gravityForce = getGravityForce();
+    float gravityForce = thisbulletSolverNode->evalFloat( SIM_NAME_GRAVITY_FORCE, 0, currTime );
+    
+    // ADDED BY SRH 2011-01-08 //
+    // Compute velocity from external, non-collision forces that affects the center of mass of objects
+    UT_Vector3 centerOfMassAccel = computeCenterOfMassAccel( timestep ) * gravityForce;
+    // *********************** //
+    
     
     
     //cout << "num constraints: " << state->m_bulletConstraints->size() << endl;
@@ -243,7 +269,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             {
                 //Velocity
                 v = rbdstate->getVelocity();
-                (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) ); 
+                (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) );
                 //Angular Velocity
                 w = rbdstate->getAngularVelocity();
                 (bodyIt->second.bodyId)->setAngularVelocity( btVector3(w[0],w[1],w[2]) );
@@ -299,10 +325,10 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             //     (it still affects other objects but is immovable and unaffected by others).
             //     To do this, the bullet object's mass is set to zero (essentially giving it infinite mass)
             //     and its velocities are set to zero.
-            if ( (rbdstate->getMass() == 0 && !bodyIt->second.isStatic) )
+            if ( (houMass == 0 && !bodyIt->second.isStatic) )
             {
                 (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
-                (bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );
+                //(bodyIt->second.bodyId)->setLinearVelocity( btVector3(0.0, 0.0, 0.0) );           // COMMENTED OUT SRH 2011-01-08
                 (bodyIt->second.bodyId)->setAngularVelocity( btVector3(0.0, 0.0, 0.0) );
                 (bodyIt->second.bodyId)->updateInertiaTensor();
                 
@@ -315,6 +341,46 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 
             }  // if
             // ************************* //
+            
+            
+            
+            // ADDED BY SRH 2011-01-08 //
+            //   If the mass is zero, GRAVITY STILL AFFECTS IT!!!
+            //   This is because any granules in the simulation with zero mass will be mesh granules.
+            if ( houMass == 0 )
+            {
+                //Velocity
+                v = rbdstate->getVelocity();
+                (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) );
+                
+                btVector3 v = (bodyIt->second.bodyId)->getLinearVelocity();
+                btVector3 newvel = btVector3( v[0]+centerOfMassAccel[0]*timestep*(1.0/substeps), v[1]+centerOfMassAccel[1]*timestep*(1.0/substeps), v[2]+centerOfMassAccel[2]*timestep*(1.0/substeps) );// * (1.0/substeps);
+                (bodyIt->second.bodyId)->setLinearVelocity( newvel );
+                btVector3 newpos( p[0]+newvel[0]*timestep*(1.0/substeps), p[1]+newvel[1]*timestep*(1.0/substeps), p[2]+newvel[2]*timestep*(1.0/substeps) );
+                //btrans.setOrigin( newpos );
+                //(bodyIt->second.bodyId)->setCenterOfMassTransform( btrans );
+                //(bodyIt->second.bodyId)->getMotionState()->setWorldTransform( btrans );
+                
+                //test = (bodyIt->second.bodyId)->getCenterOfMassPosition();
+                //cout << "pos is " << test[0] << " " << test[1] << " " << test[2] << endl;
+                //cout << "setting pos to " << newpos[0] << " " << newpos[1] << " " << newpos[2] << endl;
+                
+                // Set up for simulation (the mass will be returned to zero after the simulation is run)
+                btVector3 fallInertia(0,0,0);
+                //cout << "updating " << currObject->getName() << endl;
+                //cout << "   before mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
+                (bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia(1.0,fallInertia);
+                (bodyIt->second.bodyId)->setMassProps(1.0, fallInertia);//fallRigidBodyCI.m_localInertia);
+                (bodyIt->second.bodyId)->updateInertiaTensor();
+                //cout << "   after mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
+                //(bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia( 1.0, fallInertia );    // 1.0 = mass
+                //(bodyIt->second.bodyId)->setMassProps( 1.0, fallInertia );
+                //(bodyIt->second.bodyId)->updateInertiaTensor();
+                bodyIt->second.pos = newpos;
+                bodyIt->second.vel = newvel;
+            }  // if
+            // *********************** //
+            
             
             
             //Add forces and such from the rest of the subdata
@@ -371,10 +437,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             
             
             
-            
-            
-            
-        }
+        }  // if bodyIt
         
     }  // for each object(i)
     
@@ -527,15 +590,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     //                      2) Determine the number of substeps for this simulation step to take
     //SIM_SnowBulletData *bulletstate = SIM_DATA_GET(*currObject, "Bullet Data", SIM_SnowBulletData);
     
-    // ADDED BY SRH 2010-06-03 //
-    // Get the parameter values from this Bullet Solver's node for computing impacts and getting the current substeps
-    //   and set the matching data to those values.
-    OP_Node* thisbulletSolverNode = getCreatorNode();
-    bool doComputeImpacts = thisbulletSolverNode->evalInt( SIM_NAME_COMPUTE_IMPACTS, 0, currTime );
-    int substeps = thisbulletSolverNode->evalInt( SIM_NAME_SUBSTEPS, 0, currTime );
-    //setComputeImpacts( doComputeImpacts );
-    //setSubsteps( substeps );
-    // *********************** //
+    
     
     //Run Sim and update DOPS not on init frame
     if(currTime > 0) 
@@ -610,9 +665,6 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         {
             state->m_dynamicsWorld->stepSimulation( /*1/24.f*/ timestep, 10 );
         }
-        
-        
-        
         // ******************************************** //
         // ******************************************** //
         // ******************************************** //
@@ -648,13 +700,15 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             bodyIt = state->m_bulletBodies->find( currObject->getObjectId() );
         
             if(bodyIt != state->m_bulletBodies->end())
-            {    
+            {
                 // Get the Bullet transform and update the DOPs subdata with it.
                 (bodyIt->second.bodyId)->getMotionState()->getWorldTransform(btrans);
+                
                 // position
                 UT_Vector3 p = UT_Vector3(
                     btrans.getOrigin().getX(), btrans.getOrigin().getY(), btrans.getOrigin().getZ() );
                 rbdstate->setPosition( p );
+                //cout << "setting pos to " << p[0] << " " << p[1] << " " << p[2] << endl;
                 // rotation            
                 UT_Quaternion rot = UT_Quaternion( btrans.getRotation().getX(), btrans.getRotation().getY(),
                     btrans.getRotation().getZ(), btrans.getRotation().getW() );
@@ -664,13 +718,12 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 btScalar mass = 1.0f;
                 if( currObject->getIsStatic() )
                 {
-                    mass = 0;
+                    mass = 0.0;
                 }
                 else
                 {
                     mass = rbdstate->getMass();
                 }
-                
                 
                 // ADDED BY SRH 2010-04-30 //
                 //   Get Bullet impact data and add it to the Houdini object's data.
@@ -944,6 +997,31 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 
                 //}
                 // ************************ //
+                
+                
+                // ADDED BY SRH 2011-01-08 //
+                //   If the mass is zero, reset the the object's position and velocity to before the collision
+                if ( bodyIt->second.isStatic )
+                {
+                    // Reset the mass to zero
+                    (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
+                    
+                    // Reset the position
+                    btrans.setOrigin( bodyIt->second.pos );
+                    (bodyIt->second.bodyId)->setCenterOfMassTransform( btrans );
+                    (bodyIt->second.bodyId)->getMotionState()->setWorldTransform( btrans );
+                    rbdstate->setPosition( p );
+                    
+                    // Reset the velocity
+                    (bodyIt->second.bodyId)->setLinearVelocity( bodyIt->second.vel );
+                    btVector3 v;
+                    v = (bodyIt->second.bodyId)->getLinearVelocity(); 
+                    rbdstate->setVelocity( UT_Vector3( v.getX(), v.getY(), v.getZ() ) );
+                    rbdstate->setAngularVelocity( UT_Vector3( 0, 0, 0 ) );
+                }  // if
+                // *********************** //
+                
+                
                 
                 
             }    
@@ -1351,13 +1429,13 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
                 // Calculate mass and inertia
                 if( currObject->getIsStatic() )
                 {
-                    mass = 0;
+                    mass = 0.0;
                 }
                 else
                     mass = rbdstate->getMass();
                 btVector3 fallInertia(0,0,0);
                 fallShape->calculateLocalInertia(mass,fallInertia);
-                   
+                
                 // collision margin / tolerance
                 float collisionMargin = 0.0f;
                 if( bulletstate )
@@ -1380,9 +1458,16 @@ std::map< int, bulletBody >::iterator SIM_SnowSolverBullet::addBulletBody(SIM_Ob
        
                 // Initialize a new body
                 sim_btRigidBody* fallRigidBody = new sim_btRigidBody(fallRigidBodyCI);
+                
+                fallShape->calculateLocalInertia(1.0,fallInertia);
+                fallRigidBody->setMassProps(1.0, fallInertia);//fallRigidBodyCI.m_localInertia);
+                fallRigidBody->updateInertiaTensor();
+                
                 state->m_dynamicsWorld->addRigidBody(fallRigidBody);
                 //cout<<"creating new body, id:"<<currObject->getObjectId()<<endl;
                 //      <<"  isStaticObject:"<<fallRigidBody->isStaticObject()<<endl;
+                
+                
                 
                 // ADDED BY SRH 2010-05-03 //
                 //   Assign to the Bullet rigid body the ID of the corresponding Houdini object.
@@ -1508,6 +1593,22 @@ void SIM_SnowSolverBullet::processSubData(SIM_Object *currObject, bulletBody &bo
 
     }
 }
+
+
+
+
+// ADDED BY SRH 2011-01-08 //
+UT_Vector3 SIM_SnowSolverBullet::computeCenterOfMassAccel( float timestep )
+{
+    //float gravityForce = getGravityForce();
+    return UT_Vector3( 0.0, -1.0, 0.0 );// * gravityForce * timestep;
+}  // computeCenterOfMassVelocity()
+// *********************** //
+
+
+
+
+
 
 
 

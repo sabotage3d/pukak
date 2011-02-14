@@ -84,6 +84,8 @@ typedef struct bulletBodystr {
     int dopId;
     sim_btRigidBody* bodyId;
     UT_BoundingBox bbox;
+    btVector3 pos;
+    btVector3 vel;
     // ADDED BY SRH 2010-08-10 //
     //   Constraint stuff
     //std::vector<SIM_ConAnchor*> anchors;
@@ -305,9 +307,9 @@ class SIM_SnowSolverBulletState {
 
 
 // ADDED BY SRH 2010-06-02 //
-#define SIM_NAME_COMPUTE_IMPACTS     "compute_impacts"
-#define SIM_NAME_SUBSTEPS            "substeps"
-
+#define SIM_NAME_COMPUTE_IMPACTS    "compute_impacts"
+#define SIM_NAME_SUBSTEPS           "substeps"
+#define SIM_NAME_GRAVITY_FORCE       "gravityforce"          // ADDED 2011-01-08
 // *********************** //
 
 
@@ -320,7 +322,9 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
         GETSET_DATA_FUNCS_B(SIM_NAME_COMPUTE_IMPACTS, ComputeImpacts);  // Mark whether or not Bullet should compute impacts data (default on)
         GETSET_DATA_FUNCS_I(SIM_NAME_SUBSTEPS, Substeps);       // Set number of substeps the Bullet Engine will take, additional to the DOP Network's substeps setting
         // *********************** //
-        
+        // ADDED BY SRH 2011-01-08 //
+        GETSET_DATA_FUNCS_F(SIM_NAME_GRAVITY_FORCE, GravityForce);       // Set number of substeps the Bullet Engine will take, additional to the DOP Network's substeps setting
+        // *********************** //
 
         
 
@@ -349,6 +353,7 @@ class SIM_SnowSolverBullet : public SIM_Solver, public SIM_OptionsUser
         virtual std::map< int, bulletBody >::iterator addBulletBody(SIM_Object *currObject);
         virtual void removeDeadBodies(SIM_Engine &engine);
         virtual void processSubData(SIM_Object *currObject, bulletBody &body);
+        UT_Vector3 computeCenterOfMassAccel( float timestep );       // ADDED BY SRH 2011-01-08
 
     private:
         static const SIM_DopDescription *getSolverBulletDopDescription();
