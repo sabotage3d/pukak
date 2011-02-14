@@ -1,18 +1,18 @@
 
 
-#ifndef SOP_FRACTALGROWTH_H
-#define SOP_FRACTALGROWTH_H
+#ifndef SOP_IMPORTDOPGROUPS_H
+#define SOP_IMPORTDOPGROUPS_H
 
 
 
 #include <SOP/SOP_Node.h>
 
 
-class SOP_FractalGrowth : public SOP_Node
+class SOP_ImportDOPGroups : public SOP_Node
 {
 public:
-    SOP_FractalGrowth( OP_Network *net, const char *name, OP_Operator *op );
-    virtual ~SOP_FractalGrowth();
+    SOP_ImportDOPGroups( OP_Network *net, const char *name, OP_Operator *op );
+    virtual ~SOP_ImportDOPGroups();
 
     static PRM_Template     myTemplateList[];
     static OP_Node          *myConstructor(OP_Network*, const char*, OP_Operator* );
@@ -27,8 +27,18 @@ protected:
     virtual OP_ERROR        cookMySop( OP_Context &context );
 
 private:
-    int RADIUS() { return evalInt( "rad", 0, 0 ); }
-    int NUMPOINTS() { return evalInt( "numpoints", 0, 0 ); }
+    //int RADIUS() { return evalInt( "rad", 0, 0 ); }
+    //int NUMPOINTS() { return evalInt( "numpoints", 0, 0 ); }
+    UT_String DOPPATH(float t) {
+        UT_String path;
+        evalString( path, "doppath", 0, t );
+        return path;
+    }  // DOPPATH
+    UT_String GROUPMASK(float t) {
+        UT_String mask;
+        evalString( mask, "groupmask", 0, t );
+        return mask;
+    }  // GROUPMASK
     
     UT_Vector4 computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius );
     bool intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius ); 
