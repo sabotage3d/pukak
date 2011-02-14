@@ -35,7 +35,7 @@ except( KeyError ):
     sys.exit(1)
 
 # Go to the directory containing the SOP_FractalGrowth code
-sopSrcPath = houdiniPath + '\\toolkit\\SOP_ImportDOPGroups\\src'
+sopSrcPath = houdiniPath + '\\toolkit\\SOPs\\src'
 sopSrcPath = sopSrcPath.replace( '\\', '/' )
 os.chdir( sopSrcPath )
 
