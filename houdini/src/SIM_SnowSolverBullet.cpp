@@ -349,7 +349,8 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             //   This is because any granules in the simulation with zero mass will be mesh granules.
             if ( houMass == 0 )
             {
-                //Velocity
+                // Velocity
+                //   Get the velocity from the Houdini object and pass it to the Bullet object
                 v = rbdstate->getVelocity();
                 (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) );
                 
@@ -357,25 +358,13 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 btVector3 newvel = btVector3( v[0]+centerOfMassAccel[0]*timestep*(1.0/substeps), v[1]+centerOfMassAccel[1]*timestep*(1.0/substeps), v[2]+centerOfMassAccel[2]*timestep*(1.0/substeps) );// * (1.0/substeps);
                 (bodyIt->second.bodyId)->setLinearVelocity( newvel );
                 btVector3 newpos( p[0]+newvel[0]*timestep*(1.0/substeps), p[1]+newvel[1]*timestep*(1.0/substeps), p[2]+newvel[2]*timestep*(1.0/substeps) );
-                //btrans.setOrigin( newpos );
-                //(bodyIt->second.bodyId)->setCenterOfMassTransform( btrans );
-                //(bodyIt->second.bodyId)->getMotionState()->setWorldTransform( btrans );
-                
-                //test = (bodyIt->second.bodyId)->getCenterOfMassPosition();
-                //cout << "pos is " << test[0] << " " << test[1] << " " << test[2] << endl;
-                //cout << "setting pos to " << newpos[0] << " " << newpos[1] << " " << newpos[2] << endl;
                 
                 // Set up for simulation (the mass will be returned to zero after the simulation is run)
                 btVector3 fallInertia(0,0,0);
-                //cout << "updating " << currObject->getName() << endl;
-                //cout << "   before mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
                 (bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia(1.0,fallInertia);
                 (bodyIt->second.bodyId)->setMassProps(1.0, fallInertia);//fallRigidBodyCI.m_localInertia);
                 (bodyIt->second.bodyId)->updateInertiaTensor();
-                //cout << "   after mass = " << (bodyIt->second.bodyId)->getInvMass() << endl;
-                //(bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia( 1.0, fallInertia );    // 1.0 = mass
-                //(bodyIt->second.bodyId)->setMassProps( 1.0, fallInertia );
-                //(bodyIt->second.bodyId)->updateInertiaTensor();
+                
                 bodyIt->second.pos = newpos;
                 bodyIt->second.vel = newvel;
             }  // if
@@ -1007,10 +996,11 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
                     
                     // Reset the position
-                    btrans.setOrigin( bodyIt->second.pos );
+                    btrans.setOrigin( bodyIt->second.pos );     // This is the gravity-updated position for this frame (updated above, before the Bullet solver was called)
                     (bodyIt->second.bodyId)->setCenterOfMassTransform( btrans );
                     (bodyIt->second.bodyId)->getMotionState()->setWorldTransform( btrans );
-                    rbdstate->setPosition( p );
+                    //UT_Vector3 newP = UT_Vector3( bodyIt->second.pos.x(), bodyIt->second.pos.y(), bodyIt->second.pos.z() );   // newP does not work!!  p does
+                    rbdstate->setPosition( p );//newP );
                     
                     // Reset the velocity
                     (bodyIt->second.bodyId)->setLinearVelocity( bodyIt->second.vel );
@@ -1024,9 +1014,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 
                 
                 
-            }    
-        }
-    }
+            }  // if
+        }  // for i
+    }  // if
     
     
     
