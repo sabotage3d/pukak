@@ -133,8 +133,6 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
     UT_String shellGranulesForNewMeshGroupName = "";
     SHELLGRANULESFORNEWMESHGROUPNAME( shellGranulesForNewMeshGroupName, time );
     
-    //GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
-	cout << "looking for shell granules" << endl;
     // Loop through all the objects that passed the filter.
     for( i = 0; i < filtered.entries(); i++ )
     {
@@ -177,7 +175,7 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
                         continue;
                     
                     if ( interiorGranulesGroup->getGroupHasObject( neighborObj ) )
-                    {cout << "adding obj " << neighborObj->getName() << endl;
+                    {
                         SIM_Relationship *shellGroup = engine.addRelationship( shellGranulesGroupName, SIM_DATA_RETURN_EXISTING );
                         if ( shellGroup && !isShellGranule)
                         {
@@ -204,7 +202,7 @@ DOP_GroupShellGranules::processObjectsSubclass(fpreal time, int,
                 }  // for n
                 
                 if ( isNewShellGranule )
-                {cout << "  new shell granule " << currObject->getName() << endl;
+                {
                     SIM_Relationship *shellGranulesForNewMeshGroup = engine.addRelationship( shellGranulesForNewMeshGroupName, SIM_DATA_RETURN_EXISTING );
                     if ( shellGranulesForNewMeshGroup )
                     {
