@@ -104,10 +104,27 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
         // Get the name of the interior primitive group
         UT_String intPrimGrp = INTPRIMGROUP(t);
         const GB_PrimitiveGroup* interiorPrimGroup = parsePrimitiveGroups( (const char*)intPrimGrp, gdp );
+        if ( intPrimGrp == "" )
+        {
+            addWarning( SOP_MESSAGE, "Need to specify the interior primitive group parameter." );
+            return error();
+        }  // if
+        if ( !interiorPrimGroup )
+        {
+            UT_String warningMessage;
+            warningMessage.sprintf( "Group %s does not exist.", intPrimGrp );
+            addWarning( SOP_MESSAGE, warningMessage );
+            return error();
+        }  // if
         
         // Get the name of the exterior primitive group
         UT_String extPrimGrp = EXTPRIMGROUP(t);
         const GB_PrimitiveGroup* exteriorPrimGroup = parsePrimitiveGroups( (const char*)extPrimGrp, gdp );
+        if ( extPrimGrp == "" )
+        {
+            addWarning( SOP_MESSAGE, "Need to specify the exterior primitive group parameter." );
+            return error();
+        }  // if
         
         // Create the empty edge list
         GB_EdgeGroup edgeList( (*gdp), "interiorEdges" );

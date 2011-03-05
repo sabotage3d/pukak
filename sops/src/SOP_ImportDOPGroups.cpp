@@ -29,7 +29,7 @@ using namespace std;
 
 static PRM_Name        names[] = {
     PRM_Name("doppath", "DOP Path"),
-    PRM_Name("groupmask", "Group Mask"),
+    PRM_Name("groupmask", "Group Prefix"),
 };
 
 static PRM_Default          defEighteen(18);
@@ -83,24 +83,6 @@ SOP_ImportDOPGroups::~SOP_ImportDOPGroups() {}
 
 
 
-bool SOP_ImportDOPGroups::intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius )
-{
-    ray.normalize();
-    
-    UT_Vector4 sphVector = sphCenter - rayOrigin;
-    
-    fpreal distFromSphCenterToRay = ( ray.dot(sphVector) * ray - sphVector ).length();
-    
-    if ( distFromSphCenterToRay < radius )
-        return true;
-    else
-        return false;
-
-}  // intersectRaySphere
-
-
-
-
 OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
 {//cout << "IMPORT: very start" << endl;
     GEO_Point   *ppt;
@@ -148,15 +130,14 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                 // Get the DOP group
                 SIM_Relationship* curDOPGroup =(SIM_Relationship*)dopGroups[n];
                 
+                // Create the SOP point group
+                UT_String curDOPGroupName = curDOPGroup->getName();
+                GB_PointGroup* curSOPGroup = gdp->newPointGroup( curDOPGroupName );
+                
                 // Make sure the curDOPGroup is of type SIM_RelationshipGroup
                 UT_String relType = curDOPGroup->getRelationshipTypeData()->getDataType();
                 if ( relType != "SIM_RelationshipGroup" )
                     continue;
-                
-                UT_String curDOPGroupName = curDOPGroup->getName();
-                //cout << "found group " << curDOPGroupName << endl;
-                // Create the SOP point group
-                GB_PointGroup* curSOPGroup = gdp->newPointGroup( curDOPGroupName );
                 
                 // For each object in the DOP group, add a point to the SOP point group
                 int numGroupObjs = curDOPGroup->getGroupEntries();
@@ -177,6 +158,12 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                     
                 }  // for o
             }  // for n
+            
+            if ( numOldNeighborGroups <= 0 )
+            {
+                gdp->newPointGroup( groupMask );
+            }  // if
+            
         }  // if
     }  // if  
     // Unlocking the inputs that were locked at the start of this method
