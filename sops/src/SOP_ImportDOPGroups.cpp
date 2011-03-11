@@ -107,7 +107,6 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
     if ( error() < UT_ERROR_ABORT )
     {
         gdp->clearAndDestroy();
-        
         OBJ_Node *objNode = OPgetDirector()->findOBJNode( dopPath );
         if ( objNode != NULL )
         {
@@ -122,6 +121,10 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
             filterGroupName += "*";
             SIM_DataFilterByName groupFilter( filterGroupName );
             engine->filterConstRelationships( groupFilter, dopGroups );
+            
+            // Add point attributes to the gdp
+            int negOne = -1;
+            GB_AttributeRef objidAttrib = gdp->addPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT, &negOne );
             
             int numOldNeighborGroups = dopGroups.entries();
             //cout << "IMPORT: " << numOldNeighborGroups << " groups" << endl;
@@ -138,6 +141,8 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                 UT_String relType = curDOPGroup->getRelationshipTypeData()->getDataType();
                 if ( relType != "SIM_RelationshipGroup" )
                     continue;
+                    
+                //cout << "creating group " << curDOPGroup->getName() << endl;
                 
                 // For each object in the DOP group, add a point to the SOP point group
                 int numGroupObjs = curDOPGroup->getGroupEntries();
@@ -152,6 +157,9 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                     // Create a SOP point at the DOP object's position
                     ppt = gdp->appendPoint();
                     ppt->setPos( objPos );
+                    
+                    // Transfer the objid to the point
+                    ppt->setValue<int>( objidAttrib, currObject->getObjectId() );
                     
                     // Add the point to the SOP point group
                     curSOPGroup->add( ppt );
