@@ -162,7 +162,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             // Get the current object's objid attribute.
             SIM_Object* currObject = filtered(i);
             int objid = currObject->getObjectId();
-            cout << currObject->getName() << endl;
+            //cout << currObject->getName() << endl;
             char tmp[181];
             sprintf( tmp, "%s%d", (char*)neighborGroupPrefix, objid );
             UT_String neighborGroupName = tmp;
@@ -172,7 +172,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             {
                 // For each neighboring object to the current object, see if the neighbor is an interior granule
                 int numNeighbors = currNeighborData->getNumNeighbors();
-                cout << "   has " << numNeighbors << " neighbors" << endl;
+                //cout << "   has " << numNeighbors << " neighbors" << endl;
                 // If none of the shell granule's neighbors are interior granules, continue on to the next shell granule
                 //int numShellNeighborsThatAreInteriorGranules = 0;
                 /*for ( int n = 0; n < numNeighbors; n++ )
