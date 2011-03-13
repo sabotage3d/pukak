@@ -355,9 +355,9 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 (bodyIt->second.bodyId)->setLinearVelocity( btVector3(v[0],v[1],v[2]) );
                 
                 btVector3 v = (bodyIt->second.bodyId)->getLinearVelocity();
-                btVector3 newvel = btVector3( v[0]+centerOfMassAccel[0]*timestep*(1.0/substeps), v[1]+centerOfMassAccel[1]*timestep*(1.0/substeps), v[2]+centerOfMassAccel[2]*timestep*(1.0/substeps) );// * (1.0/substeps);
+                btVector3 newvel = btVector3( v[0]+centerOfMassAccel[0]*timestep/*(1.0/substeps)*/, v[1]+centerOfMassAccel[1]*timestep/*(1.0/substeps)*/, v[2]+centerOfMassAccel[2]*timestep/*(1.0/substeps)*/ );// * (1.0/substeps);
                 (bodyIt->second.bodyId)->setLinearVelocity( newvel );
-                btVector3 newpos( p[0]+newvel[0]*timestep*(1.0/substeps), p[1]+newvel[1]*timestep*(1.0/substeps), p[2]+newvel[2]*timestep*(1.0/substeps) );
+                btVector3 newpos( p[0]+newvel[0]*timestep/*(1.0/substeps)*/, p[1]+newvel[1]*timestep/*(1.0/substeps)*/, p[2]+newvel[2]*timestep/*(1.0/substeps)*/ );
                 
                 // Set up for simulation (the mass will be returned to zero after the simulation is run)
                 btVector3 fallInertia(0,0,0);
