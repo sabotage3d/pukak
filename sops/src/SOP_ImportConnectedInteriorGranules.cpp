@@ -89,7 +89,6 @@ SOP_ImportConnectedInteriorGranules::~SOP_ImportConnectedInteriorGranules() {}
 OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
 {//cout << "IMPORT: very start" << endl;
     GEO_Point   *ppt;
-    GEO_Point   *intPpt;
     
     // Before we do anything, we must lock our inputs.  Before returning,
     //	we have to make sure that the inputs get unlocked.
@@ -149,6 +148,8 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
             //cout << "IMPORT: " << numOldNeighborGroups << " groups" << endl;
             for ( int n = 0; n < numOldNeighborGroups; n++ )
             {
+                GEO_Point   *intPpt = NULL;
+                
                 // Get the DOP group
                 SIM_Relationship* curDOPGroup =(SIM_Relationship*)dopGroups[n];
                 
@@ -199,7 +200,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
                 
                 if ( !intPpt )
                 {
-                    cout << "intPpt is empty!!!!!" << endl;
+                    cout << "   intPpt is empty!!!!!" << endl;
                     continue;
                 }  // if
                 
@@ -225,6 +226,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
                     
                     // Add the point to the SOP point group
                     curSOPGroup->add( ppt );
+                    cout << "   adding " << currObject->getObjectId() << endl;
                     
                     // attach it to the center interior granule with a prim (for connectivity)
                     GU_PrimPoly *poly = (GU_PrimPoly*)gdp->appendPrimitive(GEOPRIMPOLY);
