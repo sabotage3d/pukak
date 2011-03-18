@@ -743,6 +743,17 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                         int numStaticNeighbors = 0;
                         // *********************** //
                         
+                        // ADDED BY SRH 2011-03-16 //
+                        //   Init variable for the avg neighbor speed computations
+                        double avgNeighborSpeed = 0.0;
+                        
+                        // Calculate my speed
+                        UT_Vector3 myVel = rbdstate->getVelocity();
+                        double myVelMag = myVel.length2();     // Get the squared magnitude of the vector
+                        cout << currObject->getObjectId() << " myVelMag = " << myVelMag << endl;
+                        neighborData->setMySpeed( myVelMag );
+                        // *********************** //
+                        
                         // Set up the Impacts data field for currObject
                         //SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, SIM_DATA_RETURN_EXISTING );
                         //SIM_Impacts* impactsData = SIM_DATA_CREATE( *currObject, "Impacts", SIM_Impacts, 0 );
@@ -799,12 +810,12 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                     
                                     // Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
                                     int numNeighbors = neighborObjIDs.size();
-                                    bool foundMatch = false;
+                                    bool neighborAlreadyExists = false;
                                     for ( int i = 0; i < numNeighbors; i++ )
                                     {
                                         if ( neighborObjIDs[i] == otherobjid )
                                         {
-                                            foundMatch = true;
+                                            neighborAlreadyExists = true;
                                             
                                             // Override the match's impulse if the current impulse is higher
                                             if ( impulse > neighborData->getNeighborImpulse( i ) )
@@ -815,7 +826,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                         
                                     } // for i
                                     
-                                    if ( !foundMatch )
+                                    if ( !neighborAlreadyExists )
                                     {
                                         char idStr[50];
                                         int strSize = sprintf( idStr, "%d", otherobjid );
@@ -863,19 +874,23 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                         
                                         // Add Bullet Neighbor Data to keep track of all the objects the current object is touching on the current frame
                                     	int numNeighbors = neighborObjIDs.size();
-                                    	bool foundMatch = false;
+                                    	bool neighborAlreadyExists = false;
                                     	for ( int i = 0; i < numNeighbors; i++ )
                                    	 	{
                                      	   if ( neighborObjIDs[i] == otherobjid )
                                      	   {
-                                    	        foundMatch = true;
+                                    	        neighborAlreadyExists = true;
                                     	        break;
                                     	    }
                                         
                                     	} // for i
                                     	
-                                    	if ( !foundMatch )
+                                    	if ( !neighborAlreadyExists )
                                     	{
+                                            SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( otherobjid );
+                                            if ( !neighborObject )
+                                                continue;
+                                            
                                     	    char idStr[50];
                                     	    int strSize = sprintf( idStr, "%d", otherobjid );
                                     	    if (strSize >= 50)
@@ -900,13 +915,32 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                     	        numStaticNeighbors++;
                                     	    }  // if
                                     	    // *********************** //
-                                    	}
-                            
+                                            
+                                            // ADDED BY SRH 2011-03-16 //
+                                            //   Add the neighboring granules' velocities.
+                                            cout << "objid = " << otherobjid << endl;
+                                            RBD_State* neighborRbdstate = SIM_DATA_GET(*neighborObject, "Position", RBD_State);
+                                            UT_Vector3 neighborVel = neighborRbdstate->getVelocity();
+                                            double neighVelMag = neighborVel.length2();     // Get the squared magnitude of the vector
+                                            avgNeighborSpeed += neighVelMag;
+                                            // *********************** //
+                                    	}  // if
+                                    
                                     }  // for n
                                 }  // else
                                 
                             }  // if
                         }  // for m
+                        
+                        int numNeighbors = neighborObjIDs.size();
+                        
+                        // ADDED BY SRH 2011-03-16 //
+                        if ( numNeighbors >= 2 )
+                        {
+                            avgNeighborSpeed /= (double)numNeighbors;
+                            neighborData->setAvgNeighborSpeed( avgNeighborSpeed );
+                        }  // if
+                        // *********************** //
                         
                         // Assign neighbors data (indicates what objects are touching/colliding with the current object)
                         neighborsStr.strip( " " );
@@ -914,8 +948,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                         neighborsStr += "]";
                         //SIM_SnowNeighborData* neighborData = SIM_DATA_CREATE( *currObject, "NeighborData", SIM_SnowNeighborData, SIM_DATA_RETURN_EXISTING );
                         
-                        int numNeighbors = neighborObjIDs.size();
-                        bool foundMatch = false;
+                        //bool foundMatch = false;
                         for ( int i = 0; i < numNeighbors; i++ )
                         {
                             char idStr[50];

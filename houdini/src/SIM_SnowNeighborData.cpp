@@ -29,18 +29,23 @@ SIM_SnowNeighborData::getSnowNeighborDataDopDescription()
     static PRM_Name             theGeoNeighbors( SIM_NAME_GEO_NEIGHBORS, "Geometry Neighbors" );
     static PRM_Name             theNumNeighbors( SIM_NAME_NUM_NEIGHBORS, "Num Neighbors" );
     static PRM_Name             theIsSurfaceGranule( SIM_NAME_IS_SURFACE_GRANULE, "Is Surface Granule" );       // 0 = Granule needs to die, 1 = Surface granule, 2 = Non-surface (external) granule
-    //static PRM_Name             theMaxStaticNeighbors( SIM_NAME_MAX_STATIC_NEIGHBORS, "Max Static Neighbors" );
-    //static PRM_Name             theDeleteMe( SIM_NAME_DELETE_ME, "Delete Me" );
+    static PRM_Name             theMySpeed( SIM_NAME_MY_SPEED, "My Speed" );
+    static PRM_Name             theAvgNeighborSpeed( SIM_NAME_AVG_NEIGHBOR_SPEED, "Avg Neighbor Speed" );
+    //static PRM_Name           theMaxStaticNeighbors( SIM_NAME_MAX_STATIC_NEIGHBORS, "Max Static Neighbors" );
+    //static PRM_Name           theDeleteMe( SIM_NAME_DELETE_ME, "Delete Me" );
     
     static PRM_Default          defGeoNeighbors( 0, "[]" );
     static PRM_Default          defTen( 10 );
     static PRM_Default          defThree( 3 );
     static PRM_Default          defZero( 0 );
+    static PRM_Default          defNegOne( -1 );
     
     static PRM_Template         theTemplates[] = {
         PRM_Template( PRM_STRING,       1, &theGeoNeighbors, &defGeoNeighbors ),
         PRM_Template( PRM_INT_J,        1, &theNumNeighbors, &defZero ),
         PRM_Template( PRM_INT_J,        1, &theIsSurfaceGranule, &defTen ),
+        PRM_Template( PRM_FLT_J,        1, &theMySpeed, &defNegOne ),
+        PRM_Template( PRM_FLT_J,        1, &theAvgNeighborSpeed, &defNegOne ),
         //PRM_Template( PRM_INT_J,        1, &theMaxStaticNeighbors, &defThree ),
         //PRM_Template( PRM_TOGGLE_J,     1, &theDeleteMe, &defZero ),
         PRM_Template()

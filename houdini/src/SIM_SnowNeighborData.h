@@ -23,6 +23,8 @@ class SIM_GeometryCopy;
 #define SIM_NAME_GEO_NEIGHBORS          "geo_neighbors"
 #define SIM_NAME_NUM_NEIGHBORS          "num_neighbors"
 #define SIM_NAME_IS_SURFACE_GRANULE     "issurfacegranule"
+#define SIM_NAME_MY_SPEED               "myspeed"
+#define SIM_NAME_AVG_NEIGHBOR_SPEED     "avgneighborspeed"
 //#define SIM_NAME_MAX_STATIC_NEIGHBORS    "max_static_neighbors"
 //#define SIM_NAME_DELETE_ME               "delete_me"
 
@@ -33,6 +35,8 @@ class SIM_SnowNeighborData : public SIM_Data,
         GETSET_DATA_FUNCS_S( SIM_NAME_GEO_NEIGHBORS, GeoNeighbors );
         GETSET_DATA_FUNCS_I( SIM_NAME_NUM_NEIGHBORS, NumNeighbors );
         GETSET_DATA_FUNCS_I( SIM_NAME_IS_SURFACE_GRANULE, IsSurfaceGranule );
+        GETSET_DATA_FUNCS_F( SIM_NAME_MY_SPEED, MySpeed );
+        GETSET_DATA_FUNCS_F( SIM_NAME_AVG_NEIGHBOR_SPEED, AvgNeighborSpeed );
         //GETSET_DATA_FUNCS_I( SIM_NAME_MAX_STATIC_NEIGHBORS, MaxStaticNeighbors );    // ADDED SRH 2010-06-09 - Keeps track of the max # of static neighbors a given granule can have before it is deleted
         //GETSET_DATA_FUNCS_B( SIM_NAME_DELETE_ME, DeleteMe );                         // ADDED SRH 2010-06-09 - Tell Houdini if this object should be culled out
 
