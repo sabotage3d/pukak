@@ -372,6 +372,22 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
             
             
             
+            // ADDED BY SRH 2011-03-19 //
+            //   If the mass is negative, it is completely static.
+            if ( houMass < 0 )
+            {
+                bodyIt->second.vel = btVector3( 0, 0, 0 );
+                
+                btVector3 fallInertia(0,0,0);
+                (bodyIt->second.bodyId)->getCollisionShape()->calculateLocalInertia( 0.0, fallInertia );    // Zero mass
+                (bodyIt->second.bodyId)->setMassProps( 0.0, fallInertia );        // Setting mass to zero (first parameter)
+                
+                bodyIt->second.isStatic = true;
+            }  // if
+            // *********************** //
+            
+            
+            
             //Add forces and such from the rest of the subdata
             processSubData(currObject, bodyIt->second);
             
@@ -1023,7 +1039,8 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 
                 // ADDED BY SRH 2011-01-08 //
                 //   If the mass is zero, reset the the object's position and velocity to before the collision
-                if ( bodyIt->second.isStatic )
+                btScalar houMass = rbdstate->getMass();
+                if ( bodyIt->second.isStatic && houMass == 0 )
                 {
                     // Reset the mass to zero
                     (bodyIt->second.bodyId)->setMassProps( btScalar(0.0), btVector3(0.0, 0.0, 0.0) );
