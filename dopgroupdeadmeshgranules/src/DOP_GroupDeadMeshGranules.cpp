@@ -116,8 +116,12 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
         //cout << "ERROR: DOP_GroupDeadMeshGranules node has empty Mesh Name parameter." << endl;
         return;
     }  // if
+    
     int nummatch;
     SIM_Object* meshObject = (SIM_Object*)engine.findObjectFromString( meshName, 0, &nummatch, time, 0 );
+    if ( !meshObject )
+        return;
+        
     SIM_Geometry *meshGeo = (SIM_Geometry *)meshObject->getGeometry();
     GU_DetailHandleAutoReadLock meshGdl( meshGeo->getGeometry() );
     GU_Detail *meshGdp = (GU_Detail *)meshGdl.getGdp();
