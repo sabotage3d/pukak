@@ -766,7 +766,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                         // Calculate my speed
                         UT_Vector3 myVel = rbdstate->getVelocity();
                         double myVelMag = myVel.length2();     // Get the squared magnitude of the vector
-                        cout << currObject->getObjectId() << " myVelMag = " << myVelMag << endl;
+                        //cout << currObject->getObjectId() << " myVelMag = " << myVelMag << endl;
                         neighborData->setMySpeed( myVelMag );
                         // *********************** //
                         
@@ -934,7 +934,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                                             
                                             // ADDED BY SRH 2011-03-16 //
                                             //   Add the neighboring granules' velocities.
-                                            cout << "objid = " << otherobjid << endl;
+                                            //cout << "objid = " << otherobjid << endl;
                                             RBD_State* neighborRbdstate = SIM_DATA_GET(*neighborObject, "Position", RBD_State);
                                             UT_Vector3 neighborVel = neighborRbdstate->getVelocity();
                                             double neighVelMag = neighborVel.length2();     // Get the squared magnitude of the vector
@@ -1040,6 +1040,8 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                 // ADDED BY SRH 2011-01-08 //
                 //   If the mass is zero, reset the the object's position and velocity to before the collision
                 btScalar houMass = rbdstate->getMass();
+                //if ( houMass == 0 && !bodyIt->second.isStatic )
+                //    cout << "mass problem with object " << currObject->getObjectId() << endl;
                 if ( bodyIt->second.isStatic && houMass == 0 )
                 {
                     // Reset the mass to zero
@@ -1049,8 +1051,8 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
                     btrans.setOrigin( bodyIt->second.pos );     // This is the gravity-updated position for this frame (updated above, before the Bullet solver was called)
                     (bodyIt->second.bodyId)->setCenterOfMassTransform( btrans );
                     (bodyIt->second.bodyId)->getMotionState()->setWorldTransform( btrans );
-                    //UT_Vector3 newP = UT_Vector3( bodyIt->second.pos.x(), bodyIt->second.pos.y(), bodyIt->second.pos.z() );   // newP does not work!!  p does
-                    rbdstate->setPosition( p );//newP );
+                    UT_Vector3 newP = UT_Vector3( bodyIt->second.pos.x(), bodyIt->second.pos.y(), bodyIt->second.pos.z() );   // newP does not work!!  p does
+                    rbdstate->setPosition( newP );
                     
                     // Reset the velocity
                     (bodyIt->second.bodyId)->setLinearVelocity( bodyIt->second.vel );
