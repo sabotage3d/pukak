@@ -98,7 +98,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
     this->flags().setTimeDep(1);
     
     float t = context.myTime;
-    cout << "frame = " << t << endl;
+    //cout << "frame = " << t << endl;
     UT_String dopPath = DOPPATH(t);
     
     UT_String groupMask = GROUPMASK(t);
@@ -174,7 +174,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
                 dopGroupName.substr( interiorGranuleObjidStr, groupPrefixLength, 100 );     // Get rid of the prefix of the group name to get the number of the center granule
                 //cout << "interiorGranuleObjidStr = " << interiorGranuleObjidStr << endl;
                 int interiorGranuleObjid = interiorGranuleObjidStr.toInt();
-                cout << "interiorGranuleObjid = " << interiorGranuleObjid << endl;
+                //cout << "interiorGranuleObjid = " << interiorGranuleObjid << endl;
                 for ( int i = 0; i < numInteriorGroupObjs; i++ )
                 {
                     SIM_Object* currObject = (SIM_Object*)interiorGranulesDOPGroup->getGroupObject( i );
@@ -200,7 +200,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
                 
                 if ( !intPpt )
                 {
-                    cout << "   intPpt is empty!!!!!" << endl;
+                    //cout << "   intPpt is empty!!!!!" << endl;
                     continue;
                 }  // if
                 
@@ -226,7 +226,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
                     
                     // Add the point to the SOP point group
                     curSOPGroup->add( ppt );
-                    cout << "   adding " << currObject->getObjectId() << endl;
+                    //cout << "   adding " << currObject->getObjectId() << endl;
                     
                     // attach it to the center interior granule with a prim (for connectivity)
                     GU_PrimPoly *poly = (GU_PrimPoly*)gdp->appendPrimitive(GEOPRIMPOLY);
