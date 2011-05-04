@@ -217,6 +217,7 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
     
     //float gravityForce = getGravityForce();
     float gravityForce = thisbulletSolverNode->evalFloat( SIM_NAME_GRAVITY_FORCE, 0, currTime );
+	
     
     // ADDED BY SRH 2011-01-08 //
     // Compute velocity from external, non-collision forces that affects the center of mass of objects
@@ -240,6 +241,22 @@ SIM_Solver::SIM_Result SIM_SnowSolverBullet::solveObjectsSubclass(SIM_Engine &en
         //Get current dop sim object
         //SIM_Object *currObject = (SIM_Object *)engine.getSimulationObject(i);
         SIM_Object *currObject = (SIM_Object *)objects(i);
+		
+		
+		UT_String forcename;
+		for( int f = 0; f < currObject->getNumSubData(); f++ )
+		{
+			const SIM_Data* dopData = currObject->getNthConstSubData( &forcename, SIM_DataFilterByType("SIM_ForceGravity"), f, 0, SIM_DataFilterAll() );
+			if ( dopData )
+			{
+				const SIM_ForceGravity *dopforce = SIM_DATA_CASTCONST( dopData, SIM_ForceGravity );
+				UT_Vector3 thisforce = dopforce->getGravity();
+				gravityForce = thisforce[1];
+				centerOfMassAccel = computeCenterOfMassAccel( timestep ) * gravityForce * -1.0;
+				break;
+			}  // if
+		}  // for f
+		
            
         //Check if this body has been added already, if not, add it.
         //Bullet bodies are stored in a map, the key is the dopObjectId
