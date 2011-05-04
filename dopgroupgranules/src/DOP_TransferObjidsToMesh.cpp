@@ -124,8 +124,6 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
     
     int numObjs = objGroup->getGroupEntries();
     // Loop through all the objects that passed the filter.
-    //for( i = 0; i < filtered.entries(); i++ )
-    //{
     for ( i = 0; i < numObjs; i++ )
     {
         // Set information about the object we are going to process.
@@ -144,9 +142,8 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
         // like OBJID in an expression.
         if( isActive(time) )
         {
-            //SIM_Object* currObject = filtered(i);
             SIM_Object* currObject = (SIM_Object*)objGroup->getGroupObject( i );
-            
+			
             // Get the mesh geometry
             SIM_Geometry* currGeo = (SIM_Geometry*)currObject->getGeometry();
             GU_DetailHandleAutoReadLock     currGdl(currGeo->getGeometry());
