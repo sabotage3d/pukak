@@ -127,7 +127,7 @@ OP_ERROR SOP_ImportConnectedInteriorGranules::cookMySop( OP_Context &context )
             
             // Get the SIM_Engine's groups, masked by groupMask
             SIM_ConstDataArray dopGroups;
-            UT_String filterGroupName = groupMask;
+            UT_String filterGroupName = groupMask;		// groupMask is the group prefix name (e.g. neighborsOf*)
             filterGroupName += "*";
             SIM_DataFilterByName groupFilter( filterGroupName );
             engine->filterConstRelationships( groupFilter, dopGroups );

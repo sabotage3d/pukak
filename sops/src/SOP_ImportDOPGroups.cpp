@@ -29,7 +29,8 @@ using namespace std;
 
 static PRM_Name        names[] = {
     PRM_Name("doppath", "DOP Path"),
-    PRM_Name("groupmask", "Group Prefix"),
+    PRM_Name("groupmask", "Import Group Mask"),
+	PRM_Name("interiorgranulesgrp", "Interior Granules Group"),
 };
 
 static PRM_Default          defEighteen(18);
@@ -39,8 +40,9 @@ PRM_Template
 SOP_ImportDOPGroups::myTemplateList[] = {
     //PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
     //PRM_Template(PRM_FLT_J,	1, &names[1], &defEighteen, 0, &PRMscaleRange),
-    PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString ),
-    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString ),
+    PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString, 0, 0, 0, 0, 1, "Path to the DOP node from which to import groups." ),
+    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString, 0, 0, 0, 0, 1, "The mask of the DOP group(s) to import as SOP groups." ),
+	PRM_Template( PRM_STRING, 1, &names[2], &defEmptyString, 0, 0, 0, 0, 1, "The name of the group which, if imported points are part of this group, those points are tagged as interior granules (optional)." ),
     PRM_Template(),
 };
 
@@ -97,7 +99,9 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
     float t = context.myTime;
     
     UT_String dopPath = DOPPATH(t);
-    UT_String groupMask = GROUPMASK(t);
+    UT_String importGroupMask = GROUPMASK(t);
+	importGroupMask.strip("*");
+	UT_String interiorGranulesGroupName = INTERIORGRANULESGROUP(t);
     
     // Duplicate our incoming geometry with the hint that we only
     // altered points.  Thus if we our input was unchanged we can
@@ -115,16 +119,24 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
             const DOP_Engine* engine = &dopNetwork->getEngine();
             //const DOP_Engine& engine = dopNetwork->getEngine();
             
-            // Get the SIM_Engine's groups, masked by groupMask
+            // Get the SIM_Engine's groups, masked by importGroupMask
             SIM_ConstDataArray dopGroups;
-            UT_String filterGroupName = groupMask;
+            UT_String filterGroupName = importGroupMask;
             filterGroupName += "*";
             SIM_DataFilterByName groupFilter( filterGroupName );
             engine->filterConstRelationships( groupFilter, dopGroups );
+			
+			// Get the interior group
+			SIM_Relationship* interiorGranulesDOPGroup = (SIM_Relationship*)engine->getRelationship( interiorGranulesGroupName );
+			int numInteriorGranules = 0;
+			if ( interiorGranulesDOPGroup )
+				numInteriorGranules = interiorGranulesDOPGroup->getGroupEntries();
             
             // Add point attributes to the gdp
             int negOne = -1;
+			int zero = 0;
             GB_AttributeRef objidAttrib = gdp->addPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT, &negOne );
+			GB_AttributeRef isInteriorAttrib = gdp->addPointAttrib( "is_interior", sizeof(int), GB_ATTRIB_INT, &zero );
             
             int numOldNeighborGroups = dopGroups.entries();
             //cout << "IMPORT: " << numOldNeighborGroups << " groups" << endl;
@@ -163,13 +175,22 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                     
                     // Add the point to the SOP point group
                     curSOPGroup->add( ppt );
+					
+					// If currObject is in the interior group, mark it as such
+					if ( interiorGranulesDOPGroup )
+					{
+						if ( interiorGranulesDOPGroup->getGroupHasObject( currObject ) )
+						{
+							ppt->setValue<int>( isInteriorAttrib, 1 );
+						}  // if
+					}  // if
                     
                 }  // for o
             }  // for n
             
             if ( numOldNeighborGroups <= 0 )
             {
-                gdp->newPointGroup( groupMask );
+                gdp->newPointGroup( importGroupMask );
             }  // if
             
         }  // if

@@ -39,6 +39,11 @@ private:
         evalString( mask, "groupmask", 0, t );
         return mask;
     }  // GROUPMASK
+	UT_String INTERIORGRANULESGROUP(float t) {
+		UT_String intGrp;
+		evalString( intGrp, "interiorgranulesgrp", 0, t );
+		return intGrp;
+	}  // INTERIORGRANULESGROUP
     
     UT_Vector4 computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius );
     bool intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius ); 
