@@ -4,6 +4,8 @@
 
 #include <DOP/DOP_Node.h>
 
+#include <DOP/DOP_Operator.h>
+
 
 class DOP_GroupInteriorGranuleNeighbors : public DOP_Node
 {
@@ -31,6 +33,25 @@ private:
     void            GROUP(UT_String &str, fpreal t);
     void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
     void            NEIGHBORGROUPPREFIX( UT_String &str, float t );
+};
+
+
+
+class DOP_GroupInteriorGranuleNeighborsOperator : public DOP_Operator
+{
+public:
+	DOP_GroupInteriorGranuleNeighborsOperator(const char *name, const char *english, OP_Constructor construct,
+												PRM_Template *templates, unsigned min_sources, unsigned max_sources,
+												CH_LocalVariable *variables, unsigned flags, unsigned num_outputs)
+		: DOP_Operator( name, english, construct, templates, min_sources, max_sources, variables, flags, num_outputs )
+	{}
+	
+	bool getHDKHelp( UT_String& str ) const
+	{
+		str.harden( "Group each interior granule with its surrounding shell granules into a group with the prefix indicated by the neighbor group prefix parameter and the suffix being the interior granule's objid.\n  This node will not do anything unless all parameters are filled in." );
+		
+		return true;
+	}  // getHDKHelp()
 };
 
 

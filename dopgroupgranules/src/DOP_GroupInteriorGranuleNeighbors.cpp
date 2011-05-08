@@ -11,7 +11,6 @@
 #include <OP/OP_OperatorTable.h>
 #include <DOP/DOP_PRMShared.h>
 #include <DOP/DOP_InOutInfo.h>
-#include <DOP/DOP_Operator.h>
 #include <DOP/DOP_Engine.h>
 
 #include "../SIM_SnowBulletSolver/src/SIM_SnowNeighborData.h"
@@ -29,7 +28,7 @@ newDopOperator(OP_OperatorTable *table)
     // building. The parameters to this function are similar to the
     // OP_Operator constructor except for the last parameter, which
     // specifies the number of outputs (up to 4) from this operator.
-    op = new DOP_Operator("hdk_groupinteriorgranuleneighbors", "Group Interior Granule Neighbors",
+    op = new DOP_GroupInteriorGranuleNeighborsOperator("hdk_groupinteriorgranuleneighbors", "Group Interior Granule Neighbors",
                           DOP_GroupInteriorGranuleNeighbors::myConstructor,
                           DOP_GroupInteriorGranuleNeighbors::myTemplateList, 1, 9999, 0,
                           0, 1);
@@ -89,7 +88,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
                                           const SIM_ObjectArray &objects,
                                           DOP_Engine &engine)
 {
-    SIM_ObjectArray      filtered;
+    SIM_ObjectArray      interiorGranulesFiltered;
     UT_String            group;
     int                  i;         //, inputindex;
     
@@ -118,8 +117,8 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     // to operate on. The filtered array will contain only those objects
     // from the original objects array that match the supplied string.
     //GROUP(group, time);
-    SIM_DataFilterRootData       filter(interiorGranulesGroupName);
-    objects.filter(filter, filtered);
+    SIM_DataFilterRootData       interiorGranulesFilter(interiorGranulesGroupName);
+    objects.filter(interiorGranulesFilter, interiorGranulesFiltered);
     
     // Get the prefix of the group name for each group of neighbors we will create
     UT_String neighborGroupPrefix;
@@ -128,20 +127,20 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     
     
     // Delete all the groups with prefix neighborGroupPrefix
-    //SIM_ConstDataArray oldNeighborGroups;
-    //UT_String filterGroupName = neighborGroupPrefix;
-    //filterGroupName += "*";
-    //SIM_DataFilterByName groupFilter( filterGroupName );
-    //engine.filterConstRelationships( groupFilter, oldNeighborGroups );
-    //
-    //int numOldNeighborGroups = oldNeighborGroups.entries();
-    //for ( int n = 0; n < numOldNeighborGroups; n++ )
-    //{
-    //    engine.removeRelationship( (SIM_Relationship*)oldNeighborGroups[n] );
-    //}  // for n
+    SIM_ConstDataArray oldNeighborGroups;
+    UT_String filterGroupName = neighborGroupPrefix;
+    filterGroupName += "*";
+    SIM_DataFilterByName neighborGroupFilter( filterGroupName );
+    engine.filterConstRelationships( neighborGroupFilter, oldNeighborGroups );
     
-    // Loop through all the objects that passed the filter.
-    for( i = 0; i < filtered.entries(); i++ )
+    int numOldNeighborGroups = oldNeighborGroups.entries();
+    for ( int n = 0; n < numOldNeighborGroups; n++ )
+    {
+        engine.removeRelationship( (SIM_Relationship*)oldNeighborGroups[n] );
+    }  // for n
+    
+    // Loop through all the objects that passed the interiorGranulesFilter.
+    for( i = 0; i < interiorGranulesFiltered.entries(); i++ )
     {
         // Set information about the object we are going to process.
         // The first argument is the index of the current object within the
@@ -149,7 +148,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
         // argument is the total number of objects we are going to process.
         // The last argument is a pointer to the actual object we are
         // processing.
-        setCurrentObject( i, filtered.entries(), filtered(i) );
+        setCurrentObject( i, interiorGranulesFiltered.entries(), interiorGranulesFiltered(i) );
 
         // The isActive function checks both the bypass flag and the
         // activation parameter on the node (if there is one, which there
@@ -160,7 +159,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
         if( isActive(time) )
         {
             // Get the current object's objid attribute.
-            SIM_Object* currObject = filtered(i);
+            SIM_Object* currObject = interiorGranulesFiltered(i);
             int objid = currObject->getObjectId();
             //cout << currObject->getName() << endl;
             char tmp[181];
@@ -193,11 +192,11 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
                 //cout << numShellNeighborsThatAreInteriorGranules << " interior neighbors found." << endl;
                 //cout << "creating group " << neighborGroupName << endl;
                 SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
-                neighborGroup->addGroup( currObject );      // currObject is in the shell granules group, since it comes from filtered
+                neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
                 SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
                                 SIM_RelationshipGroup,
                                 SIM_DATA_RETURN_EXISTING );
-                
+								
                 for ( int n = 0; n < numNeighbors; n++ )
                 {
                     // Add the neighbor to the current shell granule's group.

@@ -96,34 +96,6 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
     UT_String            group;
     int                  i;         //, inputindex;
     
-    // Get the name of the interior granules group, based on the Interior Granules Group parameter input
-    //   The interior granules are granules that are ready to be culled, whose outer neighbors we will set
-    //   to be shell granules.
-    //UT_String interiorGranulesGroupName;
-    //INTERIORGRANULESGROUPNAME( interiorGranulesGroupName, time );
-    //if ( interiorGranulesGroupName == "" )
-    //    return;
-    //const SIM_Relationship* interiorGranulesGroup = engine.getRelationship( interiorGranulesGroupName );
-    //if ( !interiorGranulesGroup )
-    //    return;
-    
-    // Get the name for the shell granules group that will be created,
-    //   based on the Shell Granules Group parameter input.
-    //   This group will be populated with exterior granules that border the pockets of interior granules.
-    //UT_String shellGranulesGroupName;
-    //SHELLGRANULESGROUPNAME( shellGranulesGroupName, time );
-    //if ( shellGranulesGroupName == "" )
-    //    return;
-    //const SIM_Relationship* shellGranulesGroup = engine.getRelationship( shellGranulesGroupName );
-
-    // Grab the group string and filter our incoming objects using that
-    // string. This narrows down the set of objects that we actually want
-    // to operate on. The filtered interiorgranules array will contain only those objects
-    // from the original objects array that match the supplied string.
-    //GROUP(group, time);
-    //SIM_DataFilterRootData       filter(interiorGranulesGroupName);
-    //objects.filter(filter, interiorgranules);
-	
 	// Get the neighbor groups
 	UT_String neighborGroupPrefix;
 	NEIGHBORGROUPPREFIX( neighborGroupPrefix, time );
@@ -138,22 +110,19 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
     // Get the prefix of the group name for each group of connected (colliding) granules we will create
     UT_String connectedComponentGroupPrefix;
     CONNECTEDCOMPONENTGROUPPREFIX( connectedComponentGroupPrefix, time );
-    //GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
     
+	// Delete the old connected component groups to make room for the new
+    UT_String deleteOldCCFilterString = connectedComponentGroupPrefix;
+	deleteOldCCFilterString += "*";
+	SIM_DataFilterByName oldCCGroupFilter( deleteOldCCFilterString );
+	SIM_ConstDataArray deleteOldCCGroups;
+	engine.filterConstRelationships( oldCCGroupFilter, deleteOldCCGroups );
+	int numDeleteGroups = deleteOldCCGroups.entries();
+	for ( int i = 0; i < numDeleteGroups; i++ )
+	{
+		engine.removeRelationship( (SIM_Relationship*)deleteOldCCGroups[i] );
+	}  // for i
     
-    // Delete all the groups with prefix neighborGroupPrefix
-    //SIM_ConstDataArray oldNeighborGroups;
-    //UT_String filterGroupName = neighborGroupPrefix;
-    //filterGroupName += "*";
-    //SIM_DataFilterByName groupFilter( filterGroupName );
-    //engine.filterConstRelationships( groupFilter, oldNeighborGroups );
-    //
-    //int numOldNeighborGroups = oldNeighborGroups.entries();
-    //for ( int n = 0; n < numOldNeighborGroups; n++ )
-    //{
-    //    engine.removeRelationship( (SIM_Relationship*)oldNeighborGroups[n] );
-    //}  // for n
-	
 	int numConnectedComponentGroups = 0;
 	SIM_ConstDataArray connectedComponentGroups;
 	
@@ -166,8 +135,8 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 		SIM_ConstDataArray curConnectedGroups;
 		
 		int numNeighbors = curNeighborGroup->getGroupEntries();
-		int numConnectedComponentGroups = connectedComponentGroups.entries();
-		for ( int j = 0; j < numConnectedComponentGroups; j++ )
+		int connectedComponentGroupsSize = connectedComponentGroups.entries();
+		for ( int j = 0; j < connectedComponentGroupsSize; j++ )
 		{
 			SIM_Relationship* curCCGroup = (SIM_Relationship*)connectedComponentGroups[j];
 			for ( int n = 0; n < numNeighbors; n++ )
@@ -225,6 +194,7 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 			for ( int i = 0; i < numCurConnectedGroups; i++ )
 			{
 				SIM_Relationship* curConnectedGroup = (SIM_Relationship*)curConnectedGroups[i];
+				
 				int numGroupObjects = curConnectedGroup->getGroupEntries();
 				for ( int j = 0; j < numGroupObjects; j++ )
 				{
@@ -236,6 +206,12 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 				}  // for j
 				
 				connectedComponentGroups.remove( curConnectedGroup );
+			}  // for i
+			
+			// Delete the old component groups
+			for ( int i = 0; i < numCurConnectedGroups; i++ )
+			{
+				SIM_Relationship* curConnectedGroup = (SIM_Relationship*)curConnectedGroups[i];
 				engine.removeRelationship( curConnectedGroup );
 			}  // for i
 			
@@ -255,119 +231,6 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 		}  // else
 	}  // for i
     
-    // Loop through all the objects that passed the filter.
-	/*int numInteriorGranules = interiorgranules.entries();
-    for( i = 0; i < numInteriorGranules; i++ )
-    {
-        // Set information about the object we are going to process.
-        // The first argument is the index of the current object within the
-        // full list of objects we are going to process. The second
-        // argument is the total number of objects we are going to process.
-        // The last argument is a pointer to the actual object we are
-        // processing.
-        setCurrentObject( i, numInteriorGranules, interiorgranules(i) );
-
-        // The isActive function checks both the bypass flag and the
-        // activation parameter on the node (if there is one, which there
-        // is in this case). We call this function after calling
-        // setCurrentObject and we call it for each object in case the
-        // activation parameter uses some object-specific variables
-        // like OBJID in an expression.
-        if( isActive(time) )
-        {
-            // Get the current object's objid attribute.
-            SIM_Object* currObject = interiorgranules(i);
-            int objid = currObject->getObjectId();
-            //cout << currObject->getName() << endl;
-            char tmp[181];
-            sprintf( tmp, "%s%d", (char*)connectedComponentGroupPrefix, objid );
-            UT_String connectedComponentGroupName = tmp;
-            
-            SIM_SnowNeighborData* currNeighborData = SIM_DATA_GET( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
-            if ( currNeighborData )
-            {
-                // For each neighboring object to the current object, see if the neighbor is an interior granule
-                int numNeighbors = currNeighborData->getNumNeighbors();
-				
-                SIM_Relationship *connectedComponentGroup = engine.addRelationship( connectedComponentGroupName, SIM_DATA_RETURN_EXISTING );
-                connectedComponentGroup->addGroup( currObject );      // currObject is in the shell granules group, since it comes from interiorgranules
-                SIM_DATA_CREATE( *connectedComponentGroup, SIM_RELGROUP_DATANAME,
-                                SIM_RelationshipGroup,
-                                SIM_DATA_RETURN_EXISTING );
-                
-				// For each neighbor of the current interior granule, add it to a connected component group that
-				//   it is collided with, or if it is not connected to any of the current connected component groups,
-				//   create a new connected component group
-                for ( int n = 0; n < numNeighbors; n++ )
-                {
-                    // Add the neighbor to the current shell granule's group.
-                    int neighborId = currNeighborData->getNeighborId( n );
-                    SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
-                    if ( !neighborObject )
-                        continue;
-                    
-                    //neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
-                    connectedComponentGroup->addGroup( neighborObject );
-                    SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
-                                    SIM_RelationshipGroup,
-                                    SIM_DATA_RETURN_EXISTING );
-                    
-                    */
-                    // If the neighbor is an interior granule, put it in a group with all its shell granule neighbors
-                    /*if ( interiorGranulesGroup->getGroupHasObject( neighborObject ) )
-                    {
-                        // Create the neighbor group for this interior granule
-                        char tmp[181];
-                        sprintf( tmp, "%s%d", (char*)neighborGroupPrefix, neighborId );
-                        UT_String interiorNeighborGroupName = tmp;
-                        //cout << "  interiorNeighborGroupName = " << interiorNeighborGroupName << endl;
-                        
-                        SIM_Relationship *interiorNeighborGroup = engine.addRelationship( interiorNeighborGroupName, SIM_DATA_RETURN_EXISTING );
-                        interiorNeighborGroup->addGroup( neighborObject );
-                        SIM_DATA_CREATE( *interiorNeighborGroup, SIM_RELGROUP_DATANAME,
-                                        SIM_RelationshipGroup,
-                                        SIM_DATA_RETURN_EXISTING );
-                        
-                        SIM_SnowNeighborData* currInteriorData = SIM_DATA_GET( *neighborObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
-                        if ( currInteriorData )
-                        {
-                            int numInteriorNeighbors = currInteriorData->getNumNeighbors();
-                            for ( int in = 0; in < numInteriorNeighbors; in++ )
-                            {
-                                int interiorNeighborId = currInteriorData->getNeighborId( in );
-                                SIM_Object* interiorNeighborObject = (SIM_Object*)engine.getSimulationObjectFromId( interiorNeighborId );
-                                if ( !interiorNeighborObject )
-                                    continue;
-                                    
-                                if ( shellGranulesGroup->getGroupHasObject( interiorNeighborObject ) )
-                                {
-                                    interiorNeighborGroup->addGroup( interiorNeighborObject );
-                                    SIM_DATA_CREATE( *interiorNeighborGroup, SIM_RELGROUP_DATANAME,
-                                                    SIM_RelationshipGroup,
-                                                    SIM_DATA_RETURN_EXISTING );
-                                }  // if
-                            }  // for in
-                        }  // if
-                    }  // if*/
-                    
-                    /*
-                    if ( interiorGranulesGroup->getGroupHasObject( neighborObj ) )
-                    {
-                        SIM_Relationship *shellGroup = engine.addRelationship( shellGranulesGroupName, SIM_DATA_RETURN_EXISTING );
-                        if ( shellGroup )
-                        {
-                            shellGroup->addGroup( currObject );
-                            SIM_DATA_CREATE( *shellGroup, SIM_RELGROUP_DATANAME,
-                                            SIM_RelationshipGroup,
-                                            SIM_DATA_RETURN_EXISTING );
-                            break;
-                        }  // if
-                    }  // if
-                    */
-    //            }  // for n
-    //        }  // if
-    //    }  // if
-    //}  // for each object
 }  // processObjectsSubclass()
 
 void
