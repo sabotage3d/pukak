@@ -29,6 +29,7 @@ using namespace std;
 
 
 static PRM_Name        names[] = {
+	PRM_Name("group", "Group"),
     PRM_Name("attribname", "Attribute Name"),
     PRM_Name("matchingpointsgroup", "Matching Pts Group"),
 };
@@ -37,8 +38,9 @@ static PRM_Default          defEmptyString( 0, "" );
 
 PRM_Template
 SOP_GroupPointsWithMatchingAttribs::myTemplateList[] = {
-    PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString, 0, 0, 0, 0, 1, "Name of the point attribute to find matching values between the points of the two input geometries." ),
-    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString, 0, 0, 0, 0, 1, "Name of the group to create and add points that have matching points (for the given attribute) in the second input geometry." ),
+	PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString, 0, 0, 0, 0, 1, "Group of points to search for matches." ),
+    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString, 0, 0, 0, 0, 1, "Name of the point attribute to find matching values between the points of the two input geometries." ),
+    PRM_Template( PRM_STRING, 1, &names[2], &defEmptyString, 0, 0, 0, 0, 1, "Name of the group to create and add points that have matching points (for the given attribute) in the second input geometry." ),
     PRM_Template(),
 };
 
@@ -105,8 +107,20 @@ OP_ERROR SOP_GroupPointsWithMatchingAttribs::cookMySop( OP_Context &context )
     {
         
         // Get the name of the interior primitive group
+		UT_String groupName = GROUP(t);
         UT_String attribName = ATTRIBNAME(t);		// Name of the attribute to find matches with between the two input geometries
 		UT_String matchingPointsGroupName = MATCHINGPOINTSGROUP(t);
+		
+		// Get the group of particles to act on
+		const GB_PointGroup *group = NULL;
+		if ( groupName.isstring())
+		{
+			group = parsePointGroups( (const char *)groupName, gdp );
+			if ( !group )
+			{
+				addError( SOP_ERR_BADGROUP, groupName );
+			}  // if
+		}  // if
 		
 		// Get the second input geometry.
 		//   (We already have the first input geometry, gdp).
@@ -138,7 +152,7 @@ OP_ERROR SOP_GroupPointsWithMatchingAttribs::cookMySop( OP_Context &context )
         // Parse through each point in the first input geometry and add it to the matching points group
 		//   if it has a matching attribute value for attribName in input geometry two.
         GEO_Point* pt1;
-        FOR_ALL_GPOINTS( gdp, pt1 )
+        FOR_ALL_OPT_GROUP_POINTS( gdp, group, pt1 )
         {
 			int objid1 = pt1->getValue<int>( attRef1 );
 			

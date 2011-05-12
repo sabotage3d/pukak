@@ -27,15 +27,20 @@ protected:
     virtual OP_ERROR        cookMySop( OP_Context &context );
 
 private:
+	UT_String GROUP(float t) {
+		UT_String grp;
+		evalString( grp, "group", 0, t );
+		return grp;
+	}  // GROUP	
     UT_String ATTRIBNAME(float t) {
-        UT_String grp;
-        evalString( grp, "attribname", 0, t );
-        return grp;
+        UT_String attr;
+        evalString( attr, "attribname", 0, t );
+        return attr;
     }  // ATTRIBNAME
 	UT_String MATCHINGPOINTSGROUP(float t) {
-        UT_String grp;
-        evalString( grp, "matchingpointsgroup", 0, t );
-        return grp;
+        UT_String mgrp;
+        evalString( mgrp, "matchingpointsgroup", 0, t );
+        return mgrp;
     }  // MATCHINGPOINTSGROUP
     
     /// This variable is used together with the call to the "checkInputChanged"
