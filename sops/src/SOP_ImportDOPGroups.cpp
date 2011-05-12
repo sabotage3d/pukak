@@ -179,7 +179,10 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
 					// If currObject is in the interior group, mark it as such
 					if ( interiorGranulesDOPGroup )
 					{
-						if ( interiorGranulesDOPGroup->getGroupHasObject( currObject ) )
+						UT_String grpName = curDOPGroupName;
+						grpName.strip( importGroupMask );
+						int interiorObjid = grpName.toInt();
+						if ( currObject->getObjectId() == interiorObjid && interiorGranulesDOPGroup->getGroupHasObject( currObject ) )
 						{
 							ppt->setValue<int>( isInteriorAttrib, 1 );
 						}  // if
