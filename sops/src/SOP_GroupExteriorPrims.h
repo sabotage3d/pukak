@@ -37,6 +37,9 @@ private:
         evalString( grp, "extprimgroup", 0, t );
         return grp;
     }  // POINTGROUP
+	double RADIUS(float t) {
+		return (double)evalFloat( "radius", 0, t );
+	}  // RADIUS
     
     /// This variable is used together with the call to the "checkInputChanged"
     /// routine to notify the handles (if any) if the input has changed.

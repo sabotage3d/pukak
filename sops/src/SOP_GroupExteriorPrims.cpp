@@ -31,15 +31,17 @@ using namespace std;
 static PRM_Name        names[] = {
     PRM_Name("intprimgroup", "Interior Prims Group"),
     PRM_Name("extprimgroup", "Exterior Prims Group"),
+	PRM_Name("radius", "Radius"),
 };
 
-static PRM_Default          defEighteen(18);
+static PRM_Default          defZero(0);
 static PRM_Default          defEmptyString( 0, "" );
 
 PRM_Template
 SOP_GroupExteriorPrims::myTemplateList[] = {
-    PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString ),
-    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString ),
+    PRM_Template( PRM_STRING, 1, &names[0], &defEmptyString, 0, 0, 0, 0, 1, "Name of group to place interior prims in." ),
+    PRM_Template( PRM_STRING, 1, &names[1], &defEmptyString, 0, 0, 0, 0, 1, "Name of group to place exterior prims in." ),
+	PRM_Template( PRM_FLT, 1, &names[2], &defZero, 0, 0, 0, 0, 1, "The radius to determine which triangles are included in the exterior prims group.  If any triangle has a side with length greater than twice the radius, it is included in the exterior prims group." ),
     PRM_Template(),
 };
 
@@ -100,9 +102,9 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
-        
         // Get the name of the interior primitive group
         UT_String intPrimGrp = INTPRIMGROUP(t);
+		
         const GB_PrimitiveGroup* interiorPrimGroup = parsePrimitiveGroups( (const char*)intPrimGrp, gdp );
         if ( intPrimGrp == "" )
         {
@@ -112,11 +114,11 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
         if ( !interiorPrimGroup )
         {
             UT_String warningMessage;
-            warningMessage.sprintf( "Group %s does not exist.", intPrimGrp );
+            warningMessage.sprintf( "Group %s does not exist.", intPrimGrp.toStdString() );
             addWarning( SOP_MESSAGE, warningMessage );
             return error();
         }  // if
-        
+		
         // Get the name of the exterior primitive group
         UT_String extPrimGrp = EXTPRIMGROUP(t);
         const GB_PrimitiveGroup* exteriorPrimGroup = parsePrimitiveGroups( (const char*)extPrimGrp, gdp );
@@ -125,6 +127,10 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
             addWarning( SOP_MESSAGE, "Need to specify the exterior primitive group parameter." );
             return error();
         }  // if
+		
+		// Get the radius
+		double radius = RADIUS(t);
+		double diameter = 4.0 * radius * radius;
         
         // Create the empty edge list
         GB_EdgeGroup edgeList( (*gdp), "interiorEdges" );
@@ -156,7 +162,40 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
                 }  // for v
             }  // if
         }  // FOR_ALL_GROUP_PRIMITIVES
-        
+		
+		/*
+		// For all primitives in the geometry, check which ones have edges longer than twice the granular radius
+        GB_EdgeGroup tmp( *gdp, "tmp" );
+		GEO_Primitive* prim;
+        FOR_ALL_PRIMITIVES( gdp, prim )
+        {
+            bool doDeletion = false;
+            
+            int numVertices = prim->getVertexCount();
+            for ( int i = 0; i < numVertices; i++ )
+            {
+                GEO_Point* p1 = prim->getVertex(i).getPt();
+                GEO_Point* p2 = prim->getVertex( (i+1)%numVertices ).getPt();
+				
+				UT_Vector4 pos1 = p1->getPos();
+				UT_Vector4 pos2 = p2->getPos();
+				
+				double xLen = pos2.x() - pos1.x();
+				double yLen = pos2.y() - pos1.y();
+				double zLen = pos2.z() - pos1.z();
+				double edgeLength = xLen*xLen + yLen*yLen + zLen*zLen;
+				//cout << "diam, edgeLength = " << diameter << ", " << edgeLength << endl;
+				
+				if ( edgeLength > diameter )
+				{
+					deletePrimsGrp->add( prim );
+					break;
+				}  // if
+                
+            }  // for i
+        }  // FOR_ALL_PRIMITIVES
+        */
+		
         // For all primitives in the geometry, check which ones are not surrounded by the grouped edges
         GB_EdgeGroup tmp( *gdp, "tmp" );
         FOR_ALL_PRIMITIVES( gdp, prim )
