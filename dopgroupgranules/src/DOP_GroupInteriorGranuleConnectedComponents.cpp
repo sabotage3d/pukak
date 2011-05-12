@@ -122,9 +122,21 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 	{
 		engine.removeRelationship( (SIM_Relationship*)deleteOldCCGroups[i] );
 	}  // for i
-    
-	int numConnectedComponentGroups = 0;
+	
 	SIM_ConstDataArray connectedComponentGroups;
+	UT_String connectedComponentGroupFilterName = connectedComponentGroupPrefix;
+	connectedComponentGroupFilterName += "*";
+	SIM_DataFilterByName connectedComponentGroupFilter( connectedComponentGroupFilterName );
+    engine.filterConstRelationships( connectedComponentGroupFilter, connectedComponentGroups );
+	
+	int numConnectedComponentGroups = 0;
+	if ( connectedComponentGroups.entries() > 0 )
+	{
+		UT_String lastGroupName = (UT_String)( ((SIM_Relationship*)connectedComponentGroups[connectedComponentGroups.entries()-1])->getName() );
+		lastGroupName.strip( connectedComponentGroupPrefix );
+		int numConnectedComponentGroups = lastGroupName.toInt() + 1;
+	}  // if
+	
 	
 	int numNeighborGroups = neighborGroups.entries();
 	for ( int i = 0 ; i < numNeighborGroups; i++ )
