@@ -90,7 +90,7 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
     SIM_ObjectArray      filtered;
     UT_String            group;
     int                  i;         //, inputindex;
-
+	
     // Grab the group string and filter our incoming objects using that
     // string. This narrows down the set of objects that we actually want
     // to operate on. The filtered array will contain only those objects
@@ -98,13 +98,13 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
     GROUP(group, time);
     SIM_DataFilterRootData       filter(group);
     objects.filter(filter, filtered);
-    
+	
     // Get the new group name to create, based on the New Group Name parameter input
     UT_String newGroupName;
     NEWGROUPNAME( newGroupName, time );
     if ( newGroupName == "" )
     {
-        //cout << "ERROR: DOP_GroupDeadMeshGranules node has empty New Group parameter." << endl;
+        cout << "ERROR: DOP_GroupDeadMeshGranules node has empty New Group parameter." << endl;
         return;
     }  // if
     
@@ -113,7 +113,7 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
     MESHNAME( meshName, time );
     if ( newGroupName == "" )
     {
-        //cout << "ERROR: DOP_GroupDeadMeshGranules node has empty Mesh Name parameter." << endl;
+        cout << "ERROR: DOP_GroupDeadMeshGranules node has empty Mesh Name parameter." << endl;
         return;
     }  // if
     
@@ -121,32 +121,33 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
     SIM_Object* meshObject = (SIM_Object*)engine.findObjectFromString( meshName, 0, &nummatch, time, 0 );
     if ( !meshObject )
         return;
-        
-    SIM_Geometry *meshGeo = (SIM_Geometry *)meshObject->getGeometry();
-    GU_DetailHandleAutoReadLock meshGdl( meshGeo->getGeometry() );
-    GU_Detail *meshGdp = (GU_Detail *)meshGdl.getGdp();
-    
-    GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
 	
-    // Loop through all the objects that passed the filter.
-    for( i = 0; i < filtered.entries(); i++ )
-    {
-        // Set information about the object we are going to process.
-        // The first argument is the index of the current object within the
-        // full list of objects we are going to process. The second
-        // argument is the total number of objects we are going to process.
-        // The last argument is a pointer to the actual object we are
-        // processing.
-        setCurrentObject( i, filtered.entries(), filtered(i) );
-
-        // The isActive function checks both the bypass flag and the
-        // activation parameter on the node (if there is one, which there
-        // is in this case). We call this function after calling
-        // setCurrentObject and we call it for each object in case the
-        // activation parameter uses some object-specific variables
-        // like OBJID in an expression.
-        if( isActive(time) )
-        {
+	// The isActive function checks both the bypass flag and the
+	// activation parameter on the node (if there is one, which there
+	// is in this case). We call this function after calling
+	// setCurrentObject and we call it for each object in case the
+	// activation parameter uses some object-specific variables
+	// like OBJID in an expression.
+	
+	SIM_Geometry *meshGeo = (SIM_Geometry *)meshObject->getGeometry();
+	GU_DetailHandleAutoReadLock meshGdl( meshGeo->getGeometry() );
+	GU_Detail *meshGdp = (GU_Detail *)meshGdl.getGdp();
+	
+	GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
+	
+	// Loop through all the objects that passed the filter.
+	for( i = 0; i < filtered.entries(); i++ )
+	{
+		// Set information about the object we are going to process.
+		// The first argument is the index of the current object within the
+		// full list of objects we are going to process. The second
+		// argument is the total number of objects we are going to process.
+		// The last argument is a pointer to the actual object we are
+		// processing.
+		setCurrentObject( i, filtered.entries(), filtered(i) );
+		
+		if( isActive(time) )
+		{
             // Get the current object's objid attribute.
             SIM_Object* currObject = filtered(i);
             int objid = currObject->getObjectId();
@@ -154,8 +155,8 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
             // Get the current object's creation time
             //  If this is the creation frame, don't add it to the deletion group
             fpreal creationTime = currObject->getCreationTime();
-            if ( creationTime == time )
-                continue;
+            //if ( creationTime == time )
+             //   continue;
             
             // Compare the current dop object's objid with the objid of every point in the mesh.
             //   If a match is found, go on to the next dop object
