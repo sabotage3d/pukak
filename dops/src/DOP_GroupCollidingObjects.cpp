@@ -13,7 +13,7 @@
 #include <DOP/DOP_Operator.h>
 #include <DOP/DOP_Engine.h>
 
-#include "../SIM_SnowBulletSolver/src/SIM_SnowNeighborData.h"
+#include "../SIMs/src/SIM_SnowNeighborData.h"
 
 #include <iostream>
 
