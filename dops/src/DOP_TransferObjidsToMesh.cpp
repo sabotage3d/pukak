@@ -14,7 +14,7 @@
 #include <DOP/DOP_Operator.h>
 #include <DOP/DOP_Engine.h>
 
-#include "../SIM_SnowBulletSolver/src/SIM_SnowNeighborData.h"
+//#include "../SIMs/src/SIM_SnowNeighborData.h"
 
 #include <iostream>
 
@@ -105,24 +105,29 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
     MESHOBJECTNAME( meshObjectName, time );
     //if ( meshObjectName == "" )
     //    return;
-        
+	
     // Get the mesh object
     //SIM_Object* meshObject = (SIM_Object*)engine.findObjectFromString( meshObjectName, 0, 0, time, false );
     SIM_Object* meshObject = objects(0);
-    
+    cout << "mesh object name = " << meshObject->getName() << endl;
+	cout << "objects group = " << objectsGroup << endl;
     // Get the mesh geometry
     SIM_Geometry* meshGeo = (SIM_Geometry*)meshObject->getGeometry();
     GU_DetailHandleAutoReadLock meshGdl(meshGeo->getGeometry());
     GU_Detail *meshGdp = (GU_Detail *)meshGdl.getGdp();
-    GB_AttributeRef objidAttrib = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
-    GB_AttributeRef permidAttrib = meshGdp->findPointAttrib( "permid", sizeof(int), GB_ATTRIB_INT );
-    
+    //GB_AttributeRef objidAttrib = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
+	GA_RWAttributeRef objidAttrib = meshGdp->findIntTuple( GA_ATTRIB_POINT, "objid", 1 );	// Tuple size is 1
+    //GB_AttributeRef permidAttrib = meshGdp->findPointAttrib( "permid", sizeof(int), GB_ATTRIB_INT );
+    GA_RWAttributeRef permidAttrib = meshGdp->findIntTuple( GA_ATTRIB_POINT, "permid", 1 );	// Tuple size is 1
+	
     // Get the group of objects to transfer objids from
     const SIM_Relationship* objGroup = engine.getRelationship( objectsGroup );
+	cout << "obj grp = " << objGroup << endl;
     if ( !objGroup )
         return;
-    
+    cout << 2 << endl;
     int numObjs = objGroup->getGroupEntries();
+	cout << "there are " << numObjs << " groups" << endl;
     // Loop through all the objects that passed the filter.
     for ( i = 0; i < numObjs; i++ )
     {
@@ -162,7 +167,7 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
             
             int objPermid = copyInfo->getData().getOptionF( "permid" );
             GEO_Point *pt;
-            FOR_ALL_GPOINTS( meshGdp, pt )
+            GA_FOR_ALL_GPOINTS( meshGdp, pt )
             {
                 int ptPermid = pt->getValue<int>( permidAttrib );
                 if ( ptPermid == objPermid )

@@ -1,5 +1,7 @@
 #include "DOP_GroupDeadMeshGranules.h"
 #include <UT/UT_DSOVersion.h>
+
+#include <GA/GA_AttributeRef.h>
 #include <RBD/RBD_State.h>
 #include <SIM/SIM_DataFilter.h>
 #include <SIM/SIM_EmptyData.h>
@@ -133,7 +135,8 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
 	GU_DetailHandleAutoReadLock meshGdl( meshGeo->getGeometry() );
 	GU_Detail *meshGdp = (GU_Detail *)meshGdl.getGdp();
 	
-	GB_AttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
+	//GA_ROAttributeRef objidAttrOffset = meshGdp->findPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT );
+	GA_ROAttributeRef objidAttrOffset = meshGdp->findIntTuple( GA_ATTRIB_POINT, GA_SCOPE_PUBLIC, "objid" );
 	
 	// Loop through all the objects that passed the filter.
 	for( i = 0; i < filtered.entries(); i++ )
@@ -162,7 +165,7 @@ DOP_GroupDeadMeshGranules::processObjectsSubclass(fpreal time, int,
             //   If a match is found, go on to the next dop object
             bool addCurrObjectToGroup = true;
             GEO_Point *pt;
-            FOR_ALL_GPOINTS( meshGdp, pt )
+            GA_FOR_ALL_GPOINTS( meshGdp, pt )
             {
                 int ptObjid = pt->getValue<int>( objidAttrOffset );
                 if ( ptObjid == objid )

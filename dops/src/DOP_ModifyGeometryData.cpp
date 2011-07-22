@@ -197,20 +197,23 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     GEO_Point *pt;
                     if ( geomAttrType == INT_TYPE )
                     {
-                        GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_INT );
+                        //GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_INT );
+						//GA_WOAttributeRef attRef = gdp->findIntTuple( GA_ATTRIB_POINT, GA_SCOPE_PUBLIC, geomAttrName );
+						GA_RWAttributeRef attRef = gdp->findIntTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// Tuple size is 1
                         
                         if ( attRef.isInvalid() )
                         {
                             // Create the point attribute
-                            attRef = gdp->addPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+							attRef = gdp->addIntTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// Tuple size is 1
                         }  // if
                         
                         if ( attRef.isValid() )
                         {
                             int valueNumber = (int)VALUENUMBER( time );
-                            FOR_ALL_GPOINTS( gdp, pt )
+                            GA_FOR_ALL_GPOINTS( gdp, pt )
                             {
-                                pt->setValue<int>( attRef, valueNumber );
+                                pt->setValue( attRef, valueNumber );
                             }  // for each point in gd
                         }  // if
                         else
@@ -220,20 +223,22 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     }  // if
                     else if ( geomAttrType == FLOAT_TYPE )
                     {
-                        GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_FLOAT );
+                        //GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_FLOAT );
+						GA_RWAttributeRef attRef = gdp->findFloatTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// tuple size = 1
                         if ( attRef.isInvalid() )
                         {
                             // Create the point attribute
-                            attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+							attRef = gdp->addFloatTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// Tuple size is 1
                         }  // if
                         
                         if ( attRef.isValid() )
                         {
                             float valueNumber = VALUENUMBER( time );
-                            FOR_ALL_GPOINTS( gdp, pt )
+                            GA_FOR_ALL_GPOINTS( gdp, pt )
                             {
-                                pt->setValue<float>( attRef, valueNumber );
-                            }  // for each point in gd
+                                pt->setValue( attRef, valueNumber );
+                            }  // for each point in gdp
                         }  // if
                         else
                         {
@@ -244,34 +249,33 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     {
                         //cerr << "hdk_modifygeomdata: String type not allowed yet." << endl;
 						//GB_AttributeRef attRef = gdp->findPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INDEX );
-						GEO_AttributeHandle attrHandle = gdp->getPointAttribute( geomAttrName );
+						//GEO_AttributeHandle attrHandle = gdp->getPointAttribute( geomAttrName );
+						GA_RWAttributeRef attRef = gdp->findStringTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// tuple size = 1
+						//GEO_AttributeHandle attrHandle = gdp->getPointAttribute( geomAttrName );
+						if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+							attRef = gdp->addStringTuple( GA_ATTRIB_POINT, geomAttrName, 1 );	// Tuple size is 1
+                        }  // if
 						
-						UT_String valueString;
-                        VALUESTRING( valueString, time );
-						
-						//GB_Attribute* attr = gdp->pointAttribs().find( geomAttrName, sizeof(int), GB_ATTRIB_INDEX);
-						//int strIndex = attr->addIndex( valueString );
-						FOR_ALL_GPOINTS( gdp, pt )
-						{
-							attrHandle.setElement( pt );
-							attrHandle.setString( valueString );
-							//pt->setValue<int>( attRef, strIndex );
-						}  // for each point in gd
-						
-                        /*GB_AttributeRef attObjid = gdp->findPointAttrib( geomAttrName, GB_ATTRIB_STRING );
-                        if ( attObjid.isValid() )
+						if ( attRef.isValid() )
                         {
                             UT_String valueString;
-                            VALUESTRING( valueString, time );
-                            FOR_ALL_GPOINTS( gdp, pt )
-                            {
-                                pt->setValue<UT_String>( attObjid, valueString );
-                            }  // for each point in gd
-                        }  // if
+							VALUESTRING( valueString, time );
+							
+							//GB_Attribute* attr = gdp->pointAttribs().find( geomAttrName, sizeof(int), GB_ATTRIB_INDEX);
+							//int strIndex = attr->addIndex( valueString );
+							GA_FOR_ALL_GPOINTS( gdp, pt )
+							{
+								pt->setString( attRef, valueString );
+							}  // for each point in gd
+						}
                         else
                         {
                             addError( DOP_NODATA, geomAttrName );
-                        }  // else*/
+                        }  // else
+						
                     }  // else if
                     else
                     {
@@ -283,17 +287,19 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     GEO_Primitive *prim;
                     if ( geomAttrType == INT_TYPE )
                     {
-                        GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_INT );
+                        //GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_INT );
+						GA_RWAttributeRef attRef = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// Tuple size is 1
                         if ( attRef.isInvalid() )
                         {
                             // Create the point attribute
-                            attRef = gdp->addPrimAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+                            //attRef = gdp->addPrimAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+							attRef = gdp->addIntTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// Tuple size is 1
                         }  // if
                         
                         if ( attRef.isValid() )
                         {
                             int valueNumber = (int)VALUENUMBER( time );
-                            FOR_ALL_PRIMITIVES( gdp, prim )
+                            GA_FOR_ALL_PRIMITIVES( gdp, prim )
                             {
                                 prim->setValue<int>( attRef, valueNumber );
                             }  // for each point in gd
@@ -305,17 +311,19 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     }  // if
                     else if ( geomAttrType == FLOAT_TYPE )
                     {
-                        GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_FLOAT );
+                        //GB_AttributeRef attRef = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_FLOAT );
+						GA_RWAttributeRef attRef = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// Tuple size is 1
                         if ( attRef.isInvalid() )
                         {
                             // Create the point attribute
-                            attRef = gdp->addPrimAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+                            //attRef = gdp->addPrimAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+							attRef = gdp->addFloatTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// Tuple size is 1
                         }  // if
                         
                         if ( attRef.isValid() )
                         {
                             float valueNumber = VALUENUMBER( time );
-                            FOR_ALL_PRIMITIVES( gdp, prim )
+                            GA_FOR_ALL_PRIMITIVES( gdp, prim )
                             {
                                 prim->setValue<float>( attRef, valueNumber );
                             }  // for each point in gd
@@ -327,22 +335,24 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     }  // else if
                     else if ( geomAttrType == STRING_TYPE )
                     {
-                        cerr << "hdk_modifygeomdata: String type not allowed yet." << endl;
-                        /*GB_AttributeRef attObjid = gdp->findPrimAttrib( geomAttrName, 0, GB_ATTRIB_STRING );
-                        if ( attObjid.isValid() )
+                        GA_RWAttributeRef attRef = gdp->findStringTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// tuple size = 1
+						if ( attRef.isInvalid() )
                         {
-                            UT_String valueString;
-                            VALUESTRING( valueString, time );
-                            FOR_ALL_PRIMITIVES( gdp, prim )
-                            {
-                                prim->setValue<UT_String>( attObjid, valueString );
-                            }  // for each point in gd
+                            // Create the point attribute
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+							attRef = gdp->addStringTuple( GA_ATTRIB_PRIMITIVE, geomAttrName, 1 );	// Tuple size is 1
                         }  // if
-                        else
-                        {
-                            addError( DOP_NODATA, geomAttrName );
-                        }  // else*/
-                    }  // else if
+						
+						UT_String valueString;
+                        VALUESTRING( valueString, time );
+						
+						//GB_Attribute* attr = gdp->pointAttribs().find( geomAttrName, sizeof(int), GB_ATTRIB_INDEX);
+						//int strIndex = attr->addIndex( valueString );
+						GA_FOR_ALL_PRIMITIVES( gdp, prim )
+						{
+							prim->setString( attRef, valueString );
+						}  // for each point in gd
+					}
                     else
                     {
                         addError( DOP_INVALIDINPUT, "Bad Attribute Type" );
@@ -353,7 +363,7 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                     if ( geomAttrType == INT_TYPE )
                     {
                         //GB_AttributeRef attRef = gdp->findAttrib( geomAttrName, GB_ATTRIB_INT );
-						int valueNumber = (int)VALUENUMBER( time );
+						/*int valueNumber = (int)VALUENUMBER( time );
 						
 						GB_AttributeRef attrOffset = gdp->attribs().getOffset( geomAttrName, GB_ATTRIB_INT );
                         if ( attrOffset.isInvalid() )
@@ -370,12 +380,33 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                         else
                         {
                             addError( DOP_NODATA, geomAttrName );
+                        }  // else*/
+						GA_RWAttributeRef attRef = gdp->findIntTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// Tuple size is 1
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+							attRef = gdp->addIntTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// Tuple size is 1
+                        }  // if
+                        
+                        if ( attRef.isValid() )
+                        {
+                            int valueNumber = (int)VALUENUMBER( time );
+                            //GA_FOR_ALL_GPOINTS( gdp, pt )
+                            //{
+                            //    pt->setValue<int>( attRef, valueNumber );
+                            //}  // for each point in gd
+							gdp->element().setValue<int>( attRef, valueNumber );
+                        }  // if
+                        else
+                        {
+                            addError( DOP_NODATA, geomAttrName );
                         }  // else
                     }  // if
                     else if ( geomAttrType == FLOAT_TYPE )
                     {
                         //GB_AttributeRef attRef = gdp->findAttrib( geomAttrName, GB_ATTRIB_FLOAT );
-						int valueNumber = VALUENUMBER( time );
+						/*int valueNumber = VALUENUMBER( time );
 						
 						GB_AttributeRef attrOffset = gdp->attribs().getOffset( geomAttrName, GB_ATTRIB_FLOAT );
                         if ( attrOffset.isInvalid() )
@@ -391,11 +422,51 @@ DOP_ModifyGeometryData::processObjectsSubclass(fpreal time, int,
                         else
                         {
                             addError( DOP_NODATA, geomAttrName );
+                        }  // else*/
+						
+						GA_RWAttributeRef attRef = gdp->findFloatTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// Tuple size is 1
+                        if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(int), GB_ATTRIB_INT, 0 );
+							attRef = gdp->addFloatTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// Tuple size is 1
+                        }  // if
+                        
+                        if ( attRef.isValid() )
+                        {
+                            float valueNumber = (float)VALUENUMBER( time );
+                            //GA_FOR_ALL_GPOINTS( gdp, pt )
+                            //{
+                            //    pt->setValue<int>( attRef, valueNumber );
+                            //}  // for each point in gd
+							gdp->element().setValue<float>( attRef, valueNumber );
+                        }  // if
+                        else
+                        {
+                            addError( DOP_NODATA, geomAttrName );
                         }  // else
                     }  // else if
                     else if ( geomAttrType == STRING_TYPE )
                     {
-                        cerr << "hdk_modifygeomdata: String type not allowed yet." << endl;
+                        //cerr << "hdk_modifygeomdata: String type not allowed yet." << endl;
+						GA_RWAttributeRef attRef = gdp->findStringTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// tuple size = 1
+						if ( attRef.isInvalid() )
+                        {
+                            // Create the point attribute
+                            //attRef = gdp->addPointAttrib( geomAttrName, sizeof(float), GB_ATTRIB_FLOAT, 0 );
+							attRef = gdp->addStringTuple( GA_ATTRIB_DETAIL, geomAttrName, 1 );	// Tuple size is 1
+                        }  // if
+						
+						if ( attRef.isValid() )
+                        {
+							UT_String valueString;
+							VALUESTRING( valueString, time );
+							gdp->element().setString( attRef, valueString );
+                        }  // if
+                        else
+                        {
+                            addError( DOP_NODATA, geomAttrName );
+                        }  // else
 					}
                     else
                     {

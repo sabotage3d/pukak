@@ -14,7 +14,7 @@
 #include <DOP/DOP_Operator.h>
 #include <DOP/DOP_Engine.h>
 
-#include "../SIM_SnowBulletSolver/src/SIM_SnowNeighborData.h"
+#include "../SIMs/src/SIM_SnowNeighborData.h"
 
 #include <iostream>
 #include <vector>
@@ -217,7 +217,8 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 									SIM_DATA_RETURN_EXISTING );
 				}  // for j
 				
-				connectedComponentGroups.remove( curConnectedGroup );
+				//connectedComponentGroups.remove( curConnectedGroup );
+				connectedComponentGroups.findAndRemove( curConnectedGroup );
 			}  // for i
 			
 			// Delete the old component groups

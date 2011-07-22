@@ -32,10 +32,10 @@ except( KeyError ):
     sys.exit(1)
 
 # Go to the directory containing the SOP_FractalGrowth code
-dopSrcPath = houdiniPath + '/toolkit/DOP_GroupGranules/src'
+dopSrcPath = houdiniPath + '/toolkit/DOPs/src'
 dopSrcPath = dopSrcPath.replace( '\\', '/' )
 os.chdir( dopSrcPath )
 
-hcustomCommand = 'hcustom DOPs.cpp'
+hcustomCommand = 'hcustom DOP_GroupShellGranuleNeighbors.cpp'
 os.system( hcustomCommand )
 
