@@ -56,7 +56,7 @@ private:
 
     /// This is the group of geometry to be manipulated by this SOP and cooked
     /// by the method "cookInputGroups".
-    const GB_PointGroup     *myGroup;
+    const GA_PointGroup     *myGroup;
 };
 
 

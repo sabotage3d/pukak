@@ -5,7 +5,8 @@
 #include <UT/UT_Math.h>
 #include <DOP/DOP_Engine.h>
 #include <DOP/DOP_Parent.h>
-#include <GB/GB_EdgeGroup.h>
+//#include <GB/GB_EdgeGroup.h>
+#include <GA/GA_EdgeGroup.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimSphere.h>
 #include <PRM/PRM_Default.h>
@@ -117,17 +118,18 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
 		neighborGroupsMask.strip("*");
 		
 		// Get the attribute
-		GB_AttributeRef objidAttrRef = gdp->findPointAttrib( "objid", GB_ATTRIB_INT );
+		//GB_AttributeRef objidAttrRef = gdp->findPointAttrib( "objid", GB_ATTRIB_INT );
+		GA_RWAttributeRef objidAttrRef = gdp->findIntTuple( GA_ATTRIB_POINT, "objid", 1 );   // Tuple size = 1
 		if ( objidAttrRef.isInvalid() )
         {
 			addError( SOP_ATTRIBUTE_INVALID, "There is no objid attribute in your geometry." );
 		}  // if
 		
 		// Make the new group to put the chosen neighbor group into
-		GB_PointGroup* chosenGroup = gdp->newPointGroup( chosenGroupName );
+		GA_PointGroup* chosenGroup = gdp->newPointGroup( chosenGroupName );
 		
 		// Get the meshInteriorGroup of points
-		const GB_PointGroup *meshInteriorGroup = parsePointGroups( (const char*)meshInteriorGroupName, gdp );
+		const GA_PointGroup *meshInteriorGroup = parsePointGroups( (const char*)meshInteriorGroupName, gdp );
 		if ( !meshInteriorGroup )
 		{
 			addError( SOP_ERR_BADGROUP, meshInteriorGroupName );
@@ -138,7 +140,7 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
 			// Get the objid of the FIRST point in the mesh interior group
 			GEO_Point* interiorPt;
 			int objid = -1;
-			FOR_ALL_GROUP_POINTS( gdp, meshInteriorGroup, interiorPt )
+			GA_FOR_ALL_GROUP_POINTS( gdp, meshInteriorGroup, interiorPt )
 			{
 				objid = interiorPt->getValue<int>( objidAttrRef );
 				break;
@@ -149,11 +151,11 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
             UT_String neighborGroupName = tmp;
 			
 			// Get the neighbor point group
-			GB_PointGroup* neighborPointGroup = (GB_PointGroup*)parsePointGroups( (const char*)neighborGroupName, gdp );
+			GA_PointGroup* neighborPointGroup = (GA_PointGroup*)parsePointGroups( (const char*)neighborGroupName, gdp );
 			
 			// Copy the neighbor group points into the new group
 			GEO_Point* pt;
-			FOR_ALL_OPT_GROUP_POINTS( gdp, neighborPointGroup, pt )
+			GA_FOR_ALL_OPT_GROUP_POINTS( gdp, neighborPointGroup, pt )
 			{
 				chosenGroup->add( pt );
 			}  // FOR_ALL_GPOINTS
@@ -163,7 +165,7 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
 		}  // if
 		else			// Get the list of ALL the interior granules
 		{
-			const GB_PointGroup *interiorGroup = parsePointGroups( (const char*)interiorGroupName, gdp );
+			const GA_PointGroup *interiorGroup = parsePointGroups( (const char*)interiorGroupName, gdp );
 			if ( !interiorGroup )
 			{
 				addError( SOP_ERR_BADGROUP, interiorGroupName );
@@ -174,7 +176,7 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
 				// Get the objid of the FIRST point in the interior group
 				GEO_Point* interiorPt;
 				int objid = -1;
-				FOR_ALL_GROUP_POINTS( gdp, interiorGroup, interiorPt )
+				GA_FOR_ALL_GROUP_POINTS( gdp, interiorGroup, interiorPt )
 				{
 					objid = interiorPt->getValue<int>( objidAttrRef );
 					break;
@@ -185,11 +187,11 @@ OP_ERROR SOP_ChooseFirstNeighborGroup::cookMySop( OP_Context &context )
 				UT_String neighborGroupName = tmp;
 				
 				// Get the neighbor point group
-				GB_PointGroup *neighborPointGroup = (GB_PointGroup*)parsePointGroups( (const char*)neighborGroupName, gdp );
+				GA_PointGroup *neighborPointGroup = (GA_PointGroup*)parsePointGroups( (const char*)neighborGroupName, gdp );
 				
 				// Copy the neighbor group points into the new group
 				GEO_Point* pt;
-				FOR_ALL_OPT_GROUP_POINTS( gdp, neighborPointGroup, pt )
+				GA_FOR_ALL_OPT_GROUP_POINTS( gdp, neighborPointGroup, pt )
 				{
 					chosenGroup->add( pt );
 				}  // FOR_ALL_GPOINTS

@@ -5,7 +5,7 @@
 #include <UT/UT_Math.h>
 #include <DOP/DOP_Engine.h>
 #include <DOP/DOP_Parent.h>
-#include <GB/GB_EdgeGroup.h>
+#include <GA/GA_EdgeGroup.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimSphere.h>
 #include <PRM/PRM_Default.h>
@@ -105,7 +105,7 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
         // Get the name of the interior primitive group
         UT_String intPrimGrp = INTPRIMGROUP(t);
 		
-        const GB_PrimitiveGroup* interiorPrimGroup = parsePrimitiveGroups( (const char*)intPrimGrp, gdp );
+        const GA_PrimitiveGroup* interiorPrimGroup = parsePrimitiveGroups( (const char*)intPrimGrp, gdp );
         if ( intPrimGrp == "" )
         {
             addWarning( SOP_MESSAGE, "Need to specify the interior primitive group parameter." );
@@ -121,7 +121,7 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
 		
         // Get the name of the exterior primitive group
         UT_String extPrimGrp = EXTPRIMGROUP(t);
-        const GB_PrimitiveGroup* exteriorPrimGroup = parsePrimitiveGroups( (const char*)extPrimGrp, gdp );
+        const GA_PrimitiveGroup* exteriorPrimGroup = parsePrimitiveGroups( (const char*)extPrimGrp, gdp );
         if ( extPrimGrp == "" )
         {
             addWarning( SOP_MESSAGE, "Need to specify the exterior primitive group parameter." );
@@ -133,16 +133,16 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
 		double diameter = 4.0 * radius * radius;
         
         // Create the empty edge list
-        GB_EdgeGroup edgeList( (*gdp), "interiorEdges" );
+        GA_EdgeGroup edgeList( (*gdp), "interiorEdges" );
         
         // Create the empty prim group of prim to be deleted
-        GB_PrimitiveGroup* deletePrimsGrp = gdp->newPrimitiveGroup( extPrimGrp );
+        GA_PrimitiveGroup* deletePrimsGrp = gdp->newPrimitiveGroup( extPrimGrp );
         
         // Parse through each primitive and attach its edges to the edge list
         GEO_Primitive* prim;
-        FOR_ALL_GROUP_PRIMITIVES( gdp, interiorPrimGroup, prim )
+        GA_FOR_ALL_GROUP_PRIMITIVES( gdp, interiorPrimGroup, prim )
         {
-            if ( prim->getPrimitiveId() & GEOPRIMPOLY )
+            if ( prim->getTypeId() == GEO_PRIMPOLY ) /// old code: prim->getPrimitiveId() & GEOPRIMPOLY )
             {
                 // THIS ASSUMES A TRIANGULAR PRIM
                 int numVertices = prim->getVertexCount();
@@ -153,10 +153,11 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
                     
                     //if ( prim->hasEdge( *p1, *p2 ) )
                     //{
-                    GB_Edge curEdge( p1, p2 );
+                    GA_Edge curEdge( p1->getGAOffset(), p2->getGAOffset() );
                     if ( !edgeList.contains(curEdge) )
                     {
-                        edgeList.add( p1, p2 );
+                        //edgeList.add( p1, p2 );
+						edgeList.add( curEdge );
                     }  // if
                     //}  // if
                 }  // for v
@@ -197,8 +198,8 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
         */
 		
         // For all primitives in the geometry, check which ones are not surrounded by the grouped edges
-        GB_EdgeGroup tmp( *gdp, "tmp" );
-        FOR_ALL_PRIMITIVES( gdp, prim )
+        GA_EdgeGroup tmp( *gdp, "tmp" );
+        GA_FOR_ALL_PRIMITIVES( gdp, prim )
         {
             bool doDeletion = false;
             
@@ -208,10 +209,10 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
                 GEO_Point* p1 = prim->getVertex(i).getPt();
                 GEO_Point* p2 = prim->getVertex( (i+1)%numVertices ).getPt();
                 
-                GB_Edge curEdge( p1, p2 );
+                GA_Edge curEdge( p1->getGAOffset(), p2->getGAOffset() );
                 
                 if ( !tmp.contains(curEdge) )
-                    tmp.add( p1, p2 );
+                    tmp.add( curEdge );
                 
                 // If the edge group does not contain every edge on the prim, then the prim needs to be deleted
                 if ( !edgeList.contains( curEdge ) )

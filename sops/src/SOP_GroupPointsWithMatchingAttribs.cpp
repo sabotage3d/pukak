@@ -5,7 +5,7 @@
 #include <UT/UT_Math.h>
 #include <DOP/DOP_Engine.h>
 #include <DOP/DOP_Parent.h>
-#include <GB/GB_EdgeGroup.h>
+#include <GA/GA_EdgeGroup.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimSphere.h>
 #include <PRM/PRM_Default.h>
@@ -112,7 +112,7 @@ OP_ERROR SOP_GroupPointsWithMatchingAttribs::cookMySop( OP_Context &context )
 		UT_String matchingPointsGroupName = MATCHINGPOINTSGROUP(t);
 		
 		// Get the group of particles to act on
-		const GB_PointGroup *group = NULL;
+		const GA_PointGroup *group = NULL;
 		if ( groupName.isstring())
 		{
 			group = parsePointGroups( (const char *)groupName, gdp );
@@ -127,15 +127,17 @@ OP_ERROR SOP_GroupPointsWithMatchingAttribs::cookMySop( OP_Context &context )
 		const GU_Detail* gdp2 = inputGeo( 1, context );
 		
 		// Get the attributes for each input geometry
-		GB_AttributeRef attRef1 = gdp->findPointAttrib( attribName, GB_ATTRIB_INT );
-		GB_AttributeRef attRef2 = gdp2->findPointAttrib( attribName, GB_ATTRIB_INT );
+		//GB_AttributeRef attRef1 = gdp->findPointAttrib( attribName, GB_ATTRIB_INT );
+		GA_ROAttributeRef attRef1 = gdp->findIntTuple( GA_ATTRIB_POINT, attribName, 1 );		// tuple of size 1
+		//GB_AttributeRef attRef2 = gdp2->findPointAttrib( attribName, GB_ATTRIB_INT );
+		GA_ROAttributeRef attRef2 = gdp2->findIntTuple( GA_ATTRIB_POINT, attribName, 1 );		// tuple of size 1
 		if ( attRef1.isInvalid() || attRef2.isInvalid() )
         {
 			addError( SOP_ATTRIBUTE_INVALID, "You have provided an attribute that does not exist in one or both of your input geometries." );
 		}  // if
 		
 		// Create the new point group for matching points in the first input geometry (gdp)
-		GB_PointGroup* matchingPointsGrp = gdp->newPointGroup( matchingPointsGroupName );
+		GA_PointGroup* matchingPointsGrp = gdp->newPointGroup( matchingPointsGroupName );
 		
 		// Create a list of the attribName values of all the points in input geometry two
         /*
@@ -152,12 +154,12 @@ OP_ERROR SOP_GroupPointsWithMatchingAttribs::cookMySop( OP_Context &context )
         // Parse through each point in the first input geometry and add it to the matching points group
 		//   if it has a matching attribute value for attribName in input geometry two.
         GEO_Point* pt1;
-        FOR_ALL_OPT_GROUP_POINTS( gdp, group, pt1 )
+        GA_FOR_ALL_OPT_GROUP_POINTS( gdp, group, pt1 )
         {
 			int objid1 = pt1->getValue<int>( attRef1 );
 			
 			const GEO_Point* pt2;
-			FOR_ALL_GPOINTS( gdp2, pt2 )
+			GA_FOR_ALL_GPOINTS( gdp2, pt2 )
 			{
 				int objid2 = pt2->getValue<int>( attRef2 );
 				if ( objid1 == objid2 )

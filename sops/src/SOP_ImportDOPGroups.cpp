@@ -135,8 +135,10 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
             // Add point attributes to the gdp
             int negOne = -1;
 			int zero = 0;
-            GB_AttributeRef objidAttrib = gdp->addPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT, &negOne );
-			GB_AttributeRef isInteriorAttrib = gdp->addPointAttrib( "is_interior", sizeof(int), GB_ATTRIB_INT, &zero );
+            //GB_AttributeRef objidAttrib = gdp->addPointAttrib( "objid", sizeof(int), GB_ATTRIB_INT, &negOne );
+			//GB_AttributeRef isInteriorAttrib = gdp->addPointAttrib( "is_interior", sizeof(int), GB_ATTRIB_INT, &zero );
+			GA_RWAttributeRef objidAttrib = gdp->addIntTuple( GA_ATTRIB_POINT, "objid", 1, GA_Defaults(-1) );		// tuple size = 1, default = -1
+			GA_RWAttributeRef isInteriorAttrib = gdp->addIntTuple( GA_ATTRIB_POINT, "is_interior", 1, GA_Defaults(0) );		// tuple size = 1, default = -1
             
             int numOldNeighborGroups = dopGroups.entries();
             //cout << "IMPORT: " << numOldNeighborGroups << " groups" << endl;
@@ -147,7 +149,7 @@ OP_ERROR SOP_ImportDOPGroups::cookMySop( OP_Context &context )
                 
                 // Create the SOP point group
                 UT_String curDOPGroupName = curDOPGroup->getName();
-                GB_PointGroup* curSOPGroup = gdp->newPointGroup( curDOPGroupName );
+                GA_PointGroup* curSOPGroup = gdp->newPointGroup( curDOPGroupName );
                 
                 // Make sure the curDOPGroup is of type SIM_RelationshipGroup
                 UT_String relType = curDOPGroup->getRelationshipTypeData()->getDataType();

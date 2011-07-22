@@ -188,7 +188,9 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
         
         // Make a copy of the original pts list so that we can append our added fractal points in the order we want
         int nump = tmp_pts.entries();
-        GEO_PointList pts;
+        //GEO_PointList pts;
+		GEO_PointList *pts = new GEO_PointList();
+		//GA_GBElementListT<GEO_Point> pts();
         for ( int i = 0; i < nump; i++ )
         {
             pts.append( tmp_pts.entry(i) );
@@ -197,7 +199,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
         // Get the current list of point groups.
         //   For this fractal growth to work, each group should contain a pair of neighboring points.
         //   All groups make up every pair of neighboring points.
-        GB_GroupList& ptgrp = gdp->pointGroups();
+        //GB_GroupList& ptgrp = gdp->pointGroups();
+		GA_ElementGroupTable& ptgrp = gdp->pointGroups();
         int nextGroupNum = ptgrp.length();
         
         // For each loop, create a new fractally-grown particle, group it with each of its neighbors,
@@ -265,11 +268,23 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 // Get the parent points' normals.
                 //   The normals will determine which direction the new particle should be created in
                 //   as well as compute the child particle's normal
-                GB_AttributeRef norm_index = gdp->findPointAttrib( "N", 3 * sizeof(float), GB_ATTRIB_VECTOR );
-                UT_Vector3* n0 = pt0->castAttribData<UT_Vector3>( norm_index );
-                UT_Vector4 norm0( n0->x(), n0->y(), n0->z() );
-                UT_Vector3* n1 = pt1->castAttribData<UT_Vector3>( norm_index );
-                UT_Vector4 norm1( n1->x(), n1->y(), n1->z() );
+                //GB_AttributeRef norm_index = gdp->findPointAttrib( "N", 3 * sizeof(float), GB_ATTRIB_VECTOR );
+				GA_RWAttributeRef norm_index = gdp->findFloatTuple( GA_ATTRIB_POINT, "N", 3 );
+                //UT_Vector3* n0 = pt0->castAttribData<UT_Vector3>( norm_index );
+				//UT_Vector3* n0 = pt0->getValue<UT_Vector3>( norm_index );
+                //UT_Vector4 norm0( n0->x(), n0->y(), n0->z() );
+				float x0 = pt0->getValue<float>( norm_index, 0 );
+				float y0 = pt0->getValue<float>( norm_index, 1 );
+				float z0 = pt0->getValue<float>( norm_index, 2 );
+				UT_Vector4 norm0( x0, y0, z0 );
+                
+				//UT_Vector3* n1 = pt1->castAttribData<UT_Vector3>( norm_index );
+				//UT_Vector3* n1 = pt1->getValue<UT_Vector3>( norm_index );
+                //UT_Vector4 norm1( n1->x(), n1->y(), n1->z() );
+				float x1 = pt1->getValue<float>( norm_index, 0 );
+				float y1 = pt1->getValue<float>( norm_index, 1 );
+				float z1 = pt1->getValue<float>( norm_index, 2 );
+				UT_Vector4 norm1( x1, y1, z1 );
                 
                 // Compute where the fractally grown (child) particle position should be,
                 //   based off the position of its two parent particles (which came from the randomly selected group).
@@ -331,9 +346,12 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 
                 // Average the points' normals (to be assigned to the fractally grown particle)
                 UT_Vector4 avgNorm( (norm0.x()+norm1.x())/2.0, (norm0.y()+norm1.y())/2.0, (norm0.z()+norm1.z())/2.0, 1 );
-                newPt->castAttribData<UT_Vector3>( norm_index )->x() = avgNorm.x();  //(norm0.x()+norm1.x())/2.0;
-                newPt->castAttribData<UT_Vector3>( norm_index )->y() = avgNorm.y();  //(norm0.y()+norm1.y())/2.0;
-                newPt->castAttribData<UT_Vector3>( norm_index )->z() = avgNorm.z();  //(norm0.z()+norm1.z())/2.0;
+                //newPt->castAttribData<UT_Vector3>( norm_index )->x() = avgNorm.x();  //(norm0.x()+norm1.x())/2.0;
+                //newPt->castAttribData<UT_Vector3>( norm_index )->y() = avgNorm.y();  //(norm0.y()+norm1.y())/2.0;
+                //newPt->castAttribData<UT_Vector3>( norm_index )->z() = avgNorm.z();  //(norm0.z()+norm1.z())/2.0;
+				newPt->setValue<float>( norm_index, avgNorm.x(), 0 );
+				newPt->setValue<float>( norm_index, avgNorm.y(), 1 );
+				newPt->setValue<float>( norm_index, avgNorm.z(), 2 );
                 
                 // Set up data for computing which particles to group the new child particle with
                 int numPts = pts.entries();
@@ -357,7 +375,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                 //for ( int p = 0; p < numPts; p++ )
                 //    cout << pts[p]->getNum() << " ";
                 //cout << endl;
-                
+                /*
                 UT_Vector4 newPos = newPt->getPos();    // Position of the child point
                 
                 bool doContinue = false;
@@ -406,47 +424,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             int iNext0 = ( i0 + dir + numPts ) % numPts;
                             GEO_Point* pt0Next = pts.entry( iNext0 );
                             UT_Vector4 nextPos0 = pt0Next->getPos();
-                            
-                            /*
-                            // Find iNext, the next neighbor to pt0 that will not potentially intersect the point we're removing from the wavefront
-                            for ( int n = 0; n < numPts-2; n++, iNext = (iNext+dir+numPts)%numPts )
-                            {
-                                //nextPt = pts.entry( iNext );
-                                //UT_Vector4 nextPos = nextPt->getPos();
-                                //dist0N = ( nextPos - pos0 ).length();
-                                //dist1N = ( nextPos - pos0 ).length();
-                                //if ( dist0N
-                                
-                                nextPt = pts.entry( iNext );
-                                nextPos = nextPt->getPos();
-                                UT_Vector4 tmpPos = computeChildPosition( pos1, nextPos, norm0, sphRad );
-                                fpreal tmpDist = ( pos0 - tmpPos ).length();
-                                if ( tmpDist >= 2 * sphRad )
-                                    break;
-                                
-                                //nextPt = pts.entry( iNext );
-                                //if ( pt0->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
-                                //    break;
-                                
-                                // If the point to replace pt0 in the group (nextPt) is older than pt0, it cannot replace pt0 and must be deleted with all its groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( nextPt ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );
-                                    }  // if
-                                }  // while
-                                
-                                pts.remove( nextPt );
-                                numPts = pts.entries();
-                                
-                            }  // for n
-                            */
                             
                             // Get rid of pt0's groups
                             GB_GroupList& pointGroups0 = gdp->pointGroups();
@@ -542,15 +519,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                                 }
                             }  // for n
                             
-                            /*// Delete points that are no longer on the wavefront
-                            cout << "   deleting pts ";
-                            int numPtsToDelete = ptsToDelete.entries();
-                            for ( int dp = 0; dp < numPtsToDelete; dp++ )
-                            {
-                                cout << ptsToDelete[dp]->getNum() << " ";
-                                pts.remove( ptsToDelete[dp] );
-                            }*/
-                            
                             // Set up new group with pt1 and pt0Next
                             //cout << "and adding " << pt0Next->getNum() << endl;
                             //cout << "      dir = " << dir << endl;
@@ -579,40 +547,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                             int iNext1 = ( i1 - dir + numPts ) % numPts;
                             GEO_Point* pt1Next = pts.entry( iNext1 );
                             UT_Vector4 nextPos1 = pt1Next->getPos();
-                            
-                            // Find iNext, the next neighbor to pt1 that has a point number greater than pt1 (younger than pt1)
-                            /*for ( int n = 0; n < numPts-2; n++, iNext = (iNext-dir+numPts)%numPts )
-                            {
-                                nextPt = pts.entry( iNext );
-                                nextPos = nextPt->getPos();
-                                UT_Vector4 tmpPos = computeChildPosition( pos0, nextPos, norm0, sphRad );
-                                fpreal tmpDist = ( pos0 - tmpPos ).length();
-                                if ( tmpDist >= 2 * sphRad )
-                                    break;
-                                
-                                //nextPt = pts.entry( iNext );
-                                //if ( pt1->getNum() < nextPt->getNum() )     // pt0 will not be replaced by an older point
-                                //    break;
-                                
-                                // If the point to replace pt0 in the group (nextPt) is older than pt0, it cannot replace pt0 and must be deleted with all its groups
-                                GB_GroupList& pointGroups0 = gdp->pointGroups();
-                                GB_Group *curr = pointGroups0.head();
-                                while( curr )
-                                {
-                                    GB_Group *tmp = curr;
-                                    curr = (GB_Group*)curr->next();
-                                    
-                                    if ( tmp->contains( nextPt ) )
-                                    {
-                                        gdp->destroyPointGroup( (GB_PointGroup*)tmp );
-                                    }  // if
-                                }  // while
-                                
-                                pts.remove( nextPt );
-                                numPts = pts.entries();
-                                
-                            }  // for n
-                            */
                             
                             // Get rid of pt1's groups
                             GB_GroupList& pointGroups1 = gdp->pointGroups();
@@ -733,7 +667,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
                     }  // if
                 
                 }  // for c
-                
+                */
                 if ( doContinue )
                 {
                     gdp->deletePoint( newPt->getNum() );
