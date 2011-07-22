@@ -32,7 +32,7 @@ except( KeyError ):
     sys.exit(1)
 
 # Go to the directory containing the SOP_FractalGrowth code
-simSnowNeighborDataSrcPath = houdiniPath + '/toolkit/SIM_SnowBulletSolver/src'
+simSnowNeighborDataSrcPath = houdiniPath + '/toolkit/SIMs/src'
 simSnowNeighborDataSrcPath = simSnowNeighborDataSrcPath.replace( '\\', '/' )
 os.chdir( simSnowNeighborDataSrcPath )
 

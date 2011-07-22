@@ -78,7 +78,8 @@ SIM_Solver::SIM_Result SIM_TransferVelFromGeomToPos::solveObjectsSubclass(SIM_En
         GU_Detail* gdp = (GU_Detail *)gdl.getGdp();
         
         // Grab the velocity (v) from the geometry
-        GB_AttributeRef vAttrOffset = gdp->findPointAttrib( "v", sizeof(float)*3, GB_ATTRIB_VECTOR );
+        //GB_AttributeRef vAttrOffset = gdp->findPointAttrib( "v", sizeof(float)*3, GB_ATTRIB_VECTOR );
+		GA_RWAttributeRef vAttrOffset = gdp->findFloatTuple( GA_ATTRIB_POINT, "v", 3 );	// Tuple size is 3
         GEO_Point* pt = gdp->points()(0);
         UT_Vector3 vel = pt->getValue<UT_Vector3>( vAttrOffset );
         

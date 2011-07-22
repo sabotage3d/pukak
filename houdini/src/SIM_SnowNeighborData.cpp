@@ -89,7 +89,7 @@ void SIM_SnowNeighborData::saveSubclass(ostream &os) const
     
     // Write out the neighborImpulses data
     UTwrite(os, &n);                                          // Write out size of the data array
-    UTwrite(os, (const float *)neighborImpulses.getRawArray(), n);   // Write out data in the data array
+    UTwrite<fpreal32>(os, (const float *)neighborImpulses.getRawArray(), n);   // Write out data in the data array
 }
 
 
@@ -115,7 +115,7 @@ bool SIM_SnowNeighborData::loadSubclass(UT_IStream &is)
     if(ok)
     {
         neighborImpulses.resize(n);
-        ok = is.read((float *)neighborImpulses.getRawArray(), n);    // Read in data from the data array
+        ok = is.read<fpreal32>((float *)neighborImpulses.getRawArray(), n);    // Read in data from the data array
     }  // if
     
     return ok;
