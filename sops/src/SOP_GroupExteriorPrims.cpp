@@ -153,7 +153,7 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
                     
                     //if ( prim->hasEdge( *p1, *p2 ) )
                     //{
-                    GA_Edge curEdge( p1->getGAOffset(), p2->getGAOffset() );
+                    GA_Edge curEdge( p1->getNum(), p2->getNum() );
                     if ( !edgeList.contains(curEdge) )
                     {
                         //edgeList.add( p1, p2 );
@@ -209,7 +209,7 @@ OP_ERROR SOP_GroupExteriorPrims::cookMySop( OP_Context &context )
                 GEO_Point* p1 = prim->getVertex(i).getPt();
                 GEO_Point* p2 = prim->getVertex( (i+1)%numVertices ).getPt();
                 
-                GA_Edge curEdge( p1->getGAOffset(), p2->getGAOffset() );
+                GA_Edge curEdge( p1->getNum(), p2->getNum() );
                 
                 if ( !tmp.contains(curEdge) )
                     tmp.add( curEdge );
