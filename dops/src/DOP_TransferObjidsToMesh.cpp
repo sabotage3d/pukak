@@ -120,6 +120,12 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
     //GB_AttributeRef permidAttrib = meshGdp->findPointAttrib( "permid", sizeof(int), GB_ATTRIB_INT );
     GA_RWAttributeRef permidAttrib = meshGdp->findIntTuple( GA_ATTRIB_POINT, "permid", 1 );	// Tuple size is 1
 	
+	int numRels = engine.getNumRelationships();
+	for ( int i = 0; i < numRels; i++ )
+	{
+		cout << "  " << engine.getRelationship(i)->getName() << endl;
+	}  // for i
+	
     // Get the group of objects to transfer objids from
     const SIM_Relationship* objGroup = engine.getRelationship( objectsGroup );
 	cout << "obj grp = " << objGroup << endl;
@@ -127,7 +133,8 @@ DOP_TransferObjidsToMesh::processObjectsSubclass(fpreal time, int,
         return;
     cout << 2 << endl;
     int numObjs = objGroup->getGroupEntries();
-	cout << "there are " << numObjs << " groups" << endl;
+	cout << "there are " << numObjs << " objects in the group" << endl;
+	
     // Loop through all the objects that passed the filter.
     for ( i = 0; i < numObjs; i++ )
     {
