@@ -138,28 +138,35 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
         // processing.
         setCurrentObject( i, numInteriorGranules, interiorGranulesFiltered(i) );
 		
-		// Get the current object's objid attribute.
-		SIM_Object* currObject = interiorGranulesFiltered(i);
-		int objid = currObject->getObjectId();
-		//cout << currObject->getName() << endl;
+		if( isActive(time) )
+        {
 		
-		// Get the impacts data
-		SIM_Impacts* impactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
-		if ( !impactsData )
-			continue;
-		
-		int numImpacts = impactsData->getNumImpacts();
-		for ( int j = 0; j < numImpacts; j++ )
-		{
-			int otherObjid = impactsData->getOtherObjId( j );
-			SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( otherObjid );
+			// Get the current object's objid attribute.
+			SIM_Object* currObject = interiorGranulesFiltered(i);
+			int objid = currObject->getObjectId();
+			//cout << currObject->getName() << endl;
 			
-			if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
+			// Get the impacts data
+			SIM_Impacts* impactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
+			if ( !impactsData )
+				continue;
+			
+			int numImpacts = impactsData->getNumImpacts();
+			for ( int j = 0; j < numImpacts; j++ )
 			{
-				newGroup->addGroup( neighborObj );
-				break;
-			}  // if
-		}  // for j
+				int otherObjid = impactsData->getOtherObjId( j );
+				SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( otherObjid );
+				
+				if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
+				{
+					newGroup->addGroup( neighborObj );
+					SIM_DATA_CREATE( *newGroup,  SIM_RELGROUP_DATANAME,
+                                    SIM_RelationshipGroup,
+                                    SIM_DATA_RETURN_EXISTING);
+					break;
+				}  // if
+			}  // for j
+		} // if isActive
 	}  // for i
 }  // processObjectsSubclass()
 

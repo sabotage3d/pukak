@@ -30,7 +30,7 @@ protected:
                                         DOP_InOutInfo &info);
 
 private:
-    void            GROUP(UT_String &str, fpreal t);
+    void            EXCLUDEGROUPNAME( UT_String &str, float t );
     void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
     void            NEIGHBORGROUPPREFIX( UT_String &str, float t );
 };

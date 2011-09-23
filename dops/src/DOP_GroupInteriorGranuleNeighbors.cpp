@@ -45,8 +45,8 @@ newDopOperator(OP_OperatorTable *table)
 #define     FLOAT_TYPE      1
 #define     STRING_TYPE     2
 
+static PRM_Name         theExcludeGroupName( "excludegroupname", "Exclude Group" );
 static PRM_Name         theInteriorGranulesGroupName( "interiorgranulesgroupname", "Interior Granules Group" );
-//static PRM_Name         theShellGranulesGroupName( "shellgranulesgroupname", "Shell Granules Group" );
 static PRM_Name         theNeighborGroupPrefix( "neighborgroupprefix", "Neighbor Group Prefix" );
 
 static PRM_Default      defaultNull( 0, "" );
@@ -60,9 +60,9 @@ DOP_GroupInteriorGranuleNeighbors::myTemplateList[] = {
     // Standard group parameter with group menu.
     //PRM_Template( PRM_STRING, 1, &DOPgroupName, &DOPgroupDefault, &DOPgroupMenu ),
     // My added parameters
-    //PRM_Template( PRM_STRING,   1, &theShellGranulesGroupName, &defaultNull ),      // The objects read in to this DOP node must belong to the shell granules group
-    PRM_Template( PRM_STRING,   1, &theInteriorGranulesGroupName, &defaultNull ),   // The interior granules group must be provides, to make neighbor groups out of neighbors of interior granules that are neighboring shell granules
-    PRM_Template( PRM_STRING,   1, &theNeighborGroupPrefix, &defaultNull ),
+    PRM_Template( PRM_STRING,   1, &theExcludeGroupName, &defaultNull, 0, 0, 0, 0, 1, "The group of external geometry that you do not want to pick out neighbors of the interior granules from" ),      // The objects read in to this DOP node must belong to the shell granules group
+    PRM_Template( PRM_STRING,   1, &theInteriorGranulesGroupName, &defaultNull, 0, 0, 0, 0, 1, "Group of granules for which you want to group each granule with its neighbors" ),   // The interior granules group must be provided, to make neighbor groups out of neighbors of interior granules that are neighboring shell granules
+    PRM_Template( PRM_STRING,   1, &theNeighborGroupPrefix, &defaultNull, 0, 0, 0, 0, 1, "Prefix (without the *) of the new neighbor groups that will be created." ),
     PRM_Template()
 };
 
@@ -91,6 +91,16 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     SIM_ObjectArray      interiorGranulesFiltered;
     UT_String            group;
     int                  i;         //, inputindex;
+	
+	// Get the group(s) that you want to pick out neighbors of the interior granules from
+	UT_String excludeGroupName;
+	EXCLUDEGROUPNAME( excludeGroupName, time);
+	const SIM_Relationship* excludeGroupRel;
+	if ( excludeGroupName == "" )
+		excludeGroupRel = NULL;
+	else
+		excludeGroupRel = engine.getRelationship( excludeGroupName );
+    
     
     // Get the name of the interior granules group, based on the Interior Granules Group parameter input
     //   The interior granules are granules that are ready to be culled, whose outer neighbors we will set
@@ -161,110 +171,48 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             // Get the current object's objid attribute.
             SIM_Object* currObject = interiorGranulesFiltered(i);
             int objid = currObject->getObjectId();
-            //cout << currObject->getName() << endl;
+            
             char tmp[181];
             sprintf( tmp, "%s%d", (char*)neighborGroupPrefix, objid );
             UT_String neighborGroupName = tmp;
             
-            SIM_SnowNeighborData* currNeighborData = SIM_DATA_GET( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
-            if ( currNeighborData )
+            //SIM_SnowNeighborData* currNeighborData = SIM_DATA_GET( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
+			SIM_Impacts* currImpactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
+            if ( currImpactsData )
             {
                 // For each neighboring object to the current object, see if the neighbor is an interior granule
-                int numNeighbors = currNeighborData->getNumNeighbors();
-                //cout << "   has " << numNeighbors << " neighbors" << endl;
-                // If none of the shell granule's neighbors are interior granules, continue on to the next shell granule
-                //int numShellNeighborsThatAreInteriorGranules = 0;
-                /*for ( int n = 0; n < numNeighbors; n++ )
-                {
-                    int neighborId = currNeighborData->getNeighborId( n );
-                    SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
-                    if ( !neighborObject )
-                        continue;
-                    
-                    if ( interiorGranulesGroup->getGroupHasObject( neighborObject ) )
-                    {
-                        numShellNeighborsThatAreInteriorGranules++;
-                    }  // if
-                } // for*/
-                
-                //if ( numShellNeighborsThatAreInteriorGranules == 0 )
-                //    continue;
-                //cout << numShellNeighborsThatAreInteriorGranules << " interior neighbors found." << endl;
-                //cout << "creating group " << neighborGroupName << endl;
+                //int numNeighbors = currNeighborData->getNumNeighbors();
+				int numImpacts = currImpactsData->getNumImpacts();
                 SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
                 neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
                 SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
                                 SIM_RelationshipGroup,
                                 SIM_DATA_RETURN_EXISTING );
-								
-                for ( int n = 0; n < numNeighbors; n++ )
+				
+                //for ( int n = 0; n < numNeighbors; n++ )
+				for ( int n = 0; n < numImpacts; n++ )
                 {
                     // Add the neighbor to the current shell granule's group.
-                    int neighborId = currNeighborData->getNeighborId( n );
+                    //int neighborId = currNeighborData->getNeighborId( n );
+					int neighborId = currImpactsData->getOtherObjId( n );
                     SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
                     if ( !neighborObject )
                         continue;
+					
+					if ( neighborGroup->getGroupHasObject(neighborObject) )
+						continue;
+					
+					if ( excludeGroupRel && excludeGroupRel->getGroupHasObject(neighborObject) )		// Don't pick up neighbors excluded by the group parameter
+						continue;
+					
                     //if ( !interiorGranulesGroup->getGroupHasObject(neighborObject) && !shellGranulesGroup->getGroupHasObject(neighborObject) )
                     //    continue;
-                    
+					
                     //neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
                     neighborGroup->addGroup( neighborObject );
                     SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
                                     SIM_RelationshipGroup,
                                     SIM_DATA_RETURN_EXISTING );
-                    
-                    
-                    // If the neighbor is an interior granule, put it in a group with all its shell granule neighbors
-                    /*if ( interiorGranulesGroup->getGroupHasObject( neighborObject ) )
-                    {
-                        // Create the neighbor group for this interior granule
-                        char tmp[181];
-                        sprintf( tmp, "%s%d", (char*)neighborGroupPrefix, neighborId );
-                        UT_String interiorNeighborGroupName = tmp;
-                        //cout << "  interiorNeighborGroupName = " << interiorNeighborGroupName << endl;
-                        
-                        SIM_Relationship *interiorNeighborGroup = engine.addRelationship( interiorNeighborGroupName, SIM_DATA_RETURN_EXISTING );
-                        interiorNeighborGroup->addGroup( neighborObject );
-                        SIM_DATA_CREATE( *interiorNeighborGroup, SIM_RELGROUP_DATANAME,
-                                        SIM_RelationshipGroup,
-                                        SIM_DATA_RETURN_EXISTING );
-                        
-                        SIM_SnowNeighborData* currInteriorData = SIM_DATA_GET( *neighborObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
-                        if ( currInteriorData )
-                        {
-                            int numInteriorNeighbors = currInteriorData->getNumNeighbors();
-                            for ( int in = 0; in < numInteriorNeighbors; in++ )
-                            {
-                                int interiorNeighborId = currInteriorData->getNeighborId( in );
-                                SIM_Object* interiorNeighborObject = (SIM_Object*)engine.getSimulationObjectFromId( interiorNeighborId );
-                                if ( !interiorNeighborObject )
-                                    continue;
-                                    
-                                if ( shellGranulesGroup->getGroupHasObject( interiorNeighborObject ) )
-                                {
-                                    interiorNeighborGroup->addGroup( interiorNeighborObject );
-                                    SIM_DATA_CREATE( *interiorNeighborGroup, SIM_RELGROUP_DATANAME,
-                                                    SIM_RelationshipGroup,
-                                                    SIM_DATA_RETURN_EXISTING );
-                                }  // if
-                            }  // for in
-                        }  // if
-                    }  // if*/
-                    
-                    /*
-                    if ( interiorGranulesGroup->getGroupHasObject( neighborObj ) )
-                    {
-                        SIM_Relationship *shellGroup = engine.addRelationship( shellGranulesGroupName, SIM_DATA_RETURN_EXISTING );
-                        if ( shellGroup )
-                        {
-                            shellGroup->addGroup( currObject );
-                            SIM_DATA_CREATE( *shellGroup, SIM_RELGROUP_DATANAME,
-                                            SIM_RelationshipGroup,
-                                            SIM_DATA_RETURN_EXISTING );
-                            break;
-                        }  // if
-                    }  // if
-                    */
                 }  // for n
             }  // if
         }  // if
@@ -289,21 +237,21 @@ DOP_GroupInteriorGranuleNeighbors::getOutputInfoSubclass(int /*outputidx*/, DOP_
     info = DOP_InOutInfo(DOP_INOUT_OBJECTS, false);
 }
 
-void
-DOP_GroupInteriorGranuleNeighbors::GROUP(UT_String &str, fpreal t)
-{
-    evalString(str, DOPgroupName.getToken(), 0, t);
-}
+//void
+//DOP_GroupInteriorGranuleNeighbors::EXCLUDEGROUP(UT_String &str, fpreal t)
+//{
+//    evalString(str, DOPgroupName.getToken(), 0, t);
+//}
 
 void DOP_GroupInteriorGranuleNeighbors::INTERIORGRANULESGROUPNAME( UT_String &str, float t )
 {
     evalString( str, theInteriorGranulesGroupName.getToken(), 0, t );
 }  // INTERIORGRANULESGROUPNAME
 
-//void DOP_GroupInteriorGranuleNeighbors::SHELLGRANULESGROUPNAME( UT_String &str, float t )
-//{
-//    evalString( str, theShellGranulesGroupName.getToken(), 0, t );
-//}  // SHELLGRANULESGROUPNAME
+void DOP_GroupInteriorGranuleNeighbors::EXCLUDEGROUPNAME( UT_String &str, float t )
+{
+    evalString( str, theExcludeGroupName.getToken(), 0, t );
+}  // EXCLUDEGROUPNAME
 
 void DOP_GroupInteriorGranuleNeighbors::NEIGHBORGROUPPREFIX( UT_String &str, float t )
 {

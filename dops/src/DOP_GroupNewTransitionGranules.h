@@ -30,6 +30,7 @@ protected:
 private:
     void            NEWGROUPNAME(UT_String &str, fpreal t);
     void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
+	void            CONNECTEDGROUPSPREFIX( UT_String &str, float t );
 //	void            EXTERIORGRANULESGROUPNAME( UT_String &str, float t );
 };
 
