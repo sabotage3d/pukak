@@ -125,7 +125,16 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 	
 	
 	// Get whether or not to solve on the creation frame
+	int doSolveOnCreationFrame = SIMULATECREATIONFRAME( time );
 	
+	
+	// Get the name of the Geometry data that contains the solid mesh geometry
+	UT_String solidMeshGeomDataName;
+	SOLIDMESHGEOMETRYDATA( solidMeshGeomDataName, time );
+	
+	// Get the name of the Geometry data that contains the solid mesh geometry
+	UT_String interiorGranulePointsGeomDataName;
+	SOLIDMESHGEOMETRYDATA( interiorGranulePointsGeomDataName, time );
 	
 	
 	if( !isActive(time) )
@@ -167,43 +176,55 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 		SIM_Object* CONSTR = NULL;	// The constraint object that will merge in the current
 		
 		//   If there are shared CONSTR:
-		if ( curConnectedConstraintObjects.entries() > 0 )
+		int numConnectedConstraintObjectsToJoin = curConnectedConstraintObjects.entries();
+		if ( numConnectedConstraintObjectsToJoin > 0 )
 		{
 			CONSTR = curConnectedConstraintObjects( 0 );		// If there is only one object, none will be added to it in the following for-loop
-			//SIM_Geometry* constraintGeom = (SIM_Geometry*)CONSTR->getGeometry();
-			SIM_GeometryCopy* constraintGeom = SIM_DATA_GET( *CONSTR, SIM_GEOMETRY_DATANAME, SIM_GeometryCopy);
-			GU_DetailHandle lockedConstraintDetailHandle = constraintGeom->lockGeometry();
-			GU_DetailHandleAutoWriteLock gdl( lockedConstraintDetailHandle );
-			GU_Detail *constraintGdp = gdl.getGdp();
 			
-			// Connect them all into the first CONSTR obj
-			//   The nice thing is that they are guaranteed to not be overlapping, otherwise they would have been merged already.
-			//   So we merge all the GEO_Details into the "Geometry" data, then later (in the Houdini network) the new culled geometry can be merged with them.
-			int numConstrObjectsToConnect = curConnectedConstraintObjects.entries();
-			for ( int j = 1; j < numConstrObjectsToConnect; j++ )
+			if ( numConnectedConstraintObjectsToJoin > 1 )
 			{
-				// Copy the geometry over to the main constraint object
-				SIM_Object* curObj = curConnectedConstraintObjects( j );
-				GU_DetailHandleAutoReadLock curGdl( curObj->getGeometry()->getGeometry() );
-				GU_Detail *curGdp = (GU_Detail*)curGdl.getGdp();
-				constraintGdp->merge( *curGdp );
+				//SIM_Geometry* solidMeshGeom = (SIM_Geometry*)CONSTR->getGeometry();
+				SIM_GeometryCopy* solidMeshGeom = SIM_DATA_GET( *CONSTR, solidMeshGeomDataName, SIM_GeometryCopy);
+				if ( !solidMeshGeom )
+				{
+					cout << "Fail. " << solidMeshGeomDataName << " geometry data does not exist on object " << CONST->getName() << endl;
+				}  // if
+				GU_DetailHandle lockedSolidMeshDetailHandle = solidMeshGeom->lockGeometry();
+				GU_DetailHandleAutoWriteLock gdl( lockedSolidMeshDetailHandle );
+				GU_Detail *solidMeshGdp = gdl.getGdp();
 				
-				// Get rid of old CONSTR (remove from CONSTR array then from the engine)
-				engine.removeSimulationObject( curObj );
-			}  // for j
+				// Connect them all into the first CONSTR obj
+				//   The nice thing is that they are guaranteed to not be overlapping, otherwise they would have been merged already.
+				//   So we merge all the GEO_Details into the "Geometry" data, then later (in the Houdini network) the new culled geometry can be merged with them.
+				int numConstrObjectsToConnect = curConnectedConstraintObjects.entries();
+				for ( int j = 1; j < numConstrObjectsToConnect; j++ )
+				{
+					// Copy the geometry over to the main constraint object
+					SIM_Object* curObj = curConnectedConstraintObjects( j );
+					GU_DetailHandleAutoReadLock curGdl( curObj->getGeometry()->getGeometry() );
+					GU_Detail *curGdp = (GU_Detail*)curGdl.getGdp();
+					solidMeshGdp->merge( *curGdp );
+					
+					// Get rid of old CONSTR (remove from CONSTR array then from the engine)
+					engine.removeSimulationObject( curObj );
+				}  // for j
+				
+				solidMeshGeom->releaseGeometry();
+			}  // if
 		}  // if
 		//   Else:
 		else
 		{
 			// Create new CONSTR
 			CONSTR = engine.addSimulationObject( simFirstFrameBool );
+			CONSTR->SIM_DATA_CREATE( *CONSTR, interiorGranulePointsGeomDataName, SIM_Geometry, SIM_DATA_RETURN_EXISTING );
 			
 			// GIVE IT A POSITION????????????????????????????????????????????????????
 		}  // else
 		
 		if ( CONSTR == NULL )
 		{
-			cout << "BAD BAD BAD!!  CONSTR is NULL and it should not be.  The end." << endl;
+			cout << "BAD BAD BAD!!  CONSTR is NULL and it shouldn't be.  The end." << endl;
 			return;
 		}  // if
 		
@@ -212,13 +233,24 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 		//   and their accompanying transition granules.  We want to pick
 		//   those accompanying transition granules out and constraint them
 		//   to their corresponding constraint object CONSTR
+		// Meanwhile, add all CONN_I to the CONSTR obj geometry as points (to be used later to union into the geom)
+		//   The positions of the interior granules in this connected set of granules
+		//   need to be added to the new CONSTR object so that later a solver can
+		//   convert those points into the section of mesh surrounding the newly
+		//   culled granules (and merging with any solid mesh that it overlaps, which
+		//   corresponds to the current CONSTR).
+		SIM_GeometryCopy* interiorPointsGeom = SIM_DATA_GET( *CONSTR, interiorGranulePointsGeomDataName, SIM_GeometryCopy);
+		GU_DetailHandle lockedinteriorPointsDetailHandle = interiorPointsGeom->lockGeometry();
+		GU_DetailHandleAutoWriteLock gdl( lockedinteriorPointsDetailHandle );
+		GU_Detail *interiorPointsGdp = gdl.getGdp();
+		
 		int numConnectedObjects = CONN->getGroupEntries();
 		for ( int j = 0; j < numConnectedObjects; j++ )
 		{
 			SIM_Object* curGranule = CONN->getGroupObject( j );
 			RBD_State *rbdstate = SIM_DATA_GET( *curGranule, "Position", RBD_State );
-			SIM_Options options = rbdstate->getOptions();
 			
+			SIM_Options options = rbdstate->getOptions();
 			UT_String granuleType;
 			options.getOptionString( "granuleType", granuleType );
 			
@@ -227,9 +259,23 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			{
 				curGranule->setGlueObject( CONSTR->getName() );
 			}  // if
+			// If it is an interior granule, add a point at its position to the CONSTR interior point geom data.
+			else if ( granuleType == "interior" )
+			{
+				UT_Vector3 pos;
+				rbdstate->getPosition( pos );
+				
+				GEO_Point* newPt = interiorPointsGdp->appendPointElement();
+				newPt->setPos( pos );
+				
+			}  // else if
+			else
+			{
+				cout << "That's crummy, " << curGranule->getName() << " does not have a proper granule type, " << granuleType << "." << endl;
+			}  // else
 		}  // for j
 		
-		//   Add all CONN_I to the CONSTR obj geometry as points (to be used later to union into the geom)
+		interiorPointsGeom->releaseGeometry();
 	}  // for i
 }  // processObjectsSubclass()
 
@@ -266,14 +312,18 @@ void GRANULEOBJECTSPREFIX( UT_String &str, float t )				// Gets the name prefix 
 	evalString( str, theGranuleObjectsName.getToken(), 0, t );
 }  // GRANULEOBJECTSPREFIX
 
-void SIMULATECREATIONFRAME( int b, float t )						// Check whether the objects should simulate on the frame they were created
+int SIMULATECREATIONFRAME( float t )						// Check whether the objects should simulate on the frame they were created
 {
-
+	return evalInt( theSolveFirstFrame.getToken(), 0, t );
 }  // SIMULATECREATIONFRAME
-void SOLIDMESHGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
-void INTERIORGRANULEPOINTSGEOMETRYDATA( UT_String &str, float t );	// Name of the Geometry data for the current interior granules that is attached to the constraint object
 
-theGranuleObjectsName( "granuleobjectsprefix", "Granule Objs Prefix" );
-static PRM_Name         theSolveFirstFrame( "solvefirstframe", "Solve On Creation Frame" );
-static PRM_Name         theSolidMeshGeomData( "solidmeshgeomdata", "Solid Mesh Data" );
-static PRM_Name         theInteriorPointsGeomData( "interiorpointsgeomdata", "Interior Geom Data" );
+void SOLIDMESHGEOMETRYDATA( UT_String &str, float t )				// Name of the Geometry data for the solid mesh that is attached to the constraint object
+{
+	evalString( str, theSolidMeshGeomData.getToken(), 0, t );
+}  // SOLIDMESHGEOMETRYDATA
+
+void INTERIORGRANULEPOINTSGEOMETRYDATA( UT_String &str, float t )	// Name of the Geometry data for the current interior granules that is attached to the constraint object
+{
+	evalString( str, theInteriorPointsGeomData.getToken(), 0, t );
+}  // INTERIORGRANULEPOINTSGEOMETRYDATA
+
