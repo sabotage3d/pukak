@@ -259,9 +259,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 		cout << 2 << endl;
 		cout << "CONSTR = " << CONSTR->getName() << endl;
 		cout << "interiorPointsGeom = " << interiorPointsGeom << endl;
-		SIM_Geometry* tmp = SIM_DATA_GET( *CONSTR, interiorGranulePointsGeomDataName, SIM_Geometry);
 		//GU_ConstDetailHandle lockedinteriorPointsDetailHandle = interiorPointsGeom->getGeometry();
-		cout << "tmp = " << tmp << endl;
 		GU_DetailHandle lockedinteriorPointsDetailHandle = interiorPointsGeom->lockGeometry();
 		cout << 3 << endl;
 		GU_DetailHandleAutoWriteLock gdl( lockedinteriorPointsDetailHandle );
@@ -278,7 +276,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			SIM_Options& options = granuleData->getData();
 			UT_String granuleType;
 			options.getOptionString( "granuleType", granuleType );
-			
+			cout << "We are testing " << curGranule->getName() << endl;
 			// If it is a transition granule, constrain the transition granule to CONSTR
 			if ( granuleType == "transition" )
 			{
@@ -288,7 +286,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			else if ( granuleType == "interior" )
 			{
 				UT_Vector3 pos = rbdstate->getPosition();
-				
+				cout << "pos = " << pos[0] << ", " << pos[1] << ", " << pos[2] << endl;
 				GEO_Point* newPt = interiorPointsGdp->appendPointElement();
 				newPt->setPos( pos );
 				
