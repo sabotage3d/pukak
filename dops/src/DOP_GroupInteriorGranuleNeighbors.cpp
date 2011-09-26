@@ -182,13 +182,13 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             {
                 // For each neighboring object to the current object, see if the neighbor is an interior granule
                 //int numNeighbors = currNeighborData->getNumNeighbors();
-				int numImpacts = currImpactsData->getNumImpacts();
                 SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
                 neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
                 SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
                                 SIM_RelationshipGroup,
                                 SIM_DATA_RETURN_EXISTING );
 				
+				int numImpacts = currImpactsData->getNumImpacts();
                 //for ( int n = 0; n < numNeighbors; n++ )
 				for ( int n = 0; n < numImpacts; n++ )
                 {
@@ -202,7 +202,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 					if ( neighborGroup->getGroupHasObject(neighborObject) )
 						continue;
 					
-					if ( excludeGroupRel && excludeGroupRel->getGroupHasObject(neighborObject) )		// Don't pick up neighbors excluded by the group parameter
+					if ( excludeGroupRel && excludeGroupRel->getGroupHasObject(neighborObject) )		// Don't pick up neighbors excluded by the group parameter, e.g. don't include the groundPlane in the group of neighbor granules even if they're colliding with it
 						continue;
 					
                     //if ( !interiorGranulesGroup->getGroupHasObject(neighborObject) && !shellGranulesGroup->getGroupHasObject(neighborObject) )

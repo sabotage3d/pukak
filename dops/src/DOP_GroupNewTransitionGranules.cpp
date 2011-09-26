@@ -96,7 +96,7 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
     NEWGROUPNAME( newGroupName, time );
     if ( newGroupName == "" )
         return;
-    SIM_Relationship* newGroup = engine.addRelationship( newGroupName, SIM_DATA_RETURN_EXISTING );
+    SIM_Relationship* newTransitionGranulesGroup = engine.addRelationship( newGroupName, SIM_DATA_RETURN_EXISTING );
     
     // Get the name of the interior granules group, based on the Interior Granules Group parameter input
     //   The interior granules are granules that are ready to be culled, whose outer neighbors we will set
@@ -154,13 +154,16 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			int numImpacts = impactsData->getNumImpacts();
 			for ( int j = 0; j < numImpacts; j++ )
 			{
-				int otherObjid = impactsData->getOtherObjId( j );
-				SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( otherObjid );
+				int neighborId = impactsData->getOtherObjId( j );
+				SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
+				
+				if ( newTransitionGranulesGroup->getGroupHasObject( neighborObj ) )
+					continue;
 				
 				if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
 				{
-					newGroup->addGroup( neighborObj );
-					SIM_DATA_CREATE( *newGroup,  SIM_RELGROUP_DATANAME,
+					newTransitionGranulesGroup->addGroup( neighborObj );
+					SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
                                     SIM_RelationshipGroup,
                                     SIM_DATA_RETURN_EXISTING);
 					break;
