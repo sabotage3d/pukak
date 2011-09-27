@@ -51,6 +51,7 @@ newDopOperator(OP_OperatorTable *table)
 
 static PRM_Name         theConnectedGroupsName( "connectedgroupsname", "Connected Groups Prefix" );
 static PRM_Name         theConstraintObjectsName( "constraintobjectsname", "Constraint Objs Prefix" );
+static PRM_Name         theTransitionObjectsName( "transitionobjectsname", "Transition Objs Prefix" );
 static PRM_Name         theGranuleObjectsName( "granuleobjectsprefix", "Granule Objs Prefix" );
 static PRM_Name         theSolveFirstFrame( "solvefirstframe", "Solve On Creation Frame" );
 static PRM_Name         theSolidMeshGeomData( "solidmeshgeomdata", "Solid Mesh Data" );
@@ -67,6 +68,7 @@ DOP_ConstrainNewTransitionGranules::myTemplateList[] = {
     // My added parameters
     PRM_Template( PRM_STRING,   1, &theConnectedGroupsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of the groups that hold all the interior granules grouped with their neighbors." ),
     PRM_Template( PRM_STRING,   1, &theConstraintObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of the existing objects that transition granules are constrained to." ),
+	PRM_Template( PRM_STRING,   1, &theTransitionObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of the transition granule objects." ),
 	PRM_Template( PRM_STRING,   1, &theGranuleObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of all the granule objects (no matter what granuleType label they have)." ),
 	PRM_Template( PRM_TOGGLE_J, 1, &theSolveFirstFrame, &defaultNull, 0, 0, 0, 0, 1, "For the newly created objects, this parameter controls whether or not the solver for that object should solve for the object on the timestep in which it was created. Usually this parameter will be turned on if this node is creating objects in the middle of a simulation rather than creating objects for the initial state of the simulation." ),
 	//PRM_Template( PRM_TOGGLE_J,  1, &DOPsolvefirstframeName, &defaultZero, 0, 0, 0, 0, 1, "For the newly created objects, this parameter controls whether or not the solver for that object should solve for the object on the timestep in which it was created. Usually this parameter will be turned on if this node is creating objects in the middle of a simulation rather than creating objects for the initial state of the simulation." ),
@@ -121,6 +123,17 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
     SIM_DataFilterByName constraintObjectsFilter( constraintObjectsFilterName );
 	
 	
+	// Get the prefix of the names of all the transition granule objects
+	UT_String transitionGranuleObjectsPrefix;
+	GRANULEOBJECTSPREFIX( transitionGranuleObjectsPrefix, time );
+	transitionGranuleObjectsPrefix.strip("*");
+	if ( transitionGranuleObjectsPrefix == "" )
+		return;
+	UT_String transitionObjectsFilterName = transitionGranuleObjectsPrefix;
+	transitionObjectsFilterName += "*";
+	SIM_DataFilterByName transitionObjectsFilter( transitionObjectsFilterName );
+	
+	
 	// Get the prefix of the names of all the granule objects
 	UT_String granuleObjectsPrefix;
 	GRANULEOBJECTSPREFIX( granuleObjectsPrefix, time );
@@ -137,6 +150,57 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 	// Get the name of the Geometry data that contains the solid mesh geometry
 	UT_String interiorGranulePointsGeomDataName;
 	INTERIORGRANULEPOINTSGEOMETRYDATA( interiorGranulePointsGeomDataName, time );
+	
+	
+	
+	
+	
+	
+	
+	// Set the transition granule constraints ... constrain them to their respective CONSTR objects
+	SIM_ObjectArray transObjs;
+	objects.filter( transitionObjectsFilter, transObjs );
+	int numTransObjs = transObjs.entries();
+	for ( int i = 0; i < numTransObjs; i++ )
+	{
+		SIM_Object* curTransObj = transObjs(i);
+		RBD_State *rbdstate = SIM_DATA_GET( *curTransObj, "Position", RBD_State );
+		UT_String glueObjectName;
+		rbdstate->getGlueObject( glueObjectName );
+		SIM_Object* curGlueObj = (SIM_Object*)engine.findObjectFromString( glueObjectName, 0, 0, time, 0 );
+		
+		// Get the glue relationship
+		SIM_DataFilterByName glueRelFilter( "glueConstraint*" );
+		SIM_ConstDataArray glueRels;
+		curGlueObj->filterConstRelationships( true, glueRelFilter, glueRels );
+		SIM_Relationship* glueRel;
+		if ( glueRels.entries() == 0 )
+		{
+			char tmp2[181]; sprintf( tmp2, "%s%d", "glueConstraint", curGlueObj->getObjectId() );
+            UT_String glueName = tmp2;
+			glueRel = engine.addRelationship( glueName, SIM_DATA_RETURN_EXISTING );
+			glueRel->addGroup( curGlueObj );
+			glueRel->addAffGroup( curGlueObj );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
+			SIM_DATA_CREATE( *glueRel, "SIM_GlueNetworkRelationship",
+							SIM_GlueNetworkRelationship,
+							SIM_DATA_RETURN_EXISTING );
+		}  // if
+		else
+		{
+			glueRel = (SIM_Relationship*)glueRels(0);
+		}  // else
+		
+		// Glue them together
+		glueRel->addGroup( curTransObj );
+		glueRel->addAffGroup( curTransObj );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
+		SIM_DATA_CREATE( *glueRel, "SIM_GlueNetworkRelationship",
+						SIM_GlueNetworkRelationship,
+						SIM_DATA_RETURN_EXISTING );
+	}  // for i
+	
+	
+	
+	
 	
 	
 	// For each CONSTR, clear out the interior granules point geometry data.
@@ -327,10 +391,25 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			interiorPointsGeom = SIM_DATA_CREATE( *CONSTR, interiorGranulePointsGeomDataName, SIM_GeometryCopy, SIM_DATA_ADOPT_EXISTING_ON_DELETE );
 		
 		//GU_ConstDetailHandle lockedinteriorPointsDetailHandle = interiorPointsGeom->getGeometry();
+		// Get CONSTR's geometry information to be able to add points to the interior point geom
 		GU_DetailHandle lockedinteriorPointsDetailHandle = interiorPointsGeom->lockGeometry();
 		GU_DetailHandleAutoWriteLock gdl( lockedinteriorPointsDetailHandle );
 		GU_Detail *interiorPointsGdp = gdl.getGdp();
 		
+		// Get CONSTR's glue relationship information to be able to add transition granules to it
+		SIM_DataFilterByName glueRelFilter( "glueConstraint*" );
+		SIM_ConstDataArray glueRels;
+		CONSTR->filterConstRelationships( true, glueRelFilter, glueRels );
+		SIM_Relationship* CONSTRGlueRel = (SIM_Relationship*)glueRels(0);
+		if ( !CONSTRGlueRel )
+		{
+			cout << CONSTR->getName() << " is missing glue relationship." << endl;
+			return;
+		}
+		
+		// For each granule in the current connected component,
+		//   Add it to the interior point positions geometry if it is interior
+		//   Constrain it to CONSTR if it is transition
 		int numConnectedObjects = CONN->getGroupEntries();
 		for ( int j = 0; j < numConnectedObjects; j++ )
 		{
@@ -346,12 +425,15 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			if ( granuleType == "transition" )
 			{
 				rbdstate->setGlueObject( CONSTR->getName() );
+				
+				CONSTRGlueRel->addGroup( curGranule );
+				CONSTRGlueRel->addAffGroup( curGranule );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
 			}  // if
 			// If it is an interior granule, add a point at its position to the CONSTR interior point geom data.
 			else if ( granuleType == "interior" )
 			{
 				UT_Vector3 pos = rbdstate->getPosition();
-				//cout << "pos = " << pos[0] << ", " << pos[1] << ", " << pos[2] << endl;
+				cout << curGranule->getName() << " pos = " << pos[0] << ", " << pos[1] << ", " << pos[2] << endl;
 				GEO_Point* newPt = interiorPointsGdp->appendPointElement();
 				newPt->setPos( pos );
 				
@@ -393,6 +475,11 @@ void DOP_ConstrainNewTransitionGranules::CONSTRAINTOBJECTSPREFIX( UT_String &str
 {
     evalString( str, theConstraintObjectsName.getToken(), 0, t );
 }  // CONSTRAINTOBJECTSPREFIX
+
+void DOP_ConstrainNewTransitionGranules::TRANSITIONOBJECTSPREFIX( UT_String &str, float t )
+{
+	evalString( str, theTransitionObjectsName.getToken(), 0, t );
+}  // GRANULEOBJECTSPREFIX
 
 void DOP_ConstrainNewTransitionGranules::GRANULEOBJECTSPREFIX( UT_String &str, float t )				// Gets the name prefix of the granule objects
 {

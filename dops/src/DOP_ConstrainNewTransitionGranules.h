@@ -32,6 +32,7 @@ protected:
 private:
     void            CONNECTEDGROUPSPREFIX( UT_String &str, float t );				// Gets the name prefix of the connected component groups
     void            CONSTRAINTOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the objects that transition granules are constrained to
+	void            TRANSITIONOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the transition granule objects
 	void            GRANULEOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the granule objects
 	int             SIMULATECREATIONFRAME( float t );						// Check whether the objects should simulate on the frame they were created
 	void            SOLIDMESHGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
