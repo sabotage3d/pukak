@@ -13,7 +13,6 @@
 #include <DOP/DOP_InOutInfo.h>
 #include <DOP/DOP_Engine.h>
 
-#include "../SIMs/src/SIM_SnowNeighborData.h"
 
 #include <iostream>
 
@@ -176,12 +175,10 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             sprintf( tmp, "%s%d", (char*)neighborGroupPrefix, objid );
             UT_String neighborGroupName = tmp;
             
-            //SIM_SnowNeighborData* currNeighborData = SIM_DATA_GET( *currObject, "Bullet Neighbor Data", SIM_SnowNeighborData );
 			SIM_Impacts* currImpactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
             if ( currImpactsData )
             {
                 // For each neighboring object to the current object, see if the neighbor is an interior granule
-                //int numNeighbors = currNeighborData->getNumNeighbors();
                 SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
                 neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
                 SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
@@ -193,7 +190,6 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 				for ( int n = 0; n < numImpacts; n++ )
                 {
                     // Add the neighbor to the current shell granule's group.
-                    //int neighborId = currNeighborData->getNeighborId( n );
 					int neighborId = currImpactsData->getOtherObjId( n );
                     SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
                     if ( !neighborObject )
