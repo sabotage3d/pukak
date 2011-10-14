@@ -56,6 +56,8 @@ static PRM_Name         theGranuleObjectsName( "granuleobjectsprefix", "Granule 
 static PRM_Name         theSolveFirstFrame( "solvefirstframe", "Solve On Creation Frame" );
 static PRM_Name         theSolidMeshGeomData( "solidmeshgeomdata", "Solid Mesh Data" );
 static PRM_Name         theInteriorPointsGeomData( "interiorpointsgeomdata", "Interior Geom Data" );
+static PRM_Name         theCullMetasGeomData( "cullmetasgeomdata", "Cull Metas Mesh Data" );
+static PRM_Name         theCullVolumeGeomData( "cullvolumegeomdata", "Cull Volume Geom Data" );
 
 static PRM_Default      defaultNull( 0, "" );
 static PRM_Default      defaultZero( 0 );
@@ -74,7 +76,9 @@ DOP_ConstrainNewTransitionGranules::myTemplateList[] = {
 	//PRM_Template( PRM_TOGGLE_J,  1, &DOPsolvefirstframeName, &defaultZero, 0, 0, 0, 0, 1, "For the newly created objects, this parameter controls whether or not the solver for that object should solve for the object on the timestep in which it was created. Usually this parameter will be turned on if this node is creating objects in the middle of a simulation rather than creating objects for the initial state of the simulation." ),
 	PRM_Template( PRM_STRING,   1, &theSolidMeshGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the surface mesh geometry of the solid granular mesh." ),
 	PRM_Template( PRM_STRING,   1, &theInteriorPointsGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the points representing the most recently deleted interior granules." ),
-    PRM_Template()
+    PRM_Template( PRM_STRING,   1, &theCullMetasGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the impact culling metaball geometry ." ),
+	PRM_Template( PRM_STRING,   1, &theCullVolumeGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the volume geometry of the carved away area of the solid mesh, if any." ),
+	PRM_Template()
 };
 
 OP_Node *
@@ -95,7 +99,7 @@ DOP_ConstrainNewTransitionGranules::~DOP_ConstrainNewTransitionGranules()
 }
 
 void
-DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
+DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forOutputIdx,
                                           const SIM_ObjectArray &objects,
                                           DOP_Engine &engine)
 {
@@ -151,53 +155,84 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 	UT_String interiorGranulePointsGeomDataName;
 	INTERIORGRANULEPOINTSGEOMETRYDATA( interiorGranulePointsGeomDataName, time );
 	
+	// Get the name of the Geometry data that contains the cull metas from impacts
+	UT_String cullMetasGeomDataName;
+	CULLMETASGEOMETRYDATA( cullMetasGeomDataName, time );
+	
+	// Get the name of the Geometry data that contains the cull volumes from impacts
+	UT_String cullVolumeGeomDataName;
+	CULLVOLUMEGEOMETRYDATA( cullVolumeGeomDataName, time );
 	
 	
 	
+	if( !isActive(time) )
+	{
+		return;
+	}  // if
 	
 	
 	
 	// Set the transition granule constraints ... constrain them to their respective CONSTR objects
+	/*
 	SIM_ObjectArray transObjs;
 	objects.filter( transitionObjectsFilter, transObjs );
 	int numTransObjs = transObjs.entries();
 	for ( int i = 0; i < numTransObjs; i++ )
 	{
+		// Get the object
 		SIM_Object* curTransObj = transObjs(i);
-		RBD_State *rbdstate = SIM_DATA_GET( *curTransObj, "Position", RBD_State );
-		UT_String glueObjectName;
-		rbdstate->getGlueObject( glueObjectName );
-		SIM_Object* curGlueObj = (SIM_Object*)engine.findObjectFromString( glueObjectName, 0, 0, time, 0 );
 		
-		// Get the glue relationship
-		SIM_DataFilterByName glueRelFilter( "glueConstraint*" );
-		SIM_ConstDataArray glueRels;
-		curGlueObj->filterConstRelationships( true, glueRelFilter, glueRels );
-		SIM_Relationship* glueRel;
-		if ( glueRels.entries() == 0 )
+		// Get the granule type
+		SIM_EmptyData* data = SIM_DATA_GET( *curTransObj, "GranuleData", SIM_EmptyData );
+		SIM_Options& options = data->getData();
+		UT_String granuleType;
+		options.getOptionString( "granuleType", granuleType );
+		
+		if ( granuleType == "transition" )
 		{
-			char tmp2[181]; sprintf( tmp2, "%s%d", "glueConstraint", curGlueObj->getObjectId() );
-            UT_String glueName = tmp2;
-			glueRel = engine.addRelationship( glueName, SIM_DATA_RETURN_EXISTING );
-			glueRel->addGroup( curGlueObj );
-			glueRel->addAffGroup( curGlueObj );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
-			SIM_DATA_CREATE( *glueRel, "SIM_GlueNetworkRelationship",
-							SIM_GlueNetworkRelationship,
+			// Get the glue object (solid mesh) from the position data
+			RBD_State *rbdstate = SIM_DATA_GET( *curTransObj, "Position", RBD_State );
+			UT_String glueObjectName;
+			rbdstate->getGlueObject( glueObjectName );
+			if ( glueObjectName == "" )		// The transition granule could have just broken off (from a collision) and thus will no longer have an associated solid mesh
+			{
+				continue;
+			}  // if
+			SIM_Object* curGlueObj = (SIM_Object*)engine.findObjectFromString( glueObjectName, 0, 0, time, 0 );
+			
+			// Get the glue relationship that the glue object (solid mesh) belongs to 
+			SIM_DataFilterByName glueRelFilter( "glueConstraint*" );
+			SIM_ConstDataArray glueRels;
+			curGlueObj->filterConstRelationships( true, glueRelFilter, glueRels );
+			SIM_Relationship* glueRel;
+			
+			// If the glue object (solid mesh) is not a part of any "glueConstraint" relationship, then create and add it to a new one
+			if ( glueRels.entries() == 0 )
+			{
+				char tmp2[181]; sprintf( tmp2, "%s%d", "glueConstraint", curGlueObj->getObjectId() );
+				UT_String glueName = tmp2;
+				glueRel = engine.addRelationship( glueName, SIM_DATA_RETURN_EXISTING );
+				glueRel->addGroup( curGlueObj );
+				glueRel->addAffGroup( curGlueObj );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
+				SIM_DATA_CREATE( *glueRel, "Group",
+								SIM_RelationshipGroup,
+								SIM_DATA_RETURN_EXISTING );
+			}  // if
+			else
+			{
+				glueRel = (SIM_Relationship*)glueRels(0);
+			}  // else
+			
+			// Glue the current transition granules to its corresponding glue object (solid mesh)
+			//   by adding it to the solid mesh's "glueConstraint" group
+			glueRel->addGroup( curTransObj );
+			glueRel->addAffGroup( curTransObj );
+			SIM_DATA_CREATE( *glueRel, "Group",
+							SIM_RelationshipGroup,
 							SIM_DATA_RETURN_EXISTING );
 		}  // if
-		else
-		{
-			glueRel = (SIM_Relationship*)glueRels(0);
-		}  // else
-		
-		// Glue them together
-		glueRel->addGroup( curTransObj );
-		glueRel->addAffGroup( curTransObj );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
-		SIM_DATA_CREATE( *glueRel, "SIM_GlueNetworkRelationship",
-						SIM_GlueNetworkRelationship,
-						SIM_DATA_RETURN_EXISTING );
 	}  // for i
-	
+	*/
 	
 	
 	
@@ -223,16 +258,23 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 	}  // for i
 	
 	
-	if( !isActive(time) )
-		return;
-	
 	// For each group of continuously connected (colliding) granules (CONN):
 	int numConnectedGroups = connectedGroups.entries();
 	for ( int i = 0; i < numConnectedGroups; i++ )
 	{
 		SIM_Relationship* CONN = (SIM_Relationship*)connectedGroups(i);	// Current group of interior and transition granules that are all touching.  A set of connected granules.
 		
-		// Get all the constraint objects in this simulation
+		for ( int bob = 0; bob < CONN->getGroupEntries(); bob++ )
+		{
+			SIM_Object* obj = (SIM_Object*)CONN->getGroupObject(bob);
+			SIM_EmptyData* data = SIM_DATA_GET( *obj, "GranuleData", SIM_EmptyData );
+			SIM_Options& options = data->getData();
+			UT_String granuleType;
+			options.getOptionString( "granuleType", granuleType );
+			cout << obj->getName() << "=" << granuleType << endl;
+		}  // for
+		
+		// Get all the constraint objects in this simulation (the list of ALL solid granular meshes)
 		SIM_ObjectArray constraintObjects;
 		objects.filter( constraintObjectsFilter, constraintObjects );
 		
@@ -241,31 +283,31 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 		int numConstraintObjects = constraintObjects.entries();
 		for ( int j = 0; j < numConstraintObjects; j++ )
 		{
-			SIM_Object* curConstraintObj = constraintObjects(j);
+			SIM_Object* curConstraintObj = constraintObjects(j);		// Get the current solid mesh
 			
-			// Get the group containing all the granules constrained to the current CONSTR
+			// Get the group containing all the granules in the current CONSTR (solid mesh)
 			SIM_DataFilterByName constraintRelFilter( "glueConstraint*" );
 			SIM_ConstDataArray constraintRels;
-			curConstraintObj->filterConstRelationships( true, constraintRelFilter, constraintRels );
+			curConstraintObj->filterConstRelationships( true, constraintRelFilter, constraintRels );		// Get the "glueConstraint" group from the current solid mesh
 			if ( constraintRels.entries() == 0 )
 			{
 				cout << curConstraintObj->getName() << " has an empty glue object." << endl;
 				return;
 			}
-			SIM_Relationship* constraintRel = (SIM_Relationship*)constraintRels(0);
-			if ( !constraintRel )
+			SIM_Relationship* constrainedGranulesGrp = (SIM_Relationship*)constraintRels(0);
+			if ( !constrainedGranulesGrp )
 			{
 				cout << curConstraintObj->getName() << " is missing glue relationship." << endl;
 				return;
 			}
-			
-			// For each constrained granule, check if it is in CONN_I
-			int numConstrainedGranules = constraintRel->getGroupEntries();
+			//cout << curConstraintObj->getName() << endl;
+			// For each granule in the current solid granular mesh (CONSTR), check if it is in CONN_I
+			int numConstrainedGranules = constrainedGranulesGrp->getGroupEntries();
 			for ( int k = 0; k < numConstrainedGranules; k++ )					// This should still be O(n), with n = total number of granules, since each granule should not be constrained to more than one object
 			{
-				const SIM_Object* curConstrainedGranule = constraintRel->getGroupObject(k);
+				const SIM_Object* curConstrainedGranule = constrainedGranulesGrp->getGroupObject(k);
 				if ( CONN->getGroupHasObject( curConstrainedGranule ) )
-				{
+				{cout << "group " << CONN->getName() << " has obj " << curConstrainedGranule->getName() << endl;
 					// Add the constraint object to the list of constraint objects connected to the current CONN, and break
 					curConnectedConstraintObjects.add( curConstraintObj );
 					break;
@@ -327,8 +369,8 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 					{
 						CONSTRGlueRel->addGroup( (SIM_Object*)oldRel->getGroupObject(k) );
 						CONSTRGlueRel->addAffGroup( (SIM_Object*)oldRel->getGroupObject(k) );
-						SIM_DATA_CREATE( *CONSTRGlueRel, "SIM_GlueNetworkRelationship",
-										SIM_GlueNetworkRelationship,
+						SIM_DATA_CREATE( *CONSTRGlueRel, "Group",
+										SIM_RelationshipGroup,
 										SIM_DATA_RETURN_EXISTING );
 					}  // for k
 					
@@ -339,9 +381,11 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 				solidMeshGeom->releaseGeometry();
 			}  // if
 		}  // if
-		//   Else:
+		//   Else CREATE A NEW GLUE OBJECT (CONSTR):
 		else
 		{
+			engine.setCreatorInfo(getUniqueId(), forOutputIdx);
+		
 			// Create new CONSTR
 			CONSTR = engine.addSimulationObject( doSolveOnCreationFrame );
 			char tmp[181]; sprintf( tmp, "%s%d", (char*)constraintObjectsPrefix, CONSTR->getObjectId() );
@@ -351,6 +395,10 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			// Add geometry data to the new CONSTR
 			SIM_DATA_CREATE( *CONSTR, solidMeshGeomDataName, SIM_SopGeometry, 0 );
 			SIM_DATA_CREATE( *CONSTR, interiorGranulePointsGeomDataName, SIM_SopGeometry, 0 );
+			SIM_DATA_CREATE( *CONSTR, cullMetasGeomDataName, SIM_SopGeometry, 0 );
+			SIM_DATA_CREATE( *CONSTR, cullVolumeGeomDataName, SIM_SopGeometry, 0 );
+			
+			engine.setCreatorInfo(getUniqueId(), forOutputIdx);
 			
 			// Set up a glue relationship
 			char tmp2[181]; sprintf( tmp2, "%s%d", "glueConstraint", CONSTR->getObjectId() );
@@ -362,8 +410,8 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 				cout << "Created " << glueRel->getName() << endl;
 			glueRel->addGroup( CONSTR );
 			glueRel->addAffGroup( CONSTR );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
-			SIM_DATA_CREATE( *glueRel, "SIM_GlueNetworkRelationship",
-							SIM_GlueNetworkRelationship,
+			SIM_DATA_CREATE( *glueRel, "Group",
+							SIM_RelationshipGroup,
 							SIM_DATA_RETURN_EXISTING );
 			
 			// GIVE IT A POSITION????????????????????????????????????????????????????
@@ -500,4 +548,14 @@ void DOP_ConstrainNewTransitionGranules::INTERIORGRANULEPOINTSGEOMETRYDATA( UT_S
 {
 	evalString( str, theInteriorPointsGeomData.getToken(), 0, t );
 }  // INTERIORGRANULEPOINTSGEOMETRYDATA
+
+void DOP_ConstrainNewTransitionGranules::CULLMETASGEOMETRYDATA( UT_String &str, float t )				// Name of the Geometry data for the solid mesh that is attached to the constraint object
+{
+	evalString( str, theCullMetasGeomData.getToken(), 0, t );
+}  // CULLMETASGEOMETRYDATA
+
+void DOP_ConstrainNewTransitionGranules::CULLVOLUMEGEOMETRYDATA( UT_String &str, float t )	// Name of the Geometry data for the current interior granules that is attached to the constraint object
+{
+	evalString( str, theCullVolumeGeomData.getToken(), 0, t );
+}  // CULLVOLUMEGEOMETRYDATA
 

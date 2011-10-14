@@ -37,6 +37,8 @@ private:
 	int             SIMULATECREATIONFRAME( float t );						// Check whether the objects should simulate on the frame they were created
 	void            SOLIDMESHGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
 	void            INTERIORGRANULEPOINTSGEOMETRYDATA( UT_String &str, float t );	// Name of the Geometry data for the current interior granules that is attached to the constraint object
+	void            CULLMETASGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
+	void            CULLVOLUMEGEOMETRYDATA( UT_String &str, float t );	// Name of the Geometry data for the current interior granules that is attached to the constraint object
 };
 
 

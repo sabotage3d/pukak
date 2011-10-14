@@ -158,6 +158,16 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 				int neighborId = impactsData->getOtherObjId( j );
 				SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
 				
+				// Get this neighbor object's granular data.
+				//   If the neighbor object is an interior granule, do not mark it as transition
+				SIM_EmptyData* neighborGranuleData = SIM_DATA_GET( *neighborObj, "GranuleData", SIM_EmptyData );
+				SIM_Options& options = neighborGranuleData->getData();
+				UT_String neighborGranuleType;
+				options.getOptionString( "granuleType", neighborGranuleType );
+				if ( neighborGranuleType == "interior" )
+					continue;
+				
+				// If this neighbor object is already marked as a transition granule, do not mark it as transition again
 				if ( newTransitionGranulesGroup->getGroupHasObject( neighborObj ) )
 					continue;
 				
