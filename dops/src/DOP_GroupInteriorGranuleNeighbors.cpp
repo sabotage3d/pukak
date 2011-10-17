@@ -99,6 +99,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 		excludeGroupRel = NULL;
 	else
 		excludeGroupRel = engine.getRelationship( excludeGroupName );
+	
     
     
     // Get the name of the interior granules group, based on the Interior Granules Group parameter input

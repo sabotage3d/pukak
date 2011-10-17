@@ -11,6 +11,7 @@
 #include <SIM/SIM_Relationship.h>
 #include <SIM/SIM_RelationshipGroup.h>
 #include <SIM/SIM_GlueNetworkRelationship.h>
+#include <SIM/SIM_RelationshipCollide.h>
 #include <SIMZ/SIM_SopGeometry.h>
 #include <OP/OP_OperatorTable.h>
 #include <DOP/DOP_PRMShared.h>
@@ -52,11 +53,13 @@ static PRM_Name         theConnectedGroupsName( "connectedgroupsname", "Connecte
 static PRM_Name         theConstraintObjectsName( "constraintobjectsname", "Constraint Objs Prefix" );
 static PRM_Name         theTransitionObjectsName( "transitionobjectsname", "Transition Objs Prefix" );
 static PRM_Name         theGranuleObjectsName( "granuleobjectsprefix", "Granule Objs Prefix" );
+static PRM_Name         theCollideRelName( "colliderelname", "Collide Rel Name" );
 static PRM_Name         theSolveFirstFrame( "solvefirstframe", "Solve On Creation Frame" );
 static PRM_Name         theSolidMeshGeomData( "solidmeshgeomdata", "Solid Mesh Data" );
 static PRM_Name         theInteriorPointsGeomData( "interiorpointsgeomdata", "Interior Geom Data" );
 static PRM_Name         theCullMetasGeomData( "cullmetasgeomdata", "Cull Metas Mesh Data" );
 static PRM_Name         theCullVolumeGeomData( "cullvolumegeomdata", "Cull Volume Geom Data" );
+static PRM_Name         theGranuleData( "granuledata", "Granule Data" );
 
 static PRM_Default      defaultNull( 0, "" );
 static PRM_Default      defaultZero( 0 );
@@ -71,12 +74,14 @@ DOP_ConstrainNewTransitionGranules::myTemplateList[] = {
     PRM_Template( PRM_STRING,   1, &theConstraintObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of the existing objects that transition granules are constrained to." ),
 	PRM_Template( PRM_STRING,   1, &theTransitionObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of the transition granule objects." ),
 	PRM_Template( PRM_STRING,   1, &theGranuleObjectsName, &defaultNull, 0, 0, 0, 0, 1, "Name prefix of all the granule objects (no matter what granuleType label they have)." ),
+	PRM_Template( PRM_STRING,   1, &theCollideRelName, &defaultNull, 0, 0, 0, 0, 1, "Name of the collide relationship to add new solid meshes to." ),
 	PRM_Template( PRM_TOGGLE_J, 1, &theSolveFirstFrame, &defaultNull, 0, 0, 0, 0, 1, "For the newly created objects, this parameter controls whether or not the solver for that object should solve for the object on the timestep in which it was created. Usually this parameter will be turned on if this node is creating objects in the middle of a simulation rather than creating objects for the initial state of the simulation." ),
 	//PRM_Template( PRM_TOGGLE_J,  1, &DOPsolvefirstframeName, &defaultZero, 0, 0, 0, 0, 1, "For the newly created objects, this parameter controls whether or not the solver for that object should solve for the object on the timestep in which it was created. Usually this parameter will be turned on if this node is creating objects in the middle of a simulation rather than creating objects for the initial state of the simulation." ),
 	PRM_Template( PRM_STRING,   1, &theSolidMeshGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the surface mesh geometry of the solid granular mesh." ),
 	PRM_Template( PRM_STRING,   1, &theInteriorPointsGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the points representing the most recently deleted interior granules." ),
     PRM_Template( PRM_STRING,   1, &theCullMetasGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the impact culling metaball geometry ." ),
 	PRM_Template( PRM_STRING,   1, &theCullVolumeGeomData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Geometry data in the constraint object that contains the volume geometry of the carved away area of the solid mesh, if any." ),
+	PRM_Template( PRM_STRING,   1, &theGranuleData, &defaultNull, 0, 0, 0, 0, 1, "Name of the Granule data that keeps track of info such as whether or not its object is a granule." ),
 	PRM_Template()
 };
 
@@ -142,6 +147,11 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 	GRANULEOBJECTSPREFIX( granuleObjectsPrefix, time );
 	
 	
+	// Get the name of the collide relationship to add new solid meshes (CONSTR) to
+	UT_String collideRelName;
+	COLLIDERELNAME( collideRelName, time );
+	
+	
 	// Get whether or not to solve on the creation frame
 	int doSolveOnCreationFrame = SIMULATECREATIONFRAME( time );
 	
@@ -158,9 +168,13 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 	UT_String cullMetasGeomDataName;
 	CULLMETASGEOMETRYDATA( cullMetasGeomDataName, time );
 	
-	// Get the name of the Geometry data that contains the cull volumes from impacts
+	// Get the name of the Geometry data that contains the culled volume from impacts
 	UT_String cullVolumeGeomDataName;
 	CULLVOLUMEGEOMETRYDATA( cullVolumeGeomDataName, time );
+	
+	// Get the name of the Granule data
+	UT_String granuleDataName;
+	GRANULEDATA( granuleDataName, time );
 	
 	
 	
@@ -379,6 +393,20 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 				
 				solidMeshGeom->releaseGeometry();
 			}  // if
+			
+			// Add to a collision relationship.
+			SIM_Relationship *collideRel = (SIM_Relationship*)engine.getRelationship( collideRelName );
+			if ( !collideRel )
+			{
+				cout << "could not find " << collideRelName << " for " << CONSTR->getName() << endl;
+				return;
+			}  // if
+			cout << "Collide rel = " << collideRel->getName() << " " << collideRel << endl;
+			collideRel->addGroup( CONSTR );
+			collideRel->addAffGroup( CONSTR );
+			SIM_DATA_CREATE( *collideRel, SIM_RELCOLLIDE_DATANAME,
+							SIM_RelationshipCollide,
+							SIM_DATA_RETURN_EXISTING );
 		}  // if
 		//   Else CREATE A NEW GLUE OBJECT (CONSTR):
 		else
@@ -396,6 +424,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			SIM_DATA_CREATE( *CONSTR, interiorGranulePointsGeomDataName, SIM_SopGeometry, 0 );
 			SIM_DATA_CREATE( *CONSTR, cullMetasGeomDataName, SIM_SopGeometry, 0 );
 			SIM_DATA_CREATE( *CONSTR, cullVolumeGeomDataName, SIM_SopGeometry, 0 );
+			SIM_DATA_CREATE( *CONSTR, granuleDataName, SIM_EmptyData, 0 );
 			
 			engine.setCreatorInfo(getUniqueId(), forOutputIdx);
 			
@@ -413,7 +442,19 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 							SIM_RelationshipGroup,
 							SIM_DATA_RETURN_EXISTING );
 			
-			// GIVE IT A POSITION????????????????????????????????????????????????????
+			// Add to a collision relationship.
+			SIM_Relationship *collideRel = (SIM_Relationship*)engine.getRelationship( collideRelName );
+			if ( !collideRel )
+			{
+				cout << "could not find " << collideRelName << " for " << CONSTR->getName() << endl;
+				return;
+			}  // if
+			cout << "Collide rel = " << collideRel->getName() << " " << collideRel << endl;
+			collideRel->addGroup( CONSTR );
+			collideRel->addAffGroup( CONSTR );
+			SIM_DATA_CREATE( *collideRel, SIM_RELCOLLIDE_DATANAME,
+							SIM_RelationshipCollide,
+							SIM_DATA_RETURN_EXISTING );
 		}  // else
 		
 		if ( CONSTR == NULL )
@@ -487,7 +528,9 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			}  // else if
 			else
 			{
-				cout << "That's crummy, " << curGranule->getName() << " does not have a proper granule type, " << granuleType << "." << endl;
+				// Type = none or exterior
+				continue;
+				//cout << "That's crummy, " << curGranule->getName() << " does not have a proper granule type, " << granuleType << "." << endl;
 			}  // else
 		}  // for j
 		
@@ -533,6 +576,11 @@ void DOP_ConstrainNewTransitionGranules::GRANULEOBJECTSPREFIX( UT_String &str, f
 	evalString( str, theGranuleObjectsName.getToken(), 0, t );
 }  // GRANULEOBJECTSPREFIX
 
+void DOP_ConstrainNewTransitionGranules::COLLIDERELNAME( UT_String &str, float t )				// Gets the name prefix of the granule objects
+{
+	evalString( str, theCollideRelName.getToken(), 0, t );
+}  // COLLIDERELNAME
+
 int DOP_ConstrainNewTransitionGranules::SIMULATECREATIONFRAME( float t )						// Check whether the objects should simulate on the frame they were created
 {
 	return evalInt( theSolveFirstFrame.getToken(), 0, t );
@@ -558,3 +606,7 @@ void DOP_ConstrainNewTransitionGranules::CULLVOLUMEGEOMETRYDATA( UT_String &str,
 	evalString( str, theCullVolumeGeomData.getToken(), 0, t );
 }  // CULLVOLUMEGEOMETRYDATA
 
+void DOP_ConstrainNewTransitionGranules::GRANULEDATA( UT_String &str, float t )	// Name of the Geometry data for the current interior granules that is attached to the constraint object
+{
+	evalString( str, theGranuleData.getToken(), 0, t );
+}  // GRANULEDATA

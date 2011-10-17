@@ -34,11 +34,13 @@ private:
     void            CONSTRAINTOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the objects that transition granules are constrained to
 	void            TRANSITIONOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the transition granule objects
 	void            GRANULEOBJECTSPREFIX( UT_String &str, float t );				// Gets the name prefix of the granule objects
-	int             SIMULATECREATIONFRAME( float t );						// Check whether the objects should simulate on the frame they were created
+	void            COLLIDERELNAME( UT_String &str, float t );						// Gets the name of the collide relationship to add new solid meshes to
+	int             SIMULATECREATIONFRAME( float t );								// Check whether the objects should simulate on the frame they were created
 	void            SOLIDMESHGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
 	void            INTERIORGRANULEPOINTSGEOMETRYDATA( UT_String &str, float t );	// Name of the Geometry data for the current interior granules that is attached to the constraint object
 	void            CULLMETASGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the solid mesh that is attached to the constraint object
-	void            CULLVOLUMEGEOMETRYDATA( UT_String &str, float t );	// Name of the Geometry data for the current interior granules that is attached to the constraint object
+	void            CULLVOLUMEGEOMETRYDATA( UT_String &str, float t );				// Name of the Geometry data for the current interior granules that is attached to the constraint object
+	void            GRANULEDATA( UT_String &str, float t );							// Name of the Granule data that keeps track of information such as whether or not the current object is a granule
 };
 
 
