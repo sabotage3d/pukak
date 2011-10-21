@@ -167,7 +167,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     GEO_Point   *ppt;
     
     int sphRad = RADIUS();
-    int numPoints = NUMPOINTS();
+    int numSpheresToPopulate = NUMPOINTS();
     
     // Before we do anything, we must lock our inputs.  Before returning,
     //	we have to make sure that the inputs get unlocked.
@@ -183,7 +183,60 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
-        // Get all the geometry points, which are the starting points from which the fractal growth will occur
+		for ( int i = 0; i < numSpheresToPopulate; i++ )
+        {
+			// Get the number of prims
+			GEO_PrimList& prims = gdp->primitives();
+			int numPrims = prims.entries();
+			
+			// Pick a random prim
+			int randomNumber = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
+			int randPrimIndex = randomNumber % numPrims;
+			GEO_Primitive* prim = prims(i);
+			
+			// Get its two vertices
+			GEO_Vertex vert0 = prim->getVertexElement(0);
+			GEO_Vertex vert1 = prim->getVertexElement(1);
+			
+			// Get its normal
+			GEO_AttributeHandle normAttrib = gdp->getPrimAttribute( "edgeNormal" );
+			normAttrib.setElement( prim );
+			UT_Vector4 edgeNormal = normAttrib.getV3();
+			
+			// Create the new sphere's point
+			UT_Vector4 childPos = computeChildPosition( vert0.getPos(), vert1.getPos(), edgeNormal, 1 );
+			
+			// Create the sphere
+			
+			// Get the prim's points
+			GEO_Point* pt0 = vert0.getPt();
+			GEO_Point* pt1 = vert1.getPt();
+			
+			// Get the prim's neighboring prims
+			GA_OffsetArray connectedPrims;
+			getPrimitivesReferencingPoint( connectedPrims, GA_Offset point_offset );
+			
+			// Delete the prim
+			
+			// Create a prim between each of the prim's old points and the newly created point (keep the edge directionality)
+			
+			// If the left prim has a concavity with its left prim neighbor:
+			//    Create a prim between the left prim's right point and the left prim neighbor's right point
+			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
+			//       Keep the whole triangle around (all 3 prims)
+			// If the right prim has a concavity with its right prim neighbor:
+			//    Create a prim between the right prim neighbor's right point and the right prim's left point
+			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
+			//       Keep the whole triangle around (all 3 prims)
+		}  // for i
+		
+		
+		
+		
+		
+		
+		
+		// Get all the geometry points, which are the starting points from which the fractal growth will occur
         GEO_PointList& tmp_pts = gdp->points();
         
         // Make a copy of the original pts list so that we can append our added fractal points in the order we want
