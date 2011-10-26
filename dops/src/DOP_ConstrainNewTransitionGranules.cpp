@@ -357,36 +357,28 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 					cout << CONSTR->getName() << " is missing glue relationship." << endl;
 					return;
 				}
-				cout << 16 << endl;
+				
 				// Connect them all into the first CONSTR obj
 				//   The nice thing is that they are guaranteed to not be overlapping, otherwise they would have been merged already.
 				//   So we merge all the GEO_Details into the "Geometry" data, then later (in the Houdini network) the new culled geometry can be merged with them.
 				int numConstrObjectsToConnect = curConnectedConstraintObjects.entries();
 				for ( int j = 1; j < numConstrObjectsToConnect; j++ )
-				{cout << "j = " << j << endl;
+				{
 					// Copy the geometry over to the main constraint object
 					SIM_Object* curObj = curConnectedConstraintObjects( j );
-					cout << 'a' << endl;
-					cout << "curObj = " << curObj << endl;
-					cout << 'b' << endl;
-					cout << "curObjName = " << curObj->getName() << endl;
-					cout << 'c' << endl;
 					SIM_Geometry* curSolidMeshGeom = SIM_DATA_GET( *curObj, solidMeshGeomDataName, SIM_Geometry );
 					GU_DetailHandleAutoReadLock curGdl( curSolidMeshGeom->getGeometry() );
 					//GU_DetailHandleAutoReadLock curGdl( curObj->getGeometry()->getGeometry() );
-					cout << 'd' << endl;
+					
 					GU_Detail *curGdp = (GU_Detail*)curGdl.getGdp();
-					cout << 'e' << endl;
-					cout << "curGdp = " << curGdp << endl;
-					cout << 'f' << endl;
 					solidMeshGdp->merge( *curGdp );
-					cout << 17 << endl;
+					
 					// For each granule constrained (glued) to curObj, scoot its constraint over to CONSTR
 					SIM_DataFilterByName oldRelFilter( "glueConstraint*" );
 					SIM_ConstDataArray oldRels;
 					curObj->filterConstRelationships( true, oldRelFilter, oldRels );
 					SIM_Relationship* oldRel = (SIM_Relationship*)oldRels(0);
-					cout << 18 << endl;
+					
 					int numGranulesToSwitch = oldRel->getGroupEntries();
 					for ( int k = 0; k < numGranulesToSwitch; k++ )					// This should still be O(n), with n = total number of granules, since each granule should not be constrained to more than one object
 					{
@@ -395,7 +387,6 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 						SIM_DATA_CREATE( *CONSTRGlueRel, "Group",
 										SIM_RelationshipGroup,
 										SIM_DATA_RETURN_EXISTING );
-						cout << 19 << endl;
 					}  // for k
 					
 					// Delete the old CONSTR (remove from CONSTR array then from the engine)
@@ -455,6 +446,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 							SIM_RelationshipGroup,
 							SIM_DATA_RETURN_EXISTING );
 			
+			/*
 			// Add to a collision relationship.
 			SIM_Relationship *collideRel = (SIM_Relationship*)engine.getRelationship( collideRelName );
 			if ( !collideRel )
@@ -468,6 +460,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			SIM_DATA_CREATE( *collideRel, SIM_RELCOLLIDE_DATANAME,
 							SIM_RelationshipCollide,
 							SIM_DATA_RETURN_EXISTING );
+			*/
 		}  // else
 		
 		if ( CONSTR == NULL )
@@ -517,7 +510,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			SIM_Object* curGranule = (SIM_Object*)CONN->getGroupObject( j );
 			RBD_State *rbdstate = SIM_DATA_GET( *curGranule, "Position", RBD_State );
 			SIM_EmptyData* granuleData = SIM_DATA_GET( *curGranule, "GranuleData", SIM_EmptyData );
-			
+			cout << curGranule->getName() << " ";
 			SIM_Options& options = granuleData->getData();
 			UT_String granuleType;
 			options.getOptionString( "granuleType", granuleType );
@@ -526,7 +519,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			if ( granuleType == "transition" )
 			{
 				rbdstate->setGlueObject( CONSTR->getName() );
-				
+				cout << "transition " << endl;
 				CONSTRGlueRel->addGroup( curGranule );
 				CONSTRGlueRel->addAffGroup( curGranule );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
 			}  // if
@@ -534,7 +527,8 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			else if ( granuleType == "interior" )
 			{
 				UT_Vector3 pos = rbdstate->getPosition();
-				cout << curGranule->getName() << " pos = " << pos[0] << ", " << pos[1] << ", " << pos[2] << endl;
+				//cout << curGranule->getName() << " pos = " << pos[0] << ", " << pos[1] << ", " << pos[2] << endl;
+				cout << "interior" << endl;
 				GEO_Point* newPt = interiorPointsGdp->appendPointElement();
 				newPt->setPos( pos );
 			}  // else if
