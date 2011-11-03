@@ -164,7 +164,7 @@ bool SOP_FractalGrowth::intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray
 
 
 OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
-{cout << 1 << endl;
+{
     GEO_Point   *ppt;
     
     int sphRad = RADIUS();
@@ -188,69 +188,89 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
         {cout << "i = " << i << endl;
 			// Get the number of prims
 			GEO_PrimList& prims = gdp->primitives();
-			cout << 2 << endl;
 			int numPrims = prims.entries();
-			cout << "numPrims = " << numPrims << endl;
+			
 			// Pick a random prim
 			int randomNumber = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
-			cout << 3 << endl;
 			int randPrimIndex = randomNumber % numPrims;
-			cout << 4 << endl;
 			GEO_Primitive* prim = prims(randPrimIndex);
-			cout << "prim = " << prim << endl;
-			cout << "prim num = " << prim->getPrimitiveId() << endl;
-			cout << 5 << endl;
+			
 			// Get its two vertices
 			GEO_Vertex vert0 = prim->getVertexElement(0);
-			cout << 'a' << endl;
 			GEO_Vertex vert1 = prim->getVertexElement(1);
-			cout << 'b' << endl;
-			cout << vert0.getPos3() << endl;
-			cout << vert1.getPos3() << endl;
-			cout << 6 << endl;
+			cout << 1 << endl;
 			// Get its normal
 			GEO_AttributeHandle normAttrib = gdp->getPrimAttribute( "edgeNormal" );
-			cout << 7 << endl;
 			normAttrib.setElement( prim );
 			UT_Vector4 edgeNormal = normAttrib.getV4();
-			cout << 8 << endl;
+			
 			// Get the prim's points
 			GEO_Point* pt0 = vert0.getPt();
 			GEO_Point* pt1 = vert1.getPt();
-			cout << 9 << endl;
+			
 			// Create the new sphere's point
 			UT_Vector4 childPos = computeChildPosition( vert0.getPos(), vert1.getPos(), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
 			newPt->setPos( childPos );
-			cout << 10 << endl;
+			cout << 1 << endl;
 			// Delete the prim
 			gdp->deletePrimitive( *prim );
-			cout << 11 << endl;
+			cout << 2 << endl;
 			// Create a prim between each of the prim's old points and the newly created point (keep the edge directionality)
 			GU_PrimPoly* newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 			newPrim0->appendVertex(pt0);
             newPrim0->appendVertex(newPt);
+			cout << 3 << endl;
 			GU_PrimPoly* newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-			newPrim0->appendVertex(newPt);
-            newPrim0->appendVertex(pt1);
-			cout << 12 << endl;
+			newPrim1->appendVertex(newPt);
+            newPrim1->appendVertex(pt1);
+			cout << 4 << endl;
 			// Get the prim's neighboring prims
 			GA_OffsetArray connectedPrims;
 			GEO_Primitive* primNeighbor0;
 			GEO_Primitive* primNeighbor1;
+			cout << 5 << endl;
 			// THERE'S A SIMPLER WAY TO DO THIS IF WE KNOW THE ORDERING THAT GETPRIMITIVESREFERENCINGPOINT IS RETURNING THE PRIMS
+			cout << "pt0 index = " << pt0->getMapIndex() << endl;
+			cout << 6 << endl;
+			cout << "pt0 offset = " << gdp->pointOffset(pt0->getMapIndex()) << endl;
+			cout << 7 << endl;
 			gdp->getPrimitivesReferencingPoint( connectedPrims, gdp->pointOffset(pt0->getMapIndex()) );
+			cout << 8 << endl;
+			cout << "prim index0 = " << gdp->primitiveIndex(connectedPrims[0]) << endl;
+			cout << "prim index1 = " << gdp->primitiveIndex(connectedPrims[1]) << endl;
+			cout << 9 << endl;
+			cout << gdp->primitiveIndex(connectedPrims[0]) << endl;
+			cout << 10 << endl;
+			cout << "prim = " << prim << endl;
+			cout << 11 << endl;
+			cout << "prim index = " << prim->getMapIndex() << endl;			// ERROR IS HERE!!!!!!!!!!!!!!!!!!!!!!
+			cout << "bob" << endl;
+			cout << 12 << endl;
 			if ( gdp->primitiveIndex(connectedPrims[0]) == prim->getMapIndex() )
+			{
+				cout << 'a' << endl;
 				primNeighbor0 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[1])];
+				cout << 'b' << endl;
+			}  // if
 			else
+			{
+				cout << 'c' << endl;
 				primNeighbor0 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[0])];
-				
+				cout << 'd' << endl;
+			}  // else
+			cout << 13 << endl;
+			cout << "pt1 map index = " << pt1->getMapIndex() << endl;
+			cout << 14 << endl;
+			cout << "pt1 offset = " << gdp->pointOffset(pt1->getMapIndex()) << endl;
+			cout << 15 << endl;
 			gdp->getPrimitivesReferencingPoint( connectedPrims, gdp->pointOffset(pt1->getMapIndex()) );
+			cout << 16 << endl;
 			if ( gdp->primitiveIndex(connectedPrims[0]) == prim->getMapIndex() )
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[1])];
 			else
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[0])];
-			cout << 13 << endl;
+			cout << 17 << endl;
 			// If the left prim has a concavity with its left prim neighbor:
 			//    Create a prim between the left prim's right point and the left prim neighbor's right point
 			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
@@ -259,7 +279,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			//    Create a prim between the right prim neighbor's right point and the right prim's left point
 			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
 			//       Keep the whole triangle around (all 3 prims)
-			break;
+			
 		}  // for i
 		
 		
