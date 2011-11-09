@@ -31,11 +31,12 @@ static PRM_Name        names[] = {
 };
 
 static PRM_Default         defEighteen(18);
+static PRM_Range           defNumParticlesRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 50 );
 
 PRM_Template
 SOP_FractalGrowth::myTemplateList[] = {
     PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
-    PRM_Template(PRM_FLT_J,	1, &names[1], &defEighteen, 0, 50),
+    PRM_Template(PRM_FLT_J,	1, &names[1], &defEighteen, 0, &defNumParticlesRange),
     PRM_Template(),
 };
 
@@ -210,8 +211,19 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			GEO_Point* pt0 = vert0.getPt();
 			GEO_Point* pt1 = vert1.getPt();
 			
+			// Get the prim's creation points
+			GA_RWAttributeRef pt0_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "pt0", 3 );
+			GA_RWAttributeRef pt1_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "pt1", 3 );
+			float x0 = prim->getValue<float>( pt0_index, 0 );
+			float y0 = prim->getValue<float>( pt0_index, 1 );
+			float z0 = prim->getValue<float>( pt0_index, 2 );
+			float x1 = prim->getValue<float>( pt1_index, 0 );
+			float y1 = prim->getValue<float>( pt1_index, 1 );
+			float z1 = prim->getValue<float>( pt1_index, 2 );
+			
 			// Create the new sphere's point
-			UT_Vector4 childPos = computeChildPosition( vert0.getPos(), vert1.getPos(), edgeNormal, 1 );
+			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, 1 );
+			UT_Vector4 childPos = computeChildPosition( UT_Vector4(x0,y0,z0,0), UT_Vector4(x1,y1,z1,0), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
 			newPt->setPos( childPos );
 			
@@ -225,11 +237,11 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
             newPrim1->appendVertex(pt1);
 			
 			// Get the prim's neighboring prims
+			//    THERE'S A SIMPLER WAY TO DO THIS IF WE KNOW THE ORDERING THAT GETPRIMITIVESREFERENCINGPOINT IS RETURNING THE PRIMS
 			GA_OffsetArray connectedPrims;
 			GEO_Primitive* primNeighbor0;
 			GEO_Primitive* primNeighbor1;
 			
-			// THERE'S A SIMPLER WAY TO DO THIS IF WE KNOW THE ORDERING THAT GETPRIMITIVESREFERENCINGPOINT IS RETURNING THE PRIMS
 			gdp->getPrimitivesReferencingPoint( connectedPrims, gdp->pointOffset(pt0->getMapIndex()) );
 			
 			if ( gdp->primitiveIndex(connectedPrims[0]) == prim->getMapIndex() )
@@ -247,18 +259,113 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[1])];
 			else
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[0])];
+				
+			// Compute the new prims' normals and set their "edgeNormal" attribute
+			GA_RWAttributeRef norm_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "edgeNormal", 3 );
+			
+			UT_Vector3 edgeVector0 = newPt->getPos3() - pt0->getPos3();
+			edgeVector0.normalize();
+			UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
+			newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
+			newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
+			newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
+			
+			UT_Vector3 edgeVector1 = pt1->getPos3() - newPt->getPos3();
+			edgeVector1.normalize();
+			UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
+			newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
+			newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
+			newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
+			
+			// Set the new prims creation point positions
+			//   These positions may differ from the positions of a prim's end points
+			//   where a prim is created to retain a polygon's convexity but the concave
+			//   point position is the one used to determine the position of that convex prim's
+			//   child point.
+			UT_Vector3 pt0Pos = pt0->getPos3();
+			UT_Vector3 pt1Pos = pt1->getPos3();
+			newPrim0->setValue<float>( pt0_index, pt0Pos[0], 0 );
+			newPrim0->setValue<float>( pt0_index, pt0Pos[1], 1 );
+			newPrim0->setValue<float>( pt0_index, pt0Pos[2], 2 );
+			newPrim0->setValue<float>( pt1_index, childPos[0], 0 );
+			newPrim0->setValue<float>( pt1_index, childPos[1], 1 );
+			newPrim0->setValue<float>( pt1_index, childPos[2], 2 );
+			newPrim1->setValue<float>( pt0_index, childPos[0], 0 );
+			newPrim1->setValue<float>( pt0_index, childPos[1], 1 );
+			newPrim1->setValue<float>( pt0_index, childPos[2], 2 );
+			newPrim1->setValue<float>( pt1_index, pt1Pos[0], 0 );
+			newPrim1->setValue<float>( pt1_index, pt1Pos[1], 1 );
+			newPrim1->setValue<float>( pt1_index, pt1Pos[2], 2 );
 			
 			// Delete the prim
 			gdp->deletePrimitive( *prim );
 			
-			// If the left prim has a concavity with its left prim neighbor:
-			//    Create a prim between the left prim's right point and the left prim neighbor's right point
+			// PRIM 0
+			// Compute whether or not newprim0 and primNeighbor0 are forming a concavity
+			//    (If prim0's neighbor's unshared vertex is within the halfspace of prim0,
+			//    meaning the dot product of the normal with the vector from the prim0's vertex to the neighbor0's unshared vertex is greater than zero,
+			//    then prim0 and primNeighbor0 are creating a concavity)
+			GEO_Vertex neighborVert0 = primNeighbor0->getVertexElement(0);		// Neighbor's unshared vertex is the neighbor prim's first vertex
+			GEO_Point* neighborPt0 = neighborVert0.getPt();
+			UT_Vector3 neighborPos0 = neighborPt0->getPos3();
+			UT_Vector3 newPtPos = newPt->getPos3();
+			float dotProd0 = normal0.dot( neighborPos0 - newPtPos );
+			
+			// If prim0 has a concavity with its neighbor:
+			//    Create a prim between prim0's pt1 and its neighbor's unshared point
 			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
 			//       Keep the whole triangle around (all 3 prims)
-			// If the right prim has a concavity with its right prim neighbor:
-			//    Create a prim between the right prim neighbor's right point and the right prim's left point
+			if ( dotProd0 > 0 )
+			{
+				GU_PrimPoly* convexPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+				convexPrim0->appendVertex(neighborPt0);
+				convexPrim0->appendVertex(newPt);
+				
+				// Give the prim its seed creation points for birthing a new particle
+				convexPrim0->setValue<float>( pt0_index, neighborPos0[0], 0 );
+				convexPrim0->setValue<float>( pt0_index, neighborPos0[1], 1 );
+				convexPrim0->setValue<float>( pt0_index, neighborPos0[2], 2 );
+				convexPrim0->setValue<float>( pt1_index, newPtPos[0], 0 );
+				convexPrim0->setValue<float>( pt1_index, newPtPos[1], 1 );
+				convexPrim0->setValue<float>( pt1_index, newPtPos[2], 2 );
+				
+				// Delete the new prims to be replaced by the convex prim
+				gdp->deletePrimitive( *newPrim0 );
+				gdp->deletePrimitive( *primNeighbor0 );
+			}  // if
+			
+			// PRIM 1
+			// Compute whether or not newprim1 and primNeighbor1 are forming a concavity
+			//    (If prim1's neighbor's unshared vertex is within the halfspace of prim1
+			//    meaning the dot product of the normal with the vector from the prim1's vertex to the neighbor1's unshared vertex is greater than zero,
+			//    then prim1 and primNeighbor1 are creating a concavity)
+			GEO_Vertex neighborVert1 = primNeighbor1->getVertexElement(1);		// Neighbor's unshared vertex is the neighbor prim's second vertex
+			GEO_Point* neighborPt1 = neighborVert1.getPt();
+			UT_Vector3 neighborPos1 = neighborPt1->getPos3();
+			float dotProd1 = normal1.dot( neighborPos1 - newPtPos );
+			
+			// If prim0 has a concavity with its neighbor:
+			//    Create a prim between prim0's pt1 and its neighbor's unshared point
 			//    If the triangle formed from the filled concavity has an angle greater than 120 degrees
 			//       Keep the whole triangle around (all 3 prims)
+			if ( dotProd1 > 1 )
+			{
+				GU_PrimPoly* convexPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+				convexPrim1->appendVertex(newPt);
+				convexPrim1->appendVertex(neighborPt1);
+				
+				// Give the prim its seed creation points for birthing a new particle
+				convexPrim1->setValue<float>( pt0_index, newPtPos[0], 0 );
+				convexPrim1->setValue<float>( pt0_index, newPtPos[1], 1 );
+				convexPrim1->setValue<float>( pt0_index, newPtPos[2], 2 );
+				convexPrim1->setValue<float>( pt1_index, neighborPos1[0], 0 );
+				convexPrim1->setValue<float>( pt1_index, neighborPos1[1], 1 );
+				convexPrim1->setValue<float>( pt1_index, neighborPos1[2], 2 );
+				
+				// Delete the new prims to be replaced by the convex prim
+				gdp->deletePrimitive( *newPrim1 );
+				gdp->deletePrimitive( *primNeighbor1 );
+			}  // if
 			
 		}  // for i
 		
