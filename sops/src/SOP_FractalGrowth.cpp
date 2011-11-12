@@ -210,25 +210,19 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			// Get the prim's points
 			GEO_Point* pt0 = vert0.getPt();
 			GEO_Point* pt1 = vert1.getPt();
+			UT_Vector3 pt0Pos = pt0->getPos3();
+			UT_Vector3 pt1Pos = pt1->getPos3();
 			
-			// Get the prim's creation points
-			//GA_RWAttributeRef pt0_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "pt0", 3 );
-			//GA_RWAttributeRef pt1_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "pt1", 3 );
-			//float x0 = prim->getValue<float>( pt0_index, 0 );
-			//float y0 = prim->getValue<float>( pt0_index, 1 );
-			//float z0 = prim->getValue<float>( pt0_index, 2 );
-			//float x1 = prim->getValue<float>( pt1_index, 0 );
-			//float y1 = prim->getValue<float>( pt1_index, 1 );
-			//float z1 = prim->getValue<float>( pt1_index, 2 );
+			// Get the intermediate point of the current prim, if it exists, otherwise just use pt1
 			float x1, y1, z1;
-			GA_RWAttributeRef numintermediatepts_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "numIntermediatePts", 1 );
-			int numIntermediatePts = prim->getValue<float>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
+			GA_RWAttributeRef numintermediatepts_index = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "numIntermediatePts", 1 );
+			int numIntermediatePts = prim->getValue<int>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
 			if ( numIntermediatePts > 0 )
 			{
-				GA_RWAttributeRef intermediateptpos_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtPos0", 3 );	// Get the first intermediate point
-				x1 = prim->getValue<float>( intermediateptpos_index, 0 );
-				y1 = prim->getValue<float>( intermediateptpos_index, 1 );
-				z1 = prim->getValue<float>( intermediateptpos_index, 2 );
+				GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );	// Get the first intermediate point
+				x1 = prim->getValue<float>( intermediateptpos_index1, 0 );
+				y1 = prim->getValue<float>( intermediateptpos_index1, 1 );
+				z1 = prim->getValue<float>( intermediateptpos_index1, 2 );
 			}  // if
 			else
 			{
@@ -236,14 +230,17 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				y1 = pt1->getPos()[1];
 				z1 = pt1->getPos()[2];
 			}  // else
+			
 			// Create the new sphere's point
 			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, 1 );
 			//UT_Vector4 childPos = computeChildPosition( UT_Vector4(x0,y0,z0,1), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
-			UT_Vector4 childPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
+			UT_Vector4 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
-			newPt->setPos( childPos );
+			newPt->setPos( newPtPos );
+			
 			
 			// Create a prim between each of the prim's old points and the newly created point (keep the edge directionality)
+			//   Note: The number of intermediate points attribute (numIntermediatePts) defaults to 0, so we don't have to explicitly set it
 			GU_PrimPoly* newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 			newPrim0->appendVertex(pt0);
             newPrim0->appendVertex(newPt);
@@ -252,6 +249,26 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			newPrim1->appendVertex(newPt);
             newPrim1->appendVertex(pt1);
 			
+			
+			// If there were two intermediate points in the old edge (prim), add the second intermediate point to newPrim1
+			if ( numIntermediatePts == 2 )
+			{
+				GA_RWAttributeRef intermediateptnum_index1 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum1", 1 );
+				GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
+				GA_RWAttributeRef intermediateptnum_index2 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum2", 1 );
+				GA_RWAttributeRef intermediateptpos_index2 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt2", 3 );
+				
+				// Get prim's second intermediate point info
+				int intPtNum = prim->getValue<int>( intermediateptnum_index2 );
+				UT_Vector3 intPtPos = prim->getValue<UT_Vector3>( intermediateptpos_index2 );
+				
+				// Set newPrim1's first intermediate point info
+				newPrim1->setValue<int>( intermediateptnum_index1, intPtNum );
+				newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos );
+				newPrim1->setValue<int>( numintermediatepts_index, 1 );
+			}  // if
+			
+			/*
 			// If the length of the new prim is long enough to fit a sphere between, add intermediate points to prim1
 			UT_Vector3 prim1Vector = pt1->getPos() - newPt->getPos();
 			float prim1Length = prim1Vector.length();
@@ -280,6 +297,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					newPrim1->setValue<float>( numintermediatepts_index, numIntermediatePts-1 );
 				}  // else if
 			}  // if
+			*/
+			
 			
 			// Get the prim's neighboring prims
 			//    THERE'S A SIMPLER WAY TO DO THIS IF WE KNOW THE ORDERING THAT GETPRIMITIVESREFERENCINGPOINT IS RETURNING THE PRIMS
@@ -304,7 +323,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[1])];
 			else
 				primNeighbor1 = gdp->primitives()[gdp->primitiveIndex(connectedPrims[0])];
-				
+			
+			
+			
+			
 			// Compute the new prims' normals and set their "edgeNormal" attribute
 			GA_RWAttributeRef norm_index = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "edgeNormal", 3 );
 			
@@ -322,28 +344,15 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
 			newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
 			
-			// Set the new prims creation point positions
-			//   These positions may differ from the positions of a prim's end points
-			//   where a prim is created to retain a polygon's convexity but the concave
-			//   point position is the one used to determine the position of that convex prim's
-			//   child point.
-			UT_Vector3 pt0Pos = pt0->getPos3();
-			UT_Vector3 pt1Pos = pt1->getPos3();
-			//newPrim0->setValue<float>( pt0_index, pt0Pos[0], 0 );
-			//newPrim0->setValue<float>( pt0_index, pt0Pos[1], 1 );
-			//newPrim0->setValue<float>( pt0_index, pt0Pos[2], 2 );
-			//newPrim0->setValue<float>( pt1_index, childPos[0], 0 );
-			//newPrim0->setValue<float>( pt1_index, childPos[1], 1 );
-			//newPrim0->setValue<float>( pt1_index, childPos[2], 2 );
-			//newPrim1->setValue<float>( pt0_index, childPos[0], 0 );
-			//newPrim1->setValue<float>( pt0_index, childPos[1], 1 );
-			//newPrim1->setValue<float>( pt0_index, childPos[2], 2 );
-			//newPrim1->setValue<float>( pt1_index, pt1Pos[0], 0 );
-			//newPrim1->setValue<float>( pt1_index, pt1Pos[1], 1 );
-			//newPrim1->setValue<float>( pt1_index, pt1Pos[2], 2 );
-			
 			// Delete the prim
 			gdp->deletePrimitive( *prim );
+			
+			
+			GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
+			GA_RWAttributeRef intermediateptpos_index2 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt2", 3 );
+			GA_RWAttributeRef intermediateptnum_index1 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum1", 1 );
+			GA_RWAttributeRef intermediateptnum_index2 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum2", 1 );
+			
 			
 			// PRIM 0
 			// Compute whether or not newprim0 and primNeighbor0 are forming a concavity
@@ -353,7 +362,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			GEO_Vertex neighborVert0 = primNeighbor0->getVertexElement(0);		// Neighbor's unshared vertex is the neighbor prim's first vertex
 			GEO_Point* neighborPt0 = neighborVert0.getPt();
 			UT_Vector3 neighborPos0 = neighborPt0->getPos3();
-			UT_Vector3 newPtPos = newPt->getPos3();
+			//UT_Vector3 newPtPos = newPt->getPos3();
 			float dotProd0 = normal0.dot( neighborPos0 - newPtPos );
 			
 			// If prim0 has a concavity with its neighbor:
@@ -362,6 +371,124 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			//       Keep the whole triangle around (all 3 prims)
 			if ( dotProd0 > 0 )
 			{
+				// If there is less than two intermediate point in the neighboring prim
+				//   newPrim0 = join( pNeighbor0, newP )
+				//   If there are no intermediate points in primNeighbor0
+				//     If pt0 and pNeighbor0 are far enough apart to insert an intermediate point		IF-STATEMENT MAY BE UNNECESSARY, SINCE THIS MAY ALWAYS BE TRUE (PROVE?)
+				//       newPrim0.ptIntermediate = pt0
+				//       newPrim0.numIntermediatePts = 1
+				//     Else
+				//       newPrim0.numIntermediatePts = 0
+				//   Elif there is one intermediate point in primNeighbor0
+				//     newPrim0.ptIntermediate = primNeighbor0.ptIntermediate
+				//     newPrim0.numIntermediatePts = 2
+				//   Delete primNeighbor0
+				// Else
+				//   See pseudocode below
+				int numNeighborIntermediatePts = primNeighbor0->getValue<int>( numintermediatepts_index );
+				if ( numNeighborIntermediatePts < 2 )
+				{
+					gdp->deletePrimitive( *newPrim0 );
+					
+					newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+					newPrim0->appendVertex(neighborPt0);
+					newPrim0->appendVertex(newPt);
+					
+					//GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
+					if ( numNeighborIntermediatePts == 0 )
+					{
+						UT_Vector3 newEdge = newPtPos - neighborPos0;
+						float newEdgeLength = newEdge.length();
+						if ( newEdgeLength > 3.4641 * sphRad )
+						{
+							newPrim0->setValue<int>( intermediateptnum_index1, pt0->getMapIndex() );
+							newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
+							newPrim0->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						else
+						{
+							newPrim0->setValue<int>( numintermediatepts_index, 0 );
+						}  // else
+					}  // if
+					else		// numNeighborIntermediatePts == 1
+					{
+						UT_Vector3 neighIntermediatePtPos = primNeighbor0->getValue<UT_Vector3>( intermediateptpos_index1 );
+						int neighIntermediatePtNum = primNeighbor0->getValue<int>( intermediateptnum_index1 );
+						
+						newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, neighIntermediatePtPos );
+						newPrim0->setValue<UT_Vector3>( intermediateptpos_index2, pt0Pos );
+						newPrim0->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
+						newPrim0->setValue<int>( intermediateptnum_index2, pt0->getMapIndex() );
+						
+						newPrim0->setValue<int>( numintermediatepts_index, 2 );
+					}  // else
+					
+					UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
+					edgeVector0.normalize();
+					UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
+					newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
+					newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
+					newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
+					
+					gdp->deletePrimitive( *primNeighbor0 );
+				}  // if
+				else			// There are 2 intermediate granules in primNeighbor0
+				{
+					// If the angle between the newPrim0 and the neighborPrim0 is LESS than 120 degrees
+					//   splitPrim0 = Join( neighborPt0, intermediatePt2 )
+					//   splitPrim1 = Join( intermediatePt2, newPt0 )
+					//   If neighborPt0 and intermediatePt2 are far enough apart
+					//     splitPrim0.intermediatePt1 = intermediatePt1
+					//   If newPt and intermediatePt are far enough apart
+					//     splitPrim1.intermediatePt = pt0
+					//   Delete newPrim0 and neighborPrim0
+					UT_Vector3 edge1 = neighborPos0 - pt0Pos;
+					UT_Vector3 edge2 = newPtPos - pt0Pos;
+					edge1.normalize();
+					edge2.normalize();
+					float dotBetweenEdges = edge1.dot( edge2 );
+					if ( dotBetweenEdges > -0.5 )		// If the angle is less than 120 degrees
+					{
+						int intPt1Num = primNeighbor0->getValue<int>( intermediateptnum_index1 );
+						int intPt2Num = primNeighbor0->getValue<int>( intermediateptnum_index2 );
+						GEO_Point* intermediatePt1 = gdp->points()[intPt1Num];
+						GEO_Point* intermediatePt2 = gdp->points()[intPt2Num];
+						UT_Vector3 intPt2Pos = intermediatePt2->getPos3();
+						
+						GU_PrimPoly* splitPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+						splitPrim0->appendVertex(neighborPt0);
+						splitPrim0->appendVertex(intermediatePt2);
+						
+						GU_PrimPoly* splitPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+						splitPrim1->appendVertex(intermediatePt2);
+						splitPrim1->appendVertex(newPt);
+						
+						UT_Vector3 vecNeighToInt = intPt2Pos - neighborPos0;
+						if ( vecNeighToInt.length() > 3.4641 * sphRad )
+						{
+							splitPrim0->setValue<int>( intermediateptnum_index1, intermediatePt1->getMapIndex() );
+							splitPrim0->setValue<UT_Vector3>( intermediateptpos_index1, intermediatePt1->getPos3() );
+							splitPrim0->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						
+						UT_Vector3 vecIntToNewPt = intPt2Pos - newPtPos;
+						if ( vecIntToNewPt.length() > 3.4641 * sphRad )
+						{
+							splitPrim1->setValue<int>( intermediateptnum_index1, pt0->getMapIndex() );
+							splitPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
+							splitPrim1->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						
+						gdp->deletePrimitive( *newPrim0 );
+						gdp->deletePrimitive( *primNeighbor0 );
+					}  // if
+				}  // else
+				
+				
+				
+				
+				
+				/*
 				GU_PrimPoly* convexPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 				convexPrim0->appendVertex(neighborPt0);
 				convexPrim0->appendVertex(newPt);
@@ -432,11 +559,15 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					//convexPrim0->setValue<float>( pt1_index, newPtPos[1], 1 );
 					//convexPrim0->setValue<float>( pt1_index, newPtPos[2], 2 );
 				}  // else
+				*/
+				
 				
 				// Delete the new prims to be replaced by the convex prim
-				gdp->deletePrimitive( *newPrim0 );
-				gdp->deletePrimitive( *primNeighbor0 );
+				//gdp->deletePrimitive( *newPrim0 );
+				//gdp->deletePrimitive( *primNeighbor0 );
 			}  // if
+			
+			
 			
 			// PRIM 1
 			// Compute whether or not newprim1 and primNeighbor1 are forming a concavity
@@ -454,6 +585,121 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			//       Keep the whole triangle around (all 3 prims)
 			if ( dotProd1 > 1 )
 			{
+				// If there is less than two intermediate point in the neighboring prim
+				//   newPrim0 = join( pNeighbor0, newP )
+				//   If there are no intermediate points in primNeighbor0
+				//     If pt0 and pNeighbor0 are far enough apart to insert an intermediate point		IF-STATEMENT MAY BE UNNECESSARY, SINCE THIS MAY ALWAYS BE TRUE (PROVE?)
+				//       newPrim0.ptIntermediate = pt0
+				//       newPrim0.numIntermediatePts = 1
+				//     Else
+				//       newPrim0.numIntermediatePts = 0
+				//   Elif there is one intermediate point in primNeighbor0
+				//     newPrim0.ptIntermediate = primNeighbor0.ptIntermediate
+				//     newPrim0.numIntermediatePts = 2
+				//   Delete primNeighbor0
+				// Else
+				//   newPrim0 = join( pt0, newP )
+				int numNeighborIntermediatePts = primNeighbor1->getValue<int>( numintermediatepts_index );
+				if ( numNeighborIntermediatePts < 2 )
+				{
+					gdp->deletePrimitive( *newPrim1 );
+					
+					newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+					newPrim1->appendVertex(newPt);
+					newPrim1->appendVertex(neighborPt1);
+					
+					//GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
+					if ( numNeighborIntermediatePts == 0 )
+					{
+						UT_Vector3 newEdge = newPtPos - neighborPos1;
+						float newEdgeLength = newEdge.length();
+						if ( newEdgeLength > 3.4641 * sphRad )
+						{
+							newPrim1->setValue<int>( intermediateptnum_index1, pt1->getMapIndex() );
+							newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
+							newPrim1->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						else
+						{
+							newPrim1->setValue<int>( numintermediatepts_index, 0 );
+						}  // else
+					}  // if
+					else		// numNeighborIntermediatePts == 1
+					{
+						UT_Vector3 neighIntermediatePtPos = primNeighbor1->getValue<UT_Vector3>( intermediateptpos_index1 );
+						float neighIntermediatePtNum = primNeighbor1->getValue<int>( intermediateptnum_index1 );
+						
+						newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
+						newPrim1->setValue<UT_Vector3>( intermediateptpos_index2, neighIntermediatePtPos );
+						newPrim1->setValue<int>( intermediateptnum_index1, pt1->getMapIndex() );
+						newPrim1->setValue<int>( intermediateptnum_index2, neighIntermediatePtNum );
+						
+						newPrim1->setValue<int>( numintermediatepts_index, 2 );
+					}  // else
+					
+					UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
+					edgeVector1.normalize();
+					UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
+					newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
+					newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
+					newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
+					
+					gdp->deletePrimitive( *primNeighbor1 );
+				}  // if
+				else
+				{
+					// If the angle between the newPrim0 and the neighborPrim0 is LESS than 120 degrees
+					//   splitPrim0 = Join( neighborPt0, intermediatePt2 )
+					//   splitPrim1 = Join( intermediatePt2, newPt0 )
+					//   If neighborPt0 and intermediatePt2 are far enough apart
+					//     splitPrim0.intermediatePt1 = intermediatePt1
+					//   If newPt and intermediatePt are far enough apart
+					//     splitPrim1.intermediatePt = pt0
+					//   Delete newPrim0 and neighborPrim0
+					UT_Vector3 edge1 = neighborPos1 - pt1Pos;
+					UT_Vector3 edge2 = newPtPos - pt1Pos;
+					edge1.normalize();
+					edge2.normalize();
+					float dotBetweenEdges = edge1.dot( edge2 );
+					if ( dotBetweenEdges > -0.5 )		// If the angle is less than 120 degrees
+					{
+						int intPt1Num = primNeighbor1->getValue<int>( intermediateptnum_index1 );
+						int intPt2Num = primNeighbor1->getValue<int>( intermediateptnum_index2 );
+						GEO_Point* intermediatePt1 = gdp->points()[intPt1Num];
+						GEO_Point* intermediatePt2 = gdp->points()[intPt2Num];
+						UT_Vector3 intPt1Pos = intermediatePt1->getPos3();
+						
+						GU_PrimPoly* splitPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+						splitPrim0->appendVertex(newPt);
+						splitPrim0->appendVertex(intermediatePt1);
+						
+						GU_PrimPoly* splitPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+						splitPrim1->appendVertex(intermediatePt1);
+						splitPrim1->appendVertex(neighborPt1);
+						
+						UT_Vector3 vecIntToNewPt = intPt1Pos - newPtPos;
+						if ( vecIntToNewPt.length() > 3.4641 * sphRad )
+						{
+							splitPrim0->setValue<int>( intermediateptnum_index1, pt1->getMapIndex() );
+							splitPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
+							splitPrim0->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						
+						UT_Vector3 vecNeighToInt = intPt1Pos - neighborPos1;
+						if ( vecNeighToInt.length() > 3.4641 * sphRad )
+						{
+							splitPrim1->setValue<int>( intermediateptnum_index1, intermediatePt2->getMapIndex() );
+							splitPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intermediatePt2->getPos3() );
+							splitPrim1->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+						
+						gdp->deletePrimitive( *newPrim1 );
+						gdp->deletePrimitive( *primNeighbor1 );
+					}  // if
+				}  // else
+				
+				
+				/*
 				GU_PrimPoly* convexPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 				convexPrim1->appendVertex(newPt);
 				convexPrim1->appendVertex(neighborPt1);
@@ -526,10 +772,11 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					//convexPrim1->setValue<float>( pt1_index, neighborPos1[1], 1 );
 					//convexPrim1->setValue<float>( pt1_index, neighborPos1[2], 2 );
 				}  // else
+				*/
 				
 				// Delete the new prims to be replaced by the convex prim
-				gdp->deletePrimitive( *newPrim1 );
-				gdp->deletePrimitive( *primNeighbor1 );
+				//gdp->deletePrimitive( *newPrim1 );
+				//gdp->deletePrimitive( *primNeighbor1 );
 			}  // if
 			
 		}  // for i
