@@ -202,30 +202,32 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				if ( numIntermediatePts == 1 )
 				{
 					oneIntermediatePrimGroup->add( tmpprim );
-					break;
 				}  // if
 				if ( numIntermediatePts == 2 )
 				{
 					twoIntermediatesPrimGroup->add( tmpprim );
+					break;
 				}  // if
 			}  // GA_FOR_ALL_PRIMITIVES
 			
 			int numPrimsWithOneIntermediate = oneIntermediatePrimGroup->entries();
 			int numPrimsWithTwoIntermediates = twoIntermediatesPrimGroup->entries();
-			if ( numPrimsWithOneIntermediate > 0 )
+			if ( numPrimsWithTwoIntermediates > 0 )
 			{
-				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, oneIntermediatePrimGroup, tmpprim )
+				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, twoIntermediatesPrimGroup, tmpprim )
 				{
 					prim = tmpprim;
 					break;
 				}  // GA_FOR_ALL_GROUP_PRIMITIVES
+				
+				twoIntermediatesPrimGroup->clear();
 			}  // if
-			else if ( numPrimsWithTwoIntermediates > 0 )
+			else if ( numPrimsWithOneIntermediate > 0 )
 			{
 				int randomNumber = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
-				int randPrimIndex = randomNumber % numPrimsWithTwoIntermediates;
+				int randPrimIndex = randomNumber % numPrimsWithOneIntermediate;
 				int count = 0;
-				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, twoIntermediatesPrimGroup, tmpprim )
+				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, oneIntermediatePrimGroup, tmpprim )
 				{
 					if ( count == randPrimIndex )
 					{
@@ -236,8 +238,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					count++;
 				}  // GA_FOR_ALL_GROUP_PRIMITIVES
 				
-				twoIntermediatesPrimGroup->clear();
-			}  // if
+				oneIntermediatePrimGroup->clear();
+			}  // else if
 			else
 			{
 				// Get the number of prims
@@ -485,6 +487,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					e1.normalize();
 					e2.normalize();
 					float dotProd = e1.dot( e2 );
+					//float neighEdgeLen = e2.length();
 					if ( dotProd > -0.5 )			// If the angle is LESS than 120 degrees
 					{
 						gdp->deletePrimitive( *newPrim0 );
@@ -516,12 +519,13 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrim0->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
 							newPrim0->setValue<int>( numintermediatepts_index, 1 );
 							
+							// Get the angle between the neighbor's intermediate point and point0
 							UT_Vector3 e1 = neighIntermediatePtPos - pt0Pos;
-							UT_Vector3 e2 = neighborPos0 - pt0Pos;
+							UT_Vector3 e2 = newPtPos - pt0Pos;
 							e1.normalize();
 							e2.normalize();
 							float dotProd = e1.dot( e2 );
-							if ( dotProd < -0.5 )			// If the angle is greater than 120 degrees
+							if ( dotProd < -0.5 || e1.length() > 4.0*sphRad )			// If the angle is greater than 120 degrees
 							{
 								newPrim0->setValue<UT_Vector3>( intermediateptpos_index2, pt0Pos );
 								newPrim0->setValue<int>( intermediateptnum_index2, pt0->getMapIndex() );
@@ -543,7 +547,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 						newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
 						newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
 						newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
-					
+						
 						gdp->deletePrimitive( *primNeighbor0 );
 					}  // if
 				}  // else if
@@ -654,6 +658,14 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim0->setValue<int>( numintermediatepts_index, 1 );
 							}  // else
 						}  // if
+						
+						// Add edge normal
+						UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
+						edgeVector0.normalize();
+						UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
+						newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
+						newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
+						newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
 						
 						gdp->deletePrimitive( *primNeighbor0 );
 					}  // if
@@ -773,11 +785,11 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrim1->setValue<int>( numintermediatepts_index, 1 );
 							
 							UT_Vector3 e1 = neighIntermediatePtPos - pt1Pos;
-							UT_Vector3 e2 = neighborPos1 - pt1Pos;
+							UT_Vector3 e2 = newPtPos - pt1Pos;
 							e1.normalize();
 							e2.normalize();
 							float dotProd = e1.dot( e2 );
-							if ( dotProd < -0.5 )			// If the angle is greater than 120 degrees
+							if ( dotProd < -0.5 || e1.length() > 4.0*sphRad )			// If the angle is greater than 120 degrees
 							{
 								newPrim1->setValue<UT_Vector3>( intermediateptpos_index2, neighIntermediatePtPos );
 								newPrim1->setValue<int>( intermediateptnum_index2, neighIntermediatePtNum );
@@ -914,6 +926,14 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim1->setValue<int>( numintermediatepts_index, 1 );
 							}  // else
 						}  // if
+						
+						// Add edge normal
+						UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
+						edgeVector1.normalize();
+						UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
+						newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
+						newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
+						newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
 						
 						gdp->deletePrimitive( *primNeighbor1 );
 					}  // if
