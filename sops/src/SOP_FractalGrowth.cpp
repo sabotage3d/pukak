@@ -26,17 +26,21 @@ using namespace std;
 static PRM_Name        names[] = {
     PRM_Name("rad",	"Radius"),
     PRM_Name("numpoints", "Num Points"),
+	PRM_Name("seed", "Seed"),
     //PRM_Name("phase",	"Phase"),
     //PRM_Name("period",	"Period"),
 };
 
+static PRM_Default         defFive(5);
 static PRM_Default         defEighteen(18);
 static PRM_Range           defNumParticlesRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 65 );
+static PRM_Range           defSeedRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 100 );
 
 PRM_Template
 SOP_FractalGrowth::myTemplateList[] = {
     PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
     PRM_Template(PRM_INT_J,	1, &names[1], &defEighteen, 0, &defNumParticlesRange),
+	PRM_Template(PRM_INT_J,	1, &names[2], &defFive, 0, &defSeedRange),
     PRM_Template(),
 };
 
@@ -170,6 +174,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     int sphRad = RADIUS();
     int numSpheresToPopulate = NUMPOINTS();
+	int seed = SEED();
     
     // Before we do anything, we must lock our inputs.  Before returning,
     //	we have to make sure that the inputs get unlocked.
@@ -178,7 +183,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     float t = context.myTime;
 	
-	srand ( 5 );
+	srand ( seed );
     
     // Duplicate our incoming geometry with the hint that we only
     // altered points.  Thus if we our input was unchanged we can
