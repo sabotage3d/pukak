@@ -372,15 +372,32 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 						newPrim1->setValue<int>( intermediateptnum_index1, intPtNum1 );
 						newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos1 );
 						newPrim1->setValue<int>( numintermediatepts_index, 1 );
+						
+						UT_Vector3 edge2 = pt1Pos - intPtPos1;
+						float edge2Length = edge2.length();
+						UT_Vector3 e1 = intPtPos1 - intPtPos2;
+						UT_Vector3 e2 = pt1Pos - intPtPos2;
+						e1.normalize();
+						e2.normalize();
+						float dotProd = e1.dot( e2 );
+						if ( dotProd < -0.5 && edge2Length > 4.0*sphRad )
+						{
+							// Set newPrim1's first intermediate point info
+							newPrim1->setValue<int>( intermediateptnum_index2, intPtNum2 );
+							newPrim1->setValue<UT_Vector3>( intermediateptpos_index2, intPtPos2 );
+							newPrim1->setValue<int>( numintermediatepts_index, 2 );
+						}  // if
 					}  // if
 					else
 					{
+						UT_Vector3 edge2 = pt1Pos - newPtPos;
+						float edge2Length = edge2.length();
 						UT_Vector3 e1 = newPtPos - intPtPos2;
 						UT_Vector3 e2 = pt1Pos - intPtPos2;
 						e1.normalize();
 						e2.normalize();
 						float dotProd = e1.dot( e2 );
-						if ( dotProd < -0.5 )
+						if ( dotProd < -0.5 || edge2Length > 4.0*sphRad )
 						{
 							// Set newPrim1's first intermediate point info
 							newPrim1->setValue<int>( intermediateptnum_index1, intPtNum2 );
