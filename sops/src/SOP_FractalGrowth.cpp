@@ -341,21 +341,51 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			{
 				UT_Vector3 newEdge = newPtPos - pt1Pos;
 				float newEdgeLength = newEdge.length();
-				if ( newEdgeLength > 4.0 * sphRad )
+				
+				if ( newEdgeLength > 4.0 * sphRad )		// If angle is less than 120 degrees
 				{
 					GA_RWAttributeRef intermediateptnum_index1 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum1", 1 );
 					GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
 					GA_RWAttributeRef intermediateptnum_index2 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum2", 1 );
 					GA_RWAttributeRef intermediateptpos_index2 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt2", 3 );
 					
-					// Get prim's second intermediate point info
-					int intPtNum = prim->getValue<int>( intermediateptnum_index2 );
-					UT_Vector3 intPtPos = prim->getValue<UT_Vector3>( intermediateptpos_index2 );
+					// Get prim's first intermediate point info
+					int intPtNum1 = prim->getValue<int>( intermediateptnum_index1 );
+					int intPtNum2 = prim->getValue<int>( intermediateptnum_index2 );
+					UT_Vector3 intPtPos1 = prim->getValue<UT_Vector3>( intermediateptpos_index1 );
+					UT_Vector3 intPtPos2 = prim->getValue<UT_Vector3>( intermediateptpos_index2 );
 					
-					// Set newPrim1's first intermediate point info
-					newPrim1->setValue<int>( intermediateptnum_index1, intPtNum );
-					newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos );
-					newPrim1->setValue<int>( numintermediatepts_index, 1 );
+					// If angle between newPt and int1 > 120, insert the prim's first intermediate point
+					// Else if the angle b/t newPt and int2 > 120, insert the prim's second intermediate point
+					UT_Vector3 intEdge2 = intPtPos2 - newPtPos;
+					float intEdgeLength2 = intEdge2.length();
+					UT_Vector3 e1 = newPtPos - intPtPos1;
+					UT_Vector3 e2 = pt1Pos - intPtPos1;
+					e1.normalize();
+					e2.normalize();
+					float dotProd = e1.dot( e2 );
+					if ( dotProd < -0.5 || intEdgeLength2 > 4.0 * sphRad)
+					{
+						// Set newPrim1's first intermediate point info
+						newPrim1->setValue<int>( intermediateptnum_index1, intPtNum1 );
+						newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos1 );
+						newPrim1->setValue<int>( numintermediatepts_index, 1 );
+					}  // if
+					else
+					{
+						UT_Vector3 e1 = newPtPos - intPtPos2;
+						UT_Vector3 e2 = pt1Pos - intPtPos2;
+						e1.normalize();
+						e2.normalize();
+						float dotProd = e1.dot( e2 );
+						if ( dotProd < -0.5 )
+						{
+							// Set newPrim1's first intermediate point info
+							newPrim1->setValue<int>( intermediateptnum_index1, intPtNum2 );
+							newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos2 );
+							newPrim1->setValue<int>( numintermediatepts_index, 1 );
+						}  // if
+					}  // else
 				}  // if
 			}  // if
 			
