@@ -226,49 +226,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			// See if there are any prims with 2 intermediate points
 			GEO_Primitive* tmpprim;
 			GA_RWAttributeRef numintermediatepts_index = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "numIntermediatePts", 1 );
-			/*GA_FOR_ALL_PRIMITIVES(gdp, tmpprim)
-			{
-				int numIntermediatePts = tmpprim->getValue<int>( numintermediatepts_index );
-				if ( numIntermediatePts == 1 )
-				{
-					oneIntermediatePrimGroup->add( tmpprim );
-				}  // if
-				if ( numIntermediatePts == 2 )
-				{
-					twoIntermediatesPrimGroup->add( tmpprim );
-					break;
-				}  // if
-			}  // GA_FOR_ALL_PRIMITIVES
 			
-			int numPrimsWithOneIntermediate = oneIntermediatePrimGroup->entries();
-			int numPrimsWithTwoIntermediates = twoIntermediatesPrimGroup->entries();
-			if ( numPrimsWithTwoIntermediates > 0 )
-			{cout << "DON'T WANT TO BE HERE" << endl;
-				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, twoIntermediatesPrimGroup, tmpprim )
-				{
-					prim = tmpprim;
-					break;
-				}  // GA_FOR_ALL_GROUP_PRIMITIVES
-			}  // if
-			else if ( false )//numPrimsWithOneIntermediate > 0 )
-			{
-				int randomNumber = rand();  // Returns a random int (from some C++ determined range, possibly -MAXINT to MAXINT)
-				int randPrimIndex = randomNumber % numPrimsWithOneIntermediate;
-				int count = 0;
-				GA_FOR_ALL_GROUP_PRIMITIVES( gdp, oneIntermediatePrimGroup, tmpprim )
-				{
-					//if ( count == randPrimIndex )
-					//{
-						prim = tmpprim;
-						break;
-					//}  // if
-					
-					//count++;
-				}  // GA_FOR_ALL_GROUP_PRIMITIVES
-			}  // else if
-			else
-			{
-			*/
 			// Get the number of prims
 			GEO_PrimList& prims = gdp->primitives();
 			int numPrims = prims.entries();
@@ -279,7 +237,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			//prim = prims(randPrimIndex);
 			
 			prim = prims(0);
-			//}  // else
 			
 			oneIntermediatePrimGroup->clear();
 			twoIntermediatesPrimGroup->clear();
@@ -324,7 +281,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			
 			// Create the new sphere's point
 			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, 1 );
-			//UT_Vector4 childPos = computeChildPosition( UT_Vector4(x0,y0,z0,1), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
 			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
 			newPt->setPos( newPtPos );
@@ -510,7 +466,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							gdp->deletePrimitive( *primNeighbor0 );
 						}  // else
 					}  // if
-					else			// The newPrim0 does not have an interior point
+					else			// The newPrim0 does not have an interior point, and neighPrim does not either
 					{
 						gdp->deletePrimitive( *newPrim0 );
 						
@@ -530,6 +486,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
 							newPrim0->setValue<int>( numintermediatepts_index, 1 );
 						}  // if
+						//else
+						//{
+						//	cout << "PARTICLE #" << i+1 << endl;
+						//}  // else
 						
 						UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
 						edgeVector0.normalize();
@@ -586,8 +546,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 						
 						gdp->deletePrimitive( *primNeighbor0 );
 					}  // if
+					/*
 					else		// See if it is concave with the intermediate point
 					{
+						// If intPt--pt0--newP is LESS than the threshold angle
 						UT_Vector3 e1 = newPtPos - pt0Pos;
 						UT_Vector3 e2 = neighIntermediatePtPos - pt0Pos;
 						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
@@ -602,7 +564,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							
 							GEO_Point* intPt = gdp->points()[neighIntermediatePtNum];
 							
-							// Create the new prims
+							// Create the new prims, neighP--intP and intP--newP
 							GU_PrimPoly* newPrimNeighbor0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 							newPrimNeighbor0->appendVertex(neighborPt0);
 							newPrimNeighbor0->appendVertex(intPt);
@@ -639,8 +601,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
 							newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
 							newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
+							
 						}  // if
 					}  // else
+					*/
 				}  // else if
 			}  // if
 			
@@ -754,6 +718,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
 							newPrim1->setValue<int>( numintermediatepts_index, 1 );
 						}  // if
+						//else
+						//{
+						//	cout << "PARTICLE #" << i+1 << endl;
+						//}  // else
 							
 						UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
 						edgeVector1.normalize();
@@ -807,7 +775,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 						
 						gdp->deletePrimitive( *primNeighbor1 );
 					}  // if
-					else		// See if it is concave with the intermediate point
+					/*else		// See if it is concave with the intermediate point
 					{
 						UT_Vector3 e1 = newPtPos - pt1Pos;
 						UT_Vector3 e2 = neighIntermediatePtPos - pt1Pos;
@@ -861,7 +829,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 							newPrimNeighbor1->setValue<float>( norm_index, normal1.y(), 1 );
 							newPrimNeighbor1->setValue<float>( norm_index, normal1.z(), 2 );
 						}  // if
-					}  // else
+					}  // else*/
 				}  // else if
 			}  // if
 		}  // for i
