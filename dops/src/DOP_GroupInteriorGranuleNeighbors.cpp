@@ -231,7 +231,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 					SIM_Object* solidMeshObj = (SIM_Object*)engine.findObjectFromString( solidMeshName, 0, 0, time, 0 );
 					if ( !solidMeshObj )
 					{
-						cout << "WARNING: " << solidMeshName << " not found." << endl;
+						//cout << "WARNING: " << solidMeshName << " not found." << endl;
 						continue;
 					}  // if
 					
