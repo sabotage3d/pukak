@@ -34,6 +34,7 @@ private:
     UT_Vector3 computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius );
     bool intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius ); 
 	float thresholdAngle( float dist0, float dist1, float radius );
+	float thresholdAngle180( float dist0, float dist1, float radius );
     
     //const GB_PointGroup*    parsePointGroups(const char *pattern, GU_Detail  which_gdp=0, int allow_numeric=1);
 
