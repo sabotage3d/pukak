@@ -423,7 +423,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 				{
 					// Copy the geometry over to the main constraint object
 					SIM_Object* curObj = solidMeshes( j );
-					cout << curObj->getName() << " conn to " << CONSTR->getName() << endl;
+					//cout << curObj->getName() << " conn to " << CONSTR->getName() << endl;
 					
 					// Get point and offset from CONSTR
 					RBD_State *curRbdstate = SIM_DATA_GET( *curObj, "Position", RBD_State );
@@ -464,7 +464,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 						// Change the solid mesh that the granule is glued to
 						RBD_State *granuleRbdstate = SIM_DATA_GET( *curGranule, "Position", RBD_State );
 						granuleRbdstate->setGlueObject( CONSTR->getName() );
-						cout << "from " << curObj->getName() << " to " << CONSTR->getName() << endl;
+						//cout << "from " << curObj->getName() << " to " << CONSTR->getName() << endl;
 					}  // for k
 					
 					// Delete the old CONSTR (remove from CONSTR array then from the engine)
@@ -651,8 +651,8 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			GEO_Point* newPt = interiorPointsGdp->appendPointElement();
 			newPt->setPos( pos );
 		}  // for j
-			
-			
+		
+		
 		// Delete the solid meshes that have been merged into other solid meshes
 		int numToDelete = solidMeshesToDelete.entries();
 		for ( int i = 0; i < numToDelete; i++ )

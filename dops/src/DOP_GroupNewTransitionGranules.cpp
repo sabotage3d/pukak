@@ -126,6 +126,7 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
     //if ( !exteriorGranulesGroup )
     //    return;
     
+	SIM_ObjectArray transitionGranules;
     
     // Loop through all the objects that passed the interiorGranulesFilter.
 	int numInteriorGranules = interiorGranulesFiltered.entries();
@@ -173,6 +174,7 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 				
 				if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
 				{
+					transitionGranules.add( neighborObj );
 					newTransitionGranulesGroup->addGroup( neighborObj );
 					SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
                                     SIM_RelationshipGroup,
@@ -181,6 +183,63 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 			}  // for j
 		} // if isActive
 	}  // for i
+	
+	/*
+	// Add a second level of connected granules
+	int numTransitionGranules = transitionGranules.entries();
+    for( int i = 0; i < numTransitionGranules; i++ )
+    {
+        // Set information about the object we are going to process.
+        // The first argument is the index of the current object within the
+        // full list of objects we are going to process. The second
+        // argument is the total number of objects we are going to process.
+        // The last argument is a pointer to the actual object we are
+        // processing.
+        setCurrentObject( i, numTransitionGranules, transitionGranules(i) );
+		
+		if( isActive(time) )
+        {
+		
+			// Get the current object's objid attribute.
+			SIM_Object* currObject = transitionGranules(i);
+			int objid = currObject->getObjectId();
+			//cout << currObject->getName() << endl;
+			
+			// Get the impacts data
+			SIM_Impacts* impactsData = SIM_DATA_GET( *currObject, "Impacts", SIM_Impacts );
+			if ( !impactsData )
+				continue;
+			
+			int numImpacts = impactsData->getNumImpacts();
+			for ( int j = 0; j < numImpacts; j++ )
+			{
+				int neighborId = impactsData->getOtherObjId( j );
+				SIM_Object* neighborObj = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
+				
+				// Get this neighbor object's granular data.
+				//   If the neighbor object is an interior granule, do not mark it as transition
+				SIM_EmptyData* neighborGranuleData = SIM_DATA_GET( *neighborObj, "GranuleData", SIM_EmptyData );
+				SIM_Options& options = neighborGranuleData->getData();
+				UT_String neighborGranuleType;
+				options.getOptionString( "granuleType", neighborGranuleType );
+				if ( neighborGranuleType == "interior" )
+					continue;
+				
+				// If this neighbor object is already marked as a transition granule, do not mark it as transition again
+				if ( newTransitionGranulesGroup->getGroupHasObject( neighborObj ) )
+					continue;
+				
+				if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
+				{
+					newTransitionGranulesGroup->addGroup( neighborObj );
+					SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
+                                    SIM_RelationshipGroup,
+                                    SIM_DATA_RETURN_EXISTING);
+				}  // if
+			}  // for j
+		} // if isActive
+	}  // for i
+	*/
 }  // processObjectsSubclass()
 
 void
