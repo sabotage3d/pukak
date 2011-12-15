@@ -1,18 +1,18 @@
 
 
-#ifndef SOP_FRACTALGROWTH_H
-#define SOP_FRACTALGROWTH_H
+#ifndef SOP_FRACTALGROWTH3D_H
+#define SOP_FRACTALGROWTH3D_H
 
 
 
 #include <SOP/SOP_Node.h>
 
 
-class SOP_FractalGrowth : public SOP_Node
+class SOP_FractalGrowth3D : public SOP_Node
 {
 public:
-    SOP_FractalGrowth( OP_Network *net, const char *name, OP_Operator *op );
-    virtual ~SOP_FractalGrowth();
+    SOP_FractalGrowth3D( OP_Network *net, const char *name, OP_Operator *op );
+    virtual ~SOP_FractalGrowth3D();
 
     static PRM_Template     myTemplateList[];
     static OP_Node          *myConstructor(OP_Network*, const char*, OP_Operator* );
@@ -31,7 +31,7 @@ private:
     int NUMPOINTS() { return evalInt( "numpoints", 0, 0 ); }
 	int SEED() { return evalInt( "seed", 0, 0 ); }
     
-    UT_Vector3 computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius );
+    UT_Vector3 computeChildPosition( UT_Vector4 vertex, UT_Vector4 p0, UT_Vector4 p1, float R );
     bool intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius ); 
 	float thresholdAngle( float dist0, float dist1, float radius );
 	float thresholdAngle180( float dist0, float dist1, float radius );

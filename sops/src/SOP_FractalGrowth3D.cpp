@@ -1,4 +1,4 @@
-#include "SOP_FractalGrowth.h"
+#include "SOP_FractalGrowth3D.h"
 
 
 #include <UT/UT_DSOVersion.h>
@@ -43,7 +43,7 @@ static PRM_Range           defNumParticlesRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 
 static PRM_Range           defSeedRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 100 );
 
 PRM_Template
-SOP_FractalGrowth::myTemplateList[] = {
+SOP_FractalGrowth3D::myTemplateList[] = {
     PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
     PRM_Template(PRM_INT_J,	1, &names[1], &defEighteen, 0, &defNumParticlesRange),
 	PRM_Template(PRM_INT_J,	1, &names[2], &defFive, 0, &defSeedRange),
@@ -56,10 +56,10 @@ SOP_FractalGrowth::myTemplateList[] = {
 void
 newSopOperator( OP_OperatorTable *table )
 {
-     table->addOperator(new OP_Operator("fractalgrowth",
-					"Fractal Growth",
-					 SOP_FractalGrowth::myConstructor,
-					 SOP_FractalGrowth::myTemplateList,
+     table->addOperator(new OP_Operator("fractalgrowth3d",
+					"Fractal Growth 3D",
+					 SOP_FractalGrowth3D::myConstructor,
+					 SOP_FractalGrowth3D::myTemplateList,
 					 1,
 					 1,
 					 0));
@@ -69,25 +69,75 @@ newSopOperator( OP_OperatorTable *table )
 
 
 OP_Node *
-SOP_FractalGrowth::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
+SOP_FractalGrowth3D::myConstructor(OP_Network *net, const char *name, OP_Operator *op)
 {
-    return new SOP_FractalGrowth(net, name, op);
+    return new SOP_FractalGrowth3D(net, name, op);
 }
 
 
 
 
-SOP_FractalGrowth::SOP_FractalGrowth( OP_Network *net, const char *name, OP_Operator *op )
+SOP_FractalGrowth3D::SOP_FractalGrowth3D( OP_Network *net, const char *name, OP_Operator *op )
 	: SOP_Node(net, name, op), myGroup(0)
 {
 }
 
-SOP_FractalGrowth::~SOP_FractalGrowth() {}
+SOP_FractalGrowth3D::~SOP_FractalGrowth3D() {}
 
 
 
 
-UT_Vector3 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius )
+UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector4 vertex, UT_Vector4 p0, UT_Vector4 p1, float R )	// Takes in three points of the triangle prim and the radius of our spheres
+{
+	UT_Vector4 mid0 = ( p0 + vertex ) / 2.0;
+	UT_Vector4 mid1 = ( p1 + vertex ) / 2.0;
+	
+	// Compute the vectors pointing from the vertex to the edge midpoints
+	UT_Vector4 v0 = p0 - vertex;
+	UT_Vector4 v1 = p1 - vertex;
+	v0.normalize();
+	v1.normalize();
+	
+	// Compute the vector perpendicular to the triangle
+	UT_Vector3 vPerp = cross( v0, v1 );
+	
+	// Compute the perpendicular bisectors of the two edges
+	//   This is done by crossing each edge vector with the perpendicular vector
+	UT_Vector3 bisector0 = cross( vPerp, v0 );
+	UT_Vector3 bisector1 = cross( v1, vPerp );
+	
+	// Now compute the time t of the line equation where the two bisectors intersect
+	UT_Vector4 p0p1 = p1 - p0;
+	float t = ( (p0p1[0]*bisector1[2] - p0p1[2]*bisector1[0]) / (bisector0[0]*bisector1[2] - bisector0[2]*bisector1[0]) );
+	cout << "t = " << t << endl;
+	// Computer the circumcenter
+	UT_Vector3 circumcenterPos = (UT_Vector3)p0 + bisector0*t;
+	
+	// Compute the distance between the vertex and the circumcenter
+	UT_Vector3 vertexToCircumcenter = circumcenterPos - (UT_Vector3)vertex;
+	float bSqr = vertexToCircumcenter.length2();		// The length squared
+	
+	//         |\
+	//         | \
+	//         |  \ (2R)^2
+	//  height |   \
+	//         |    \
+	//         |     \
+	//          ------ 
+	//             b
+	// Compute the height of the new sphere's position
+	cout << "R = " << R << endl;
+	float hypSqr = 4 * R * R;
+	cout << "hypSqr = " << hypSqr << endl;
+	float height = sqrt( hypSqr - bSqr );
+	cout << "height = " << height << endl;
+	// Calculate the position of the new sphere
+	UT_Vector3 newSpherePos = UT_Vector3( circumcenterPos[0], height, circumcenterPos[2] );
+	
+	return newSpherePos;
+}  // computeChildPosition()
+/*
+( UT_Vector4 p1, UT_Vector4 p2, UT_Vector4 norm, fpreal radius )
 {
     UT_Vector4 p2p1 = p1 - p2;
     fpreal p2p1Mag = p2p1.length();
@@ -153,29 +203,29 @@ UT_Vector3 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2
     return UT_Vector3( p2p1Norm[0], p2p1Norm[1], p2p1Norm[2] );
 
 }  // computeChildPosition()
+*/
+
+
+
+//bool SOP_FractalGrowth3D::intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius )
+//{
+//    ray.normalize();
+//    
+//    UT_Vector4 sphVector = sphCenter - rayOrigin;
+//    
+//    fpreal distFromSphCenterToRay = ( ray.dot(sphVector) * ray - sphVector ).length();
+//    
+//    if ( distFromSphCenterToRay < radius )
+//        return true;
+//    else
+//        return false;
+//
+//}  // intersectRaySphere
 
 
 
 
-bool SOP_FractalGrowth::intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius )
-{
-    ray.normalize();
-    
-    UT_Vector4 sphVector = sphCenter - rayOrigin;
-    
-    fpreal distFromSphCenterToRay = ( ray.dot(sphVector) * ray - sphVector ).length();
-    
-    if ( distFromSphCenterToRay < radius )
-        return true;
-    else
-        return false;
-
-}  // intersectRaySphere
-
-
-
-
-float SOP_FractalGrowth::thresholdAngle( float dist0, float dist1, float radius )
+float SOP_FractalGrowth3D::thresholdAngle( float dist0, float dist1, float radius )
 {
 	float cDist0 = dist0 < 3.4641 ? dist0 : 3.4641;
 	float cDist1 = dist1 < 3.4641 ? dist1 : 3.4641;
@@ -193,7 +243,7 @@ float SOP_FractalGrowth::thresholdAngle( float dist0, float dist1, float radius 
 
 
 
-float SOP_FractalGrowth::thresholdAngle180( float dist0, float dist1, float radius )
+float SOP_FractalGrowth3D::thresholdAngle180( float dist0, float dist1, float radius )
 {
 	float cDist0 = dist0 < 4.0 ? dist0 : 4.0;
 	float cDist1 = dist1 < 4.0 ? dist1 : 4.0;
@@ -211,7 +261,7 @@ float SOP_FractalGrowth::thresholdAngle180( float dist0, float dist1, float radi
 
 
 
-OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
+OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 {
     GEO_Point   *ppt;
     
@@ -235,14 +285,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
-		GA_PrimitiveGroup* oneIntermediatePrimGroup = gdp->newPrimitiveGroup( "oneIntermediatePrimGroup" );
-		GA_PrimitiveGroup* twoIntermediatesPrimGroup = gdp->newPrimitiveGroup( "twoIntermediatesPrimGroup" );
 		for ( int i = 0; i < numSpheresToPopulate; i++ )
         {
 			GEO_Primitive* prim = NULL;
 			
-			// See if there are any prims with 2 intermediate points
-			GEO_Primitive* tmpprim;
 			GA_RWAttributeRef numintermediatepts_index = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "numIntermediatePts", 1 );
 			
 			// Get the number of prims
@@ -256,33 +302,34 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			
 			prim = prims(0);
 			
-			oneIntermediatePrimGroup->clear();
-			twoIntermediatesPrimGroup->clear();
-			
 			if ( !prim )
 			{
 				cout << "ERROR on particle " << i << "!  prim not assigned." << endl;
 				continue;
 			}  // if
 			
-			// Get its two vertices
+			// Get the prim's three	vertices
 			GEO_Vertex vert0 = prim->getVertexElement(0);
 			GEO_Vertex vert1 = prim->getVertexElement(1);
+			GEO_Vertex vert2 = prim->getVertexElement(2);
 			
 			// Get its normal
-			GEO_AttributeHandle normAttrib = gdp->getPrimAttribute( "edgeNormal" );
+			GEO_AttributeHandle normAttrib = gdp->getPrimAttribute( "N" );
 			normAttrib.setElement( prim );
 			UT_Vector4 edgeNormal = normAttrib.getV4();
 			
 			// Get the prim's points
 			GEO_Point* pt0 = vert0.getPt();
 			GEO_Point* pt1 = vert1.getPt();
+			GEO_Point* pt2 = vert2.getPt();
 			UT_Vector3 pt0Pos = pt0->getPos3();
 			UT_Vector3 pt1Pos = pt1->getPos3();
+			UT_Vector3 pt2Pos = pt2->getPos3();
 			
+			int numIntermediatePts = prim->getValue<int>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
+			/*
 			// Get the intermediate point of the current prim, if it exists, otherwise just use pt1
 			float x1, y1, z1;
-			int numIntermediatePts = prim->getValue<int>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
 			if ( numIntermediatePts > 0 )
 			{
 				GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );	// Get the first intermediate point
@@ -296,12 +343,15 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				y1 = pt1->getPos()[1];
 				z1 = pt1->getPos()[2];
 			}  // else
+			*/
 			
 			// Create the new sphere's point
-			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, 1 );
-			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
+			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), pt1->getPos(), pt2->getPos(), sphRad );
+			//UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
 			newPt->setPos( newPtPos );
+			
+			return error();
 			
 			// Create a prim between each of the prim's old points and the newly created point (keep the edge directionality)
 			//   Note: The number of intermediate points attribute (numIntermediatePts) defaults to 0, so we don't have to explicitly set it

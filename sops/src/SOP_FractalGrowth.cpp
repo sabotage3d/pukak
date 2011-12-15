@@ -235,8 +235,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
-		GA_PrimitiveGroup* oneIntermediatePrimGroup = gdp->newPrimitiveGroup( "oneIntermediatePrimGroup" );
-		GA_PrimitiveGroup* twoIntermediatesPrimGroup = gdp->newPrimitiveGroup( "twoIntermediatesPrimGroup" );
+		//GA_PrimitiveGroup* oneIntermediatePrimGroup = gdp->newPrimitiveGroup( "oneIntermediatePrimGroup" );
+		//GA_PrimitiveGroup* twoIntermediatesPrimGroup = gdp->newPrimitiveGroup( "twoIntermediatesPrimGroup" );
 		for ( int i = 0; i < numSpheresToPopulate; i++ )
         {
 			GEO_Primitive* prim = NULL;
@@ -256,8 +256,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			
 			prim = prims(0);
 			
-			oneIntermediatePrimGroup->clear();
-			twoIntermediatesPrimGroup->clear();
+			//oneIntermediatePrimGroup->clear();
+			//twoIntermediatesPrimGroup->clear();
 			
 			if ( !prim )
 			{
@@ -298,8 +298,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			}  // else
 			
 			// Create the new sphere's point
-			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, 1 );
-			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
+			//UT_Vector4 childPos = computeChildPosition( pt0->getPos(), pt1->getPos(), edgeNormal, sphRad );
+			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, sphRad );
 			GEO_Point* newPt = gdp->appendPointElement();
 			newPt->setPos( newPtPos );
 			
