@@ -87,14 +87,14 @@ SOP_FractalGrowth3D::~SOP_FractalGrowth3D() {}
 
 
 
-UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector4 vertex, UT_Vector4 p0, UT_Vector4 p1, float R )	// Takes in three points of the triangle prim and the radius of our spheres
+UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector3 vertex, UT_Vector3 p0, UT_Vector3 p1, UT_Vector3 normal, float R, GU_Detail* gdp )	// Takes in three points of the triangle prim and the radius of our spheres
 {
-	UT_Vector4 mid0 = ( p0 + vertex ) / 2.0;
-	UT_Vector4 mid1 = ( p1 + vertex ) / 2.0;
+	UT_Vector3 mid0 = ( p0 + vertex ) / 2.0;
+	UT_Vector3 mid1 = ( p1 + vertex ) / 2.0;
 	
 	// Compute the vectors pointing from the vertex to the edge midpoints
-	UT_Vector4 v0 = p0 - vertex;
-	UT_Vector4 v1 = p1 - vertex;
+	UT_Vector3 v0 = mid0 - vertex;
+	UT_Vector3 v1 = mid1 - vertex;
 	v0.normalize();
 	v1.normalize();
 	
@@ -107,14 +107,14 @@ UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector4 vertex, UT_Vect
 	UT_Vector3 bisector1 = cross( v1, vPerp );
 	
 	// Now compute the time t of the line equation where the two bisectors intersect
-	UT_Vector4 p0p1 = p1 - p0;
+	UT_Vector3 p0p1 = mid1 - mid0;
 	float t = ( (p0p1[0]*bisector1[2] - p0p1[2]*bisector1[0]) / (bisector0[0]*bisector1[2] - bisector0[2]*bisector1[0]) );
-	cout << "t = " << t << endl;
+	
 	// Computer the circumcenter
-	UT_Vector3 circumcenterPos = (UT_Vector3)p0 + bisector0*t;
+	UT_Vector3 circumcenterPos = mid0 + bisector0*t;
 	
 	// Compute the distance between the vertex and the circumcenter
-	UT_Vector3 vertexToCircumcenter = circumcenterPos - (UT_Vector3)vertex;
+	UT_Vector3 vertexToCircumcenter = circumcenterPos - vertex;
 	float bSqr = vertexToCircumcenter.length2();		// The length squared
 	
 	//         |\
@@ -126,13 +126,15 @@ UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector4 vertex, UT_Vect
 	//          ------ 
 	//             b
 	// Compute the height of the new sphere's position
-	cout << "R = " << R << endl;
 	float hypSqr = 4 * R * R;
-	cout << "hypSqr = " << hypSqr << endl;
-	float height = sqrt( hypSqr - bSqr );
-	cout << "height = " << height << endl;
+	float height = sqrt( abs(hypSqr - bSqr) );
+	
+	// Raise the circumcenter point along the height
+	normal.normalize();
+	circumcenterPos = circumcenterPos + normal*height;
+	
 	// Calculate the position of the new sphere
-	UT_Vector3 newSpherePos = UT_Vector3( circumcenterPos[0], height, circumcenterPos[2] );
+	UT_Vector3 newSpherePos = UT_Vector3( circumcenterPos[0], circumcenterPos[1], circumcenterPos[2] );
 	
 	return newSpherePos;
 }  // computeChildPosition()
@@ -314,9 +316,12 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 			GEO_Vertex vert2 = prim->getVertexElement(2);
 			
 			// Get its normal
+			UT_Vector3 edgeNormal = prim->computeNormal();
+			
+			// Set the parent prim's normal attribute
 			GEO_AttributeHandle normAttrib = gdp->getPrimAttribute( "N" );
 			normAttrib.setElement( prim );
-			UT_Vector4 edgeNormal = normAttrib.getV4();
+			edgeNormal = normAttrib.setV3( edgeNormal );
 			
 			// Get the prim's points
 			GEO_Point* pt0 = vert0.getPt();
@@ -346,13 +351,17 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 			*/
 			
 			// Create the new sphere's point
-			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), pt1->getPos(), pt2->getPos(), sphRad );
+			UT_Vector3 newPtPos = computeChildPosition( pt0->getPos3(), pt1->getPos3(), pt2->getPos3(), edgeNormal, sphRad, gdp );
 			//UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
 			GEO_Point* newPt = gdp->appendPointElement();
-			newPt->setPos( newPtPos );
+			newPt->setPos( newPtPos );		
 			
-			return error();
 			
+			
+			
+			
+			
+			/*
 			// Create a prim between each of the prim's old points and the newly created point (keep the edge directionality)
 			//   Note: The number of intermediate points attribute (numIntermediatePts) defaults to 0, so we don't have to explicitly set it
 			GU_PrimPoly* newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
@@ -472,51 +481,6 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 						UT_Vector3 newPrim0IntPos = newPrim0->getValue<UT_Vector3>( intermediateptpos_index1 );
 						
 						
-						/*
-						// If neighP--p0--newP is closed
-						UT_Vector3 e1 = newPtPos - pt0Pos;
-						UT_Vector3 e2 = neighborPos0 - pt0Pos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd > angle )
-						{
-							gdp->deletePrimitive( *newPrim0 );
-							
-							// Make newP -> neighP
-							newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-							newPrim0->appendVertex(neighborPt0);
-							newPrim0->appendVertex(newPt);
-							
-							// If neighP--intP--newP is open
-							UT_Vector3 e1 = newPtPos - newPrim0IntPos;
-							UT_Vector3 e2 = neighborPos0 - newPrim0IntPos;
-							float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-							e1.normalize();
-							e2.normalize();
-							float dotProd = e1.dot( e2 );
-							if ( dotProd > angle )
-							{
-								// Add intP as the intermediate point
-								newPrim0->setValue<int>( intermediateptnum_index1, newPrim0IntPtNum );
-								newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, newPrim0IntPos );
-								newPrim0->setValue<int>( numintermediatepts_index, 1 );
-							}  // if
-							
-							// Create newPrim1's normal
-							UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
-							edgeVector0.normalize();
-							UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
-							newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
-							newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
-							newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
-							
-							gdp->deletePrimitive( *primNeighbor0 );
-						}  // if
-						*/
-						
-						
 						// If neighP--p0--intP is open
 						UT_Vector3 e1 = newPrim0IntPos - pt0Pos;
 						UT_Vector3 e2 = neighborPos0 - pt0Pos;
@@ -630,49 +594,6 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 					UT_Vector3 newPrim0IntPos = primNeighbor0->getValue<UT_Vector3>( intermediateptpos_index1 );
 					int newPrim0IntPtNum = primNeighbor0->getValue<int>( intermediateptnum_index1 );
 					
-					/*
-					UT_Vector3 e1 = newPtPos - pt0Pos;
-					UT_Vector3 e2 = neighborPos0 - pt0Pos;
-					float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-					e1.normalize();
-					e2.normalize();
-					float dotProd = e1.dot( e2 );
-					if ( dotProd > angle )			// If the angle is LESS than threshold angle (because the smaller the dot product, the larger the angle)
-					{
-						gdp->deletePrimitive( *newPrim0 );
-						
-						newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-						newPrim0->appendVertex(neighborPt0);
-						newPrim0->appendVertex(newPt);
-						
-						GEO_Point* intPt = gdp->points()[neighIntermediatePtNum];
-						
-						// If neighP--intP--newP is large enough, insert intP as the new intP
-						UT_Vector3 e1 = neighborPos0 - neighIntermediatePtPos;
-						UT_Vector3 e2 = newPtPos - neighIntermediatePtPos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd < angle )		//|| neighEdge0Len > SEPARATIONDIST * sphRad )
-						{
-							newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, neighIntermediatePtPos );
-							newPrim0->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
-							newPrim0->setValue<int>( numintermediatepts_index, 1 );
-						}  // if
-						
-						// Add edge normal
-						UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
-						edgeVector0.normalize();
-						UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
-						newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
-						newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
-						newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
-						
-						gdp->deletePrimitive( *primNeighbor0 );
-					}  // if
-					*/
-					
 					// If intP--p0--new is open
 					UT_Vector3 e1 = newPrim0IntPos - pt0Pos;
 					UT_Vector3 e2 = newPtPos - pt0Pos;
@@ -763,52 +684,6 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 					{
 						int prim1IntPtNum = newPrim1->getValue<int>( intermediateptnum_index1 );
 						UT_Vector3 newPrim1IntPos = newPrim1->getValue<UT_Vector3>( intermediateptpos_index1 );
-						
-						
-						/*
-						// If newP--p1--neighP is closed
-						UT_Vector3 e1 = newPtPos - pt1Pos;
-						UT_Vector3 e2 = neighborPos1 - pt1Pos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd > angle )
-						{
-							gdp->deletePrimitive( *newPrim1 );
-							
-							// Make newP -> neighP
-							newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-							newPrim1->appendVertex(newPt);
-							newPrim1->appendVertex(neighborPt1);
-							
-							// If newP--intP--neighP is open
-							UT_Vector3 e1 = newPtPos - newPrim1IntPos;
-							UT_Vector3 e2 = neighborPos1 - newPrim1IntPos;
-							float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-							e1.normalize();
-							e2.normalize();
-							float dotProd = e1.dot( e2 );
-							if ( dotProd < angle )
-							{
-								// Add intP as the intermediate point
-								newPrim1->setValue<int>( intermediateptnum_index1, prim1IntPtNum );
-								newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, newPrim1IntPos );
-								newPrim1->setValue<int>( numintermediatepts_index, 1 );
-							}  // if
-							
-							// Create newPrim1's normal
-							UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
-							edgeVector1.normalize();
-							UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
-							newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
-							newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
-							newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
-							
-							gdp->deletePrimitive( *primNeighbor1 );
-						}  // if
-						*/
-						
 						
 						// If intP--p1--neighP is open
 						UT_Vector3 e1 = newPrim1IntPos - pt1Pos;
@@ -923,46 +798,6 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 					UT_Vector3 newPrim1IntPos = primNeighbor1->getValue<UT_Vector3>( intermediateptpos_index1 );
 					float prim1IntPtNum = primNeighbor1->getValue<int>( intermediateptnum_index1 );
 					
-					/*
-					UT_Vector3 e1 = neighborPos1 - pt1Pos;
-					UT_Vector3 e2 = newPtPos - pt1Pos;
-					float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-					e1.normalize();
-					e2.normalize();
-					float dotProd = e1.dot( e2 );
-					if ( dotProd > angle )		// If the angle is LESS than 120 degrees; neigh1 -- pt1 -- newPt
-					{
-						gdp->deletePrimitive( *newPrim1 );
-						
-						newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-						newPrim1->appendVertex(newPt);
-						newPrim1->appendVertex(neighborPt1);
-						
-						UT_Vector3 e1 = newPtPos - neighIntermediatePtPos;
-						UT_Vector3 e2 = neighborPos1 - neighIntermediatePtPos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd < angle )
-						{
-							newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, neighIntermediatePtPos );
-							newPrim1->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
-							newPrim1->setValue<int>( numintermediatepts_index, 1 );
-						}  // if
-						
-						// Add edge normal
-						UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
-						edgeVector1.normalize();
-						UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
-						newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
-						newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
-						newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
-						
-						gdp->deletePrimitive( *primNeighbor1 );
-					}  // if
-					*/
-					
 					// If intP--p1--newP is open
 					UT_Vector3 e1 = newPrim1IntPos - pt1Pos;
 					UT_Vector3 e2 = newPtPos - pt1Pos;
@@ -1027,6 +862,11 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 					}  // else
 				}  // else if
 			}  // if
+			*/
+			
+			
+			
+			
 		}  // for i
     }  // if
 	
@@ -1034,4 +874,4 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
     unlockInputs();
     
     return error();
-}
+}  // cookMySop()
