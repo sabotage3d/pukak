@@ -216,83 +216,73 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
             }  // if
 			else		//	Check if this interior granule is glued to a solid mesh.  If so, figure out its granule neighbors.
 			{
-				SIM_DataFilterByName glueRelFilter( "glueConstraint*" );
-				SIM_ConstDataArray glueRels;
-				currObject->filterConstRelationships( true, glueRelFilter, glueRels );
-				
-				// If currObject is attached to a glue relationship, meaning it is part of a solidMesh
-				//   then look at all the granules colliding that glue relationship's solidMesh and see if it is close in proximity (colliding)
-				if ( glueRels.entries() > 0 )
+				RBD_State* objRbdstate = SIM_DATA_GET( *currObject, "Position", RBD_State );
+				UT_String solidMeshName;
+				objRbdstate->getGlueObject( solidMeshName );
+				SIM_Object* solidMeshObj = (SIM_Object*)engine.findObjectFromString( solidMeshName, 0, 0, time, 0 );
+				if ( !solidMeshObj )
 				{
-					// Get the solid mesh
-					char tmp[181];
-					sprintf( tmp, "%s%d", "solidMesh", currObject->getObjectId() );
-					UT_String solidMeshName = tmp;
-					SIM_Object* solidMeshObj = (SIM_Object*)engine.findObjectFromString( solidMeshName, 0, 0, time, 0 );
-					if ( !solidMeshObj )
-					{
-						//cout << "WARNING: " << solidMeshName << " not found." << endl;
-						continue;
-					}  // if
+					//cout << "WARNING: " << solidMeshName << " not found." << endl;
+					continue;
+				}  // if
+				
+				// Add all granules close enough in proximity to the neighborGroup
+				currImpactsData = SIM_DATA_GET( *solidMeshObj, "Impacts", SIM_Impacts );
+				if ( currImpactsData )
+				{
+					// Get the radius
+					float granuleRadius = GRANULERADIUS( time );
 					
-					// Add all granules close enough in proximity to the neighborGroup
-					currImpactsData = SIM_DATA_GET( *solidMeshObj, "Impacts", SIM_Impacts );
-					if ( currImpactsData )
+					// Get the current object's position
+					UT_Vector3 curObjPos;
+					currObject->getPosition()->getPosition( curObjPos );
+					
+					// Create the neighbor group object
+					SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
+					neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
+					SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
+									SIM_RelationshipGroup,
+									SIM_DATA_RETURN_EXISTING );
+					
+					// Attach the solidMesh to the neighbor group
+					neighborGroup->addGroup( solidMeshObj );
+					SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
+									SIM_RelationshipGroup,
+									SIM_DATA_RETURN_EXISTING );
+									
+					// Loop through each granule collided against currObject's solid mesh
+					int numImpacts = currImpactsData->getNumImpacts();
+					for ( int n = 0; n < numImpacts; n++ )
 					{
-						// Get the radius
-						float granuleRadius = GRANULERADIUS( time );
+						// Get the current neighboring granule (granule colliding against the solid mesh)
+						int neighborId = currImpactsData->getOtherObjId( n );
+						SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
+						if ( !neighborObject )
+							continue;
 						
-						// Get the current object's position
-						UT_Vector3 curObjPos;
-						currObject->getPosition()->getPosition( curObjPos );
+						if ( neighborGroup->getGroupHasObject(neighborObject) )
+							continue;
 						
-						// Create the neighbor group object
-						SIM_Relationship *neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
-						neighborGroup->addGroup( currObject );      // currObject is the interior granule, since it comes from interiorGranulesFiltered
-						SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
-										SIM_RelationshipGroup,
-										SIM_DATA_RETURN_EXISTING );
-										
-						// Attach the solidMesh to the neighbor group
-						neighborGroup->addGroup( solidMeshObj );
-						SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
-										SIM_RelationshipGroup,
-										SIM_DATA_RETURN_EXISTING );
-										
-						// Loop through each granule collided against currObject's solid mesh
-						int numImpacts = currImpactsData->getNumImpacts();
-						for ( int n = 0; n < numImpacts; n++ )
+						if ( excludeGroupRel && excludeGroupRel->getGroupHasObject(neighborObject) )		// Don't pick up neighbors excluded by the group parameter, e.g. don't include the groundPlane in the group of neighbor granules even if they're colliding with it
+							continue;
+						
+						// Get the neighbor granule's position
+						UT_Vector3 curNeighPos;
+						neighborObject->getPosition()->getPosition( curNeighPos );
+						
+						// Get the distance between the current and neighbor granules
+						UT_Vector3 distVector = curObjPos - curNeighPos;
+						float dist = distVector.length();
+						
+						// If it's within distance, add it to the group of neighbors
+						if ( dist <= granuleRadius * 2.05 )
 						{
-							// Get the current neighboring granule (granule colliding against the solid mesh)
-							int neighborId = currImpactsData->getOtherObjId( n );
-							SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
-							if ( !neighborObject )
-								continue;
-							
-							if ( neighborGroup->getGroupHasObject(neighborObject) )
-								continue;
-							
-							if ( excludeGroupRel && excludeGroupRel->getGroupHasObject(neighborObject) )		// Don't pick up neighbors excluded by the group parameter, e.g. don't include the groundPlane in the group of neighbor granules even if they're colliding with it
-								continue;
-							
-							// Get the neighbor granule's position
-							UT_Vector3 curNeighPos;
-							neighborObject->getPosition()->getPosition( curNeighPos );
-							
-							// Get the distance between the current and neighbor granules
-							UT_Vector3 distVector = curObjPos - curNeighPos;
-							float dist = distVector.length();
-							
-							// If it's within distance, add it to the group of neighbors
-							if ( dist <= granuleRadius * 2.05 )
-							{
-								neighborGroup->addGroup( neighborObject );
-								SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
-												SIM_RelationshipGroup,
-												SIM_DATA_RETURN_EXISTING );
-							}  // if
-						}  // for n
-					}  // if
+							neighborGroup->addGroup( neighborObject );
+							SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
+											SIM_RelationshipGroup,
+											SIM_DATA_RETURN_EXISTING );
+						}  // if
+					}  // for n
 				}  // if
 			}  // else
         }  // if
