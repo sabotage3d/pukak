@@ -126,7 +126,7 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
     //if ( !exteriorGranulesGroup )
     //    return;
     
-	SIM_ObjectArray transitionGranules;
+	//SIM_ObjectArray transitionGranules;
     
     // Loop through all the objects that passed the interiorGranulesFilter.
 	int numInteriorGranules = interiorGranulesFiltered.entries();
@@ -174,7 +174,7 @@ DOP_GroupNewTransitionGranules::processObjectsSubclass(fpreal time, int,
 				
 				if ( !(interiorGranulesGroup->getGroupHasObject( neighborObj )) )
 				{
-					transitionGranules.add( neighborObj );
+					//transitionGranules.add( neighborObj );
 					newTransitionGranulesGroup->addGroup( neighborObj );
 					SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
                                     SIM_RelationshipGroup,

@@ -33,6 +33,7 @@ private:
     void            EXCLUDEGROUPNAME( UT_String &str, float t );
     void            INTERIORGRANULESGROUPNAME( UT_String &str, float t );
     void            NEIGHBORGROUPPREFIX( UT_String &str, float t );
+	void            NEWTRANSITIONGRANULESGROUPNAME(UT_String &str, fpreal t);
 	float           GRANULERADIUS( float t );
 };
 

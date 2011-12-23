@@ -47,6 +47,7 @@ newDopOperator(OP_OperatorTable *table)
 static PRM_Name         theExcludeGroupName( "excludegroupname", "Exclude Group" );
 static PRM_Name         theInteriorGranulesGroupName( "interiorgranulesgroupname", "Interior Granules Group" );
 static PRM_Name         theNeighborGroupPrefix( "neighborgroupprefix", "Neighbor Group Prefix" );
+static PRM_Name         theNewTransitionGranulesGroupName( "newtransitiongranulesgroupname", "New Trans Group" );
 static PRM_Name         theGranuleRadius( "granuleradius", "Granule Radius" );
 
 static PRM_Default      defaultNull( 0, "" );
@@ -63,6 +64,7 @@ DOP_GroupInteriorGranuleNeighbors::myTemplateList[] = {
     PRM_Template( PRM_STRING,   1, &theExcludeGroupName, &defaultNull, 0, 0, 0, 0, 1, "The group of external geometry that you do not want to pick out neighbors of the interior granules from" ),      // The objects read in to this DOP node must belong to the shell granules group
     PRM_Template( PRM_STRING,   1, &theInteriorGranulesGroupName, &defaultNull, 0, 0, 0, 0, 1, "Group of granules for which you want to group each granule with its neighbors" ),   // The interior granules group must be provided, to make neighbor groups out of neighbors of interior granules that are neighboring shell granules
     PRM_Template( PRM_STRING,   1, &theNeighborGroupPrefix, &defaultNull, 0, 0, 0, 0, 1, "Prefix (without the *) of the new neighbor groups that will be created." ),
+	PRM_Template( PRM_STRING,   1, &theNewTransitionGranulesGroupName, &defaultNull, 0, 0, 0, 0, 1, "Name of the group to add any new transition granules to." ),
 	PRM_Template( PRM_FLT_J,    1, &theGranuleRadius, &defaultNull, 0, 0, 0, 0, 1, "Radius of all the granules." ),
     PRM_Template()
 };
@@ -115,15 +117,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     if ( !interiorGranulesGroup )
         return;
     
-    // Get the name for the shell granules group that will be created,
-    //   based on the Shell Granules Group parameter input.
-    //   This group will be populated with exterior granules that border the pockets of interior granules.
-    //UT_String shellGranulesGroupName;
-    //SHELLGRANULESGROUPNAME( shellGranulesGroupName, time );
-    //if ( shellGranulesGroupName == "" )
-    //    return;
-    //const SIM_Relationship* shellGranulesGroup = engine.getRelationship( shellGranulesGroupName );
-
+	
     // Grab the group string and filter our incoming objects using that
     // string. This narrows down the set of objects that we actually want
     // to operate on. The filtered array will contain only those objects
@@ -131,6 +125,18 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     //GROUP(group, time);
     SIM_DataFilterRootData       interiorGranulesFilter(interiorGranulesGroupName);
     objects.filter(interiorGranulesFilter, interiorGranulesFiltered);
+	
+	
+    // Get the name for the transition granules group that will be created,
+    //   based on the Shell Granules Group parameter input.
+    //   This group will be populated with exterior granules that border the pockets of interior granules.
+    UT_String newTransitionGranulesGroupName;
+    NEWTRANSITIONGRANULESGROUPNAME( newTransitionGranulesGroupName, time );
+    if ( newTransitionGranulesGroupName == "" )
+        return;
+    SIM_Relationship* newTransitionGranulesGroup = engine.addRelationship( newTransitionGranulesGroupName, SIM_DATA_RETURN_EXISTING );
+	newTransitionGranulesGroup->clearGroup();
+	
     
     // Get the prefix of the group name for each group of neighbors we will create
     UT_String neighborGroupPrefix;
@@ -197,6 +203,18 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
                     SIM_Object* neighborObject = (SIM_Object*)engine.getSimulationObjectFromId( neighborId );
                     if ( !neighborObject )
                         continue;
+						
+					// If the object is not an interior granule and is not already in the new transition granules group,
+					//   add it to the new transition granules group
+					if ( !(newTransitionGranulesGroup->getGroupHasObject( neighborObject )) && !(interiorGranulesGroup->getGroupHasObject( neighborObject )) )
+					{
+						newTransitionGranulesGroup->addGroup( neighborObject );
+						SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
+										SIM_RelationshipGroup,
+										SIM_DATA_RETURN_EXISTING);
+						if ( neighborObject->getObjectId() == 4190 )
+							cout << "becoming trans by " << currObject->getName() << endl;
+					}  // if
 					
 					if ( neighborGroup->getGroupHasObject(neighborObject) )
 						continue;
@@ -277,6 +295,18 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 						// If it's within distance, add it to the group of neighbors
 						if ( dist <= granuleRadius * 2.05 )
 						{
+							// If the object is not an interior granule and is not already in the new transition granules group,
+							//   add it to the new transition granules group
+							if ( !(newTransitionGranulesGroup->getGroupHasObject( neighborObject )) && !(interiorGranulesGroup->getGroupHasObject( neighborObject )) )
+							{
+								newTransitionGranulesGroup->addGroup( neighborObject );
+								SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
+												SIM_RelationshipGroup,
+												SIM_DATA_RETURN_EXISTING);
+								if ( neighborObject->getObjectId() == 4190 )
+									cout << "becoming trans 2 by " << currObject->getName() << endl;
+							}  // if
+							
 							neighborGroup->addGroup( neighborObject );
 							SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
 											SIM_RelationshipGroup,
@@ -327,6 +357,12 @@ void DOP_GroupInteriorGranuleNeighbors::NEIGHBORGROUPPREFIX( UT_String &str, flo
 {
     evalString( str, theNeighborGroupPrefix.getToken(), 0, t );
 }  // NEIGHBORGROUPPREFIX
+
+void
+DOP_GroupInteriorGranuleNeighbors::NEWTRANSITIONGRANULESGROUPNAME(UT_String &str, fpreal t)
+{
+    evalString(str, theNewTransitionGranulesGroupName.getToken(), 0, t);
+}  // NEWTRANSITIONGRANULESGROUPNAME
 
 float DOP_GroupInteriorGranuleNeighbors::GRANULERADIUS( float t )						// Check whether the objects should simulate on the frame they were created
 {
