@@ -4,7 +4,6 @@
 #include <UT/UT_DSOVersion.h>
 #include <UT/UT_Math.h>
 //#include <UT/UT_Matrix3.h>
-//#include <UT/UT_Matrix4.h>
 #include <GU/GU_Detail.h>
 #include <GU/GU_PrimPoly.h>
 #include <GU/GU_PrimSphere.h>
@@ -21,12 +20,8 @@
 using namespace std;
 
 
-
-
 #define SEPARATIONDIST		3.988
 #define ANGLE				-0.4988
-
-
 
 
 static PRM_Name        names[] = {
@@ -117,7 +112,6 @@ UT_Vector3 SOP_FractalGrowth::computeChildPosition( UT_Vector4 p1, UT_Vector4 p2
         //                 0,    0,        0,           1  );
         
         UT_Matrix4 rotY;
-        //if ( cross(p2p1,norm).y() < 0 )
 		if ( p2p1.dot(norm) < -0.001 )
         {
             rotY = UT_Matrix4( costheta,     0,    sintheta,    0,
@@ -387,12 +381,10 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			// Delete the prim
 			gdp->deletePrimitive( *prim );
 			
-			
 			GA_RWAttributeRef intermediateptpos_index1 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt1", 3 );
 			GA_RWAttributeRef intermediateptpos_index2 = gdp->findFloatTuple( GA_ATTRIB_PRIMITIVE, "intermediatePt2", 3 );
 			GA_RWAttributeRef intermediateptnum_index1 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum1", 1 );
 			GA_RWAttributeRef intermediateptnum_index2 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum2", 1 );
-			
 			
 			// PRIM 0
 			// Compute whether or not newprim0 and primNeighbor0 are forming a concavity
@@ -420,52 +412,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					{
 						int newPrim0IntPtNum = newPrim0->getValue<int>( intermediateptnum_index1 );
 						UT_Vector3 newPrim0IntPos = newPrim0->getValue<UT_Vector3>( intermediateptpos_index1 );
-						
-						
-						/*
-						// If neighP--p0--newP is closed
-						UT_Vector3 e1 = newPtPos - pt0Pos;
-						UT_Vector3 e2 = neighborPos0 - pt0Pos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd > angle )
-						{
-							gdp->deletePrimitive( *newPrim0 );
-							
-							// Make newP -> neighP
-							newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-							newPrim0->appendVertex(neighborPt0);
-							newPrim0->appendVertex(newPt);
-							
-							// If neighP--intP--newP is open
-							UT_Vector3 e1 = newPtPos - newPrim0IntPos;
-							UT_Vector3 e2 = neighborPos0 - newPrim0IntPos;
-							float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-							e1.normalize();
-							e2.normalize();
-							float dotProd = e1.dot( e2 );
-							if ( dotProd > angle )
-							{
-								// Add intP as the intermediate point
-								newPrim0->setValue<int>( intermediateptnum_index1, newPrim0IntPtNum );
-								newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, newPrim0IntPos );
-								newPrim0->setValue<int>( numintermediatepts_index, 1 );
-							}  // if
-							
-							// Create newPrim1's normal
-							UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
-							edgeVector0.normalize();
-							UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
-							newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
-							newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
-							newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
-							
-							gdp->deletePrimitive( *primNeighbor0 );
-						}  // if
-						*/
-						
 						
 						// If neighP--p0--intP is open
 						UT_Vector3 e1 = newPrim0IntPos - pt0Pos;
@@ -558,10 +504,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
 								newPrim0->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
-							//else
-							//{
-							//	cout << "PARTICLE #" << i+1 << endl;
-							//}  // else
 							
 							UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
 							edgeVector0.normalize();
@@ -579,49 +521,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					// BORROW FROM THE SAME METHOD AS NEIGHMID=0 NEWMID=1
 					UT_Vector3 newPrim0IntPos = primNeighbor0->getValue<UT_Vector3>( intermediateptpos_index1 );
 					int newPrim0IntPtNum = primNeighbor0->getValue<int>( intermediateptnum_index1 );
-					
-					/*
-					UT_Vector3 e1 = newPtPos - pt0Pos;
-					UT_Vector3 e2 = neighborPos0 - pt0Pos;
-					float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-					e1.normalize();
-					e2.normalize();
-					float dotProd = e1.dot( e2 );
-					if ( dotProd > angle )			// If the angle is LESS than threshold angle (because the smaller the dot product, the larger the angle)
-					{
-						gdp->deletePrimitive( *newPrim0 );
-						
-						newPrim0 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-						newPrim0->appendVertex(neighborPt0);
-						newPrim0->appendVertex(newPt);
-						
-						GEO_Point* intPt = gdp->points()[neighIntermediatePtNum];
-						
-						// If neighP--intP--newP is large enough, insert intP as the new intP
-						UT_Vector3 e1 = neighborPos0 - neighIntermediatePtPos;
-						UT_Vector3 e2 = newPtPos - neighIntermediatePtPos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd < angle )		//|| neighEdge0Len > SEPARATIONDIST * sphRad )
-						{
-							newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, neighIntermediatePtPos );
-							newPrim0->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
-							newPrim0->setValue<int>( numintermediatepts_index, 1 );
-						}  // if
-						
-						// Add edge normal
-						UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
-						edgeVector0.normalize();
-						UT_Vector3 normal0( -1*edgeVector0[2], 0, edgeVector0[0] );
-						newPrim0->setValue<float>( norm_index, normal0.x(), 0 );
-						newPrim0->setValue<float>( norm_index, normal0.y(), 1 );
-						newPrim0->setValue<float>( norm_index, normal0.z(), 2 );
-						
-						gdp->deletePrimitive( *primNeighbor0 );
-					}  // if
-					*/
 					
 					// If intP--p0--new is open
 					UT_Vector3 e1 = newPrim0IntPos - pt0Pos;
@@ -714,52 +613,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 						int prim1IntPtNum = newPrim1->getValue<int>( intermediateptnum_index1 );
 						UT_Vector3 newPrim1IntPos = newPrim1->getValue<UT_Vector3>( intermediateptpos_index1 );
 						
-						
-						/*
-						// If newP--p1--neighP is closed
-						UT_Vector3 e1 = newPtPos - pt1Pos;
-						UT_Vector3 e2 = neighborPos1 - pt1Pos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd > angle )
-						{
-							gdp->deletePrimitive( *newPrim1 );
-							
-							// Make newP -> neighP
-							newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-							newPrim1->appendVertex(newPt);
-							newPrim1->appendVertex(neighborPt1);
-							
-							// If newP--intP--neighP is open
-							UT_Vector3 e1 = newPtPos - newPrim1IntPos;
-							UT_Vector3 e2 = neighborPos1 - newPrim1IntPos;
-							float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-							e1.normalize();
-							e2.normalize();
-							float dotProd = e1.dot( e2 );
-							if ( dotProd < angle )
-							{
-								// Add intP as the intermediate point
-								newPrim1->setValue<int>( intermediateptnum_index1, prim1IntPtNum );
-								newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, newPrim1IntPos );
-								newPrim1->setValue<int>( numintermediatepts_index, 1 );
-							}  // if
-							
-							// Create newPrim1's normal
-							UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
-							edgeVector1.normalize();
-							UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
-							newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
-							newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
-							newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
-							
-							gdp->deletePrimitive( *primNeighbor1 );
-						}  // if
-						*/
-						
-						
 						// If intP--p1--neighP is open
 						UT_Vector3 e1 = newPrim1IntPos - pt1Pos;
 						UT_Vector3 e2 = neighborPos1 - pt1Pos;
@@ -851,10 +704,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
 								newPrim1->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
-							//else
-							//{
-							//	cout << "PARTICLE #" << i+1 << endl;
-							//}  // else
 								
 							UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
 							edgeVector1.normalize();
@@ -872,46 +721,6 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					// BORROW FROM THE SAME METHOD AS NEIGHMID=0 NEWMID=1
 					UT_Vector3 newPrim1IntPos = primNeighbor1->getValue<UT_Vector3>( intermediateptpos_index1 );
 					float prim1IntPtNum = primNeighbor1->getValue<int>( intermediateptnum_index1 );
-					
-					/*
-					UT_Vector3 e1 = neighborPos1 - pt1Pos;
-					UT_Vector3 e2 = newPtPos - pt1Pos;
-					float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-					e1.normalize();
-					e2.normalize();
-					float dotProd = e1.dot( e2 );
-					if ( dotProd > angle )		// If the angle is LESS than 120 degrees; neigh1 -- pt1 -- newPt
-					{
-						gdp->deletePrimitive( *newPrim1 );
-						
-						newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-						newPrim1->appendVertex(newPt);
-						newPrim1->appendVertex(neighborPt1);
-						
-						UT_Vector3 e1 = newPtPos - neighIntermediatePtPos;
-						UT_Vector3 e2 = neighborPos1 - neighIntermediatePtPos;
-						float angle = thresholdAngle( e1.length(), e2.length(), sphRad );
-						e1.normalize();
-						e2.normalize();
-						float dotProd = e1.dot( e2 );
-						if ( dotProd < angle )
-						{
-							newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, neighIntermediatePtPos );
-							newPrim1->setValue<int>( intermediateptnum_index1, neighIntermediatePtNum );
-							newPrim1->setValue<int>( numintermediatepts_index, 1 );
-						}  // if
-						
-						// Add edge normal
-						UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
-						edgeVector1.normalize();
-						UT_Vector3 normal1( -1*edgeVector1[2], 0, edgeVector1[0] );
-						newPrim1->setValue<float>( norm_index, normal1.x(), 0 );
-						newPrim1->setValue<float>( norm_index, normal1.y(), 1 );
-						newPrim1->setValue<float>( norm_index, normal1.z(), 2 );
-						
-						gdp->deletePrimitive( *primNeighbor1 );
-					}  // if
-					*/
 					
 					// If intP--p1--newP is open
 					UT_Vector3 e1 = newPrim1IntPos - pt1Pos;
