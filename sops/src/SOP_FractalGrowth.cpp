@@ -229,11 +229,19 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
+		UT_PtrArray<UT_PtrArray<GEO_Point*>> pointGroups;
+		
 		//GA_PrimitiveGroup* oneIntermediatePrimGroup = gdp->newPrimitiveGroup( "oneIntermediatePrimGroup" );
 		//GA_PrimitiveGroup* twoIntermediatesPrimGroup = gdp->newPrimitiveGroup( "twoIntermediatesPrimGroup" );
 		for ( int i = 0; i < numSpheresToPopulate; i++ )
         {
 			GEO_Primitive* prim = NULL;
+			
+			// Set up a group to store the current expansion's set of points
+			//char tmp[181];
+            //sprintf( tmp, "ptGrp%d", i );
+            //UT_String curPtGroupName = tmp;
+			//GA_PointGroup* curPtGroup = gdp->newPointGroup( curPtGroupName );
 			
 			// See if there are any prims with 2 intermediate points
 			GEO_Primitive* tmpprim;
@@ -306,6 +314,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			GU_PrimPoly* newPrim1 = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
 			newPrim1->appendVertex(newPt);
             newPrim1->appendVertex(pt1);
+			
+			// Add the points to their point group
+			UT_PtrArray<GEO_Point*> ptGrp;
+			pointGroups.append( ptGrp );
+			pointGroups[i].append( pt0 );
+			pointGroups[i].append( pt1 );
+			pointGroups[i].append( newPt );
+			//curPtGroup->add( pt0 );
+			//curPtGroup->add( pt1 );
+			//curPtGroup->add( newPt );
 			
 			// If there was one intermediate point in the old edge (prim), add that intermediate pt to newPrim1
 			if ( numIntermediatePts == 1 )
@@ -786,6 +804,40 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					}  // else
 				}  // else if
 			}  // if
+		}  // for i
+		
+		/****** FRACTAL GROWTH FINISHED!!! ******/
+		
+		// Delete all the wavefront prims
+		GA_Primitive* prim;
+		GA_FOR_ALL_PRIMITIVES( gdp, prim )
+		{
+			gdp->destroyPrimitive( *prim );
+		}  // GA_FOR_ALL_PRIMITIVES
+		
+		// Create a poly triangle for each point group
+		//GA_ElementGroupTable& ptGroups = gdp->pointGroups();
+		//UT_PtrArray<GA_ElementGroup*> ptGroupList;
+		//ptGroups.getList( ptGroupList );
+		//int numGroups = ptGroups.entries();
+		int numGroups = pointGroups.entries();
+		for ( int i = 0; i < numGroups; i++ )
+		{
+			//GA_PointGroup* curPtGrp = (GA_PointGroup*)ptGroupList[i];
+			
+			GU_PrimPoly* newPrim = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+			newPrim->appendVertex( pointGroups[i][0] );
+			newPrim->appendVertex( pointGroups[i][1] );
+			newPrim->appendVertex( pointGroups[i][2] );
+			
+			//GA_FOR_ALL_GROUP_POINTS( gdp, curPtGrp, ppt )	// ppt declared way up top
+			//{
+			//	newPrim->appendVertex( ppt );
+			//}  // for all points in the point group
+			
+			newPrim->close();
+			
+			//gdp->destroyGroup( curPtGrp );
 		}  // for i
     }  // if
 	
