@@ -303,8 +303,6 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 								SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
 												SIM_RelationshipGroup,
 												SIM_DATA_RETURN_EXISTING);
-								if ( neighborObject->getObjectId() == 4190 )
-									cout << "becoming trans 2 by " << currObject->getName() << endl;
 							}  // if
 							
 							neighborGroup->addGroup( neighborObject );
