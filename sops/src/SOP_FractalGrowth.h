@@ -27,6 +27,7 @@ protected:
     virtual OP_ERROR        cookMySop( OP_Context &context );
 
 private:
+	int DOWAVEFRONT() { return evalInt( "dowavefront", 0, 0 ); }
     int RADIUS() { return evalInt( "rad", 0, 0 ); }
     int NUMPOINTS() { return evalInt( "numpoints", 0, 0 ); }
 	int SEED() { return evalInt( "seed", 0, 0 ); }

@@ -27,12 +27,13 @@ protected:
     virtual OP_ERROR        cookMySop( OP_Context &context );
 
 private:
+	int PRIMNUM() { return evalInt( "primnum", 0, 0 ); }
     float RADIUS() { return evalFloat( "rad", 0, 0 ); }
     int NUMPOINTS() { return evalInt( "numpoints", 0, 0 ); }
 	int SEED() { return evalInt( "seed", 0, 0 ); }
     
 	UT_Vector3 cross( UT_Vector3 a, UT_Vector3 b );
-    UT_Vector3 computeChildPosition( UT_Vector3 vertex, UT_Vector3 p0, UT_Vector3 p1, UT_Vector3 normal, float R, GU_Detail* gdp, int time );
+    UT_Vector3 computeChildPosition( UT_Vector3 vertex, UT_Vector3 p0, UT_Vector3 p1, UT_Vector3 normal, float R, GU_Detail* gdp, int time, float& height );
     bool intersectRaySphere( UT_Vector4 rayOrigin, UT_Vector4 ray, UT_Vector4 sphCenter, fpreal radius ); 
 	float thresholdAngle( float dist0, float dist1, float radius );
 	float thresholdAngle180( float dist0, float dist1, float radius );

@@ -25,6 +25,7 @@ using namespace std;
 
 
 static PRM_Name        names[] = {
+	PRM_Name("dowavefront", "Output Wavefront"),
     PRM_Name("rad",	"Radius"),
     PRM_Name("numpoints", "Num Points"),
 	PRM_Name("seed", "Seed"),
@@ -39,9 +40,10 @@ static PRM_Range           defSeedRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 100 );
 
 PRM_Template
 SOP_FractalGrowth::myTemplateList[] = {
-    PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
-    PRM_Template(PRM_INT_J,	1, &names[1], &defEighteen, 0, &defNumParticlesRange),
-	PRM_Template(PRM_INT_J,	1, &names[2], &defFive, 0, &defSeedRange),
+	PRM_Template(PRM_TOGGLE, 1, &names[0], PRMzeroDefaults), 
+    PRM_Template(PRM_FLT_J,	1, &names[1], PRMoneDefaults, 0, &PRMscaleRange),
+    PRM_Template(PRM_INT_J,	1, &names[2], &defEighteen, 0, &defNumParticlesRange),
+	PRM_Template(PRM_INT_J,	1, &names[3], &defFive, 0, &defSeedRange),
     PRM_Template(),
 };
 
@@ -209,6 +211,7 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 {
     GEO_Point   *ppt;
     
+	int doWavefront = DOWAVEFRONT();
     int sphRad = RADIUS();
     int numSpheresToPopulate = NUMPOINTS();
 	int seed = SEED();
@@ -229,6 +232,8 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
     
     if ( error() < UT_ERROR_ABORT )
     {
+		// Set up variables for creating the fractal growth's resulting prims
+		int count = 0;
 		UT_PtrArray<UT_PtrArray<GEO_Point*>> pointGroups;
 		
 		//GA_PrimitiveGroup* oneIntermediatePrimGroup = gdp->newPrimitiveGroup( "oneIntermediatePrimGroup" );
@@ -282,6 +287,11 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			UT_Vector3 pt0Pos = pt0->getPos3();
 			UT_Vector3 pt1Pos = pt1->getPos3();
 			
+			// Add the points to their point group
+			UT_PtrArray<GEO_Point*> ptGrp;
+			pointGroups.append( ptGrp );
+			pointGroups[count].append( pt0 );
+			
 			// Get the intermediate point of the current prim, if it exists, otherwise just use pt1
 			float x1, y1, z1;
 			int numIntermediatePts = prim->getValue<int>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
@@ -291,12 +301,21 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 				x1 = prim->getValue<float>( intermediateptpos_index1, 0 );
 				y1 = prim->getValue<float>( intermediateptpos_index1, 1 );
 				z1 = prim->getValue<float>( intermediateptpos_index1, 2 );
+				
+				// Add the point to its point group
+				GA_RWAttributeRef intermediateptnum_index1 = gdp->findIntTuple( GA_ATTRIB_PRIMITIVE, "intermediatePtNum1", 1 );
+				int intPtNum = prim->getValue<int>( intermediateptnum_index1 );
+				GEO_Point* intPt = gdp->points()[intPtNum];
+				pointGroups[count].append( intPt );
 			}  // if
 			else
 			{
 				x1 = pt1->getPos()[0];
 				y1 = pt1->getPos()[1];
 				z1 = pt1->getPos()[2];
+				
+				// Add the point to its point group
+				pointGroups[count].append( pt1 );
 			}  // else
 			
 			// Create the new sphere's point
@@ -315,12 +334,9 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 			newPrim1->appendVertex(newPt);
             newPrim1->appendVertex(pt1);
 			
-			// Add the points to their point group
-			UT_PtrArray<GEO_Point*> ptGrp;
-			pointGroups.append( ptGrp );
-			pointGroups[i].append( pt0 );
-			pointGroups[i].append( pt1 );
-			pointGroups[i].append( newPt );
+			// Add the point to its point group
+			pointGroups[count].append( newPt );
+			count++;
 			//curPtGroup->add( pt0 );
 			//curPtGroup->add( pt1 );
 			//curPtGroup->add( newPt );
@@ -351,6 +367,17 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 					newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, intPtPos );
 					newPrim1->setValue<int>( numintermediatepts_index, 1 );
 				}  // if
+				else
+				{
+					// Add the points to their point group
+					GEO_Point* intPt = gdp->points()[intPtNum];
+					UT_PtrArray<GEO_Point*> ptGrp;
+					pointGroups.append( ptGrp );
+					pointGroups[count].append( newPt );
+					pointGroups[count].append( intPt );
+					pointGroups[count].append( pt1 );
+					count++;
+				}  // else
 			}  // if
 			
 			// Get the prim's neighboring prims
@@ -481,6 +508,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 									newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, newPrim0IntPos );
 									newPrim0->setValue<int>( numintermediatepts_index, 1 );
 								}  // if
+								else
+								{
+									// Add the points to their point group
+									UT_PtrArray<GEO_Point*> ptGrp;
+									pointGroups.append( ptGrp );
+									pointGroups[count].append( pt0 );
+									pointGroups[count].append( newPt );
+									pointGroups[count].append( neighborPt0 );
+									count++;
+								}  // else
 							}  // else
 							
 							// Create newPrim1's normal
@@ -522,6 +559,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
 								newPrim0->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
+							else
+							{
+								// Add the points to their point group
+								UT_PtrArray<GEO_Point*> ptGrp;
+								pointGroups.append( ptGrp );
+								pointGroups[count].append( pt0 );
+								pointGroups[count].append( newPt );
+								pointGroups[count].append( neighborPt0 );
+								count++;
+							}  // else
 							
 							UT_Vector3 edgeVector0 = newPt->getPos3() - neighborPt0->getPos3();
 							edgeVector0.normalize();
@@ -590,6 +637,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim0->setValue<UT_Vector3>( intermediateptpos_index1, pt0Pos );
 								newPrim0->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
+							else
+							{
+								// Add the points to their point group
+								UT_PtrArray<GEO_Point*> ptGrp;
+								pointGroups.append( ptGrp );
+								pointGroups[count].append( pt0 );
+								pointGroups[count].append( newPt );
+								pointGroups[count].append( neighborPt0 );
+								count++;
+							}  // else
 						}  // else
 						
 						// Create newPrim1's normal
@@ -681,6 +738,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 									newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
 									newPrim1->setValue<int>( numintermediatepts_index, 1 );
 								}  // if
+								else
+								{
+									// Add the points to their point group
+									UT_PtrArray<GEO_Point*> ptGrp;
+									pointGroups.append( ptGrp );
+									pointGroups[count].append( pt1 );
+									pointGroups[count].append( neighborPt1 );
+									pointGroups[count].append( newPt );
+									count++;
+								}  // else
 							}  // else
 							
 							// Create newPrim1's normal
@@ -722,6 +789,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, pt1Pos );
 								newPrim1->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
+							else
+							{
+								// Add the points to their point group
+								UT_PtrArray<GEO_Point*> ptGrp;
+								pointGroups.append( ptGrp );
+								pointGroups[count].append( pt1 );
+								pointGroups[count].append( neighborPt1 );
+								pointGroups[count].append( newPt );
+								count++;
+							}  // else
 								
 							UT_Vector3 edgeVector1 = neighborPt1->getPos3() - newPt->getPos3();
 							edgeVector1.normalize();
@@ -790,6 +867,16 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 								newPrim1->setValue<UT_Vector3>( intermediateptpos_index1, newPrim1IntPos );
 								newPrim1->setValue<int>( numintermediatepts_index, 1 );
 							}  // if
+							else
+							{
+								// Add the points to their point group
+								UT_PtrArray<GEO_Point*> ptGrp;
+								pointGroups.append( ptGrp );
+								pointGroups[count].append( pt1 );
+								pointGroups[count].append( neighborPt1 );
+								pointGroups[count].append( newPt );
+								count++;
+							}  // else
 						}  // else
 						
 						// Create newPrim1's normal
@@ -808,37 +895,40 @@ OP_ERROR SOP_FractalGrowth::cookMySop( OP_Context &context )
 		
 		/****** FRACTAL GROWTH FINISHED!!! ******/
 		
-		// Delete all the wavefront prims
-		GA_Primitive* prim;
-		GA_FOR_ALL_PRIMITIVES( gdp, prim )
+		if ( !doWavefront )
 		{
-			gdp->destroyPrimitive( *prim );
-		}  // GA_FOR_ALL_PRIMITIVES
-		
-		// Create a poly triangle for each point group
-		//GA_ElementGroupTable& ptGroups = gdp->pointGroups();
-		//UT_PtrArray<GA_ElementGroup*> ptGroupList;
-		//ptGroups.getList( ptGroupList );
-		//int numGroups = ptGroups.entries();
-		int numGroups = pointGroups.entries();
-		for ( int i = 0; i < numGroups; i++ )
-		{
-			//GA_PointGroup* curPtGrp = (GA_PointGroup*)ptGroupList[i];
+			// Delete all the wavefront prims
+			GA_Primitive* prim;
+			GA_FOR_ALL_PRIMITIVES( gdp, prim )
+			{
+				gdp->destroyPrimitive( *prim );
+			}  // GA_FOR_ALL_PRIMITIVES
 			
-			GU_PrimPoly* newPrim = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
-			newPrim->appendVertex( pointGroups[i][0] );
-			newPrim->appendVertex( pointGroups[i][1] );
-			newPrim->appendVertex( pointGroups[i][2] );
-			
-			//GA_FOR_ALL_GROUP_POINTS( gdp, curPtGrp, ppt )	// ppt declared way up top
-			//{
-			//	newPrim->appendVertex( ppt );
-			//}  // for all points in the point group
-			
-			newPrim->close();
-			
-			//gdp->destroyGroup( curPtGrp );
-		}  // for i
+			// Create a poly triangle for each point group
+			//GA_ElementGroupTable& ptGroups = gdp->pointGroups();
+			//UT_PtrArray<GA_ElementGroup*> ptGroupList;
+			//ptGroups.getList( ptGroupList );
+			//int numGroups = ptGroups.entries();
+			int numGroups = pointGroups.entries();
+			for ( int i = 0; i < numGroups; i++ )
+			{
+				//GA_PointGroup* curPtGrp = (GA_PointGroup*)ptGroupList[i];
+				
+				GU_PrimPoly* newPrim = (GU_PrimPoly*)gdp->appendPrimitive( GEO_PRIMPOLY );
+				newPrim->appendVertex( pointGroups[i][0] );
+				newPrim->appendVertex( pointGroups[i][1] );
+				newPrim->appendVertex( pointGroups[i][2] );
+				
+				//GA_FOR_ALL_GROUP_POINTS( gdp, curPtGrp, ppt )	// ppt declared way up top
+				//{
+				//	newPrim->appendVertex( ppt );
+				//}  // for all points in the point group
+				
+				newPrim->close();
+				
+				//gdp->destroyGroup( curPtGrp );
+			}  // for i
+		}  // if
     }  // if
 	
     // Unlocking the inputs that were locked at the start of this method

@@ -30,6 +30,7 @@ using namespace std;
 
 
 static PRM_Name        names[] = {
+	PRM_Name("primnum", "Prim Number"),
     PRM_Name("rad",	"Radius"),
     PRM_Name("numpoints", "Num Points"),
 	PRM_Name("seed", "Seed"),
@@ -37,6 +38,7 @@ static PRM_Name        names[] = {
     //PRM_Name("period",	"Period"),
 };
 
+static PRM_Default         defZero(0);
 static PRM_Default         defFive(5);
 static PRM_Default         defEighteen(18);
 static PRM_Range           defNumParticlesRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 65 );
@@ -44,9 +46,10 @@ static PRM_Range           defSeedRange( PRM_RANGE_UI, 0, PRM_RANGE_UI, 100 );
 
 PRM_Template
 SOP_FractalGrowth3D::myTemplateList[] = {
-    PRM_Template(PRM_FLT_J,	1, &names[0], PRMoneDefaults, 0, &PRMscaleRange),
-    PRM_Template(PRM_INT_J,	1, &names[1], &defEighteen, 0, &defNumParticlesRange),
-	PRM_Template(PRM_INT_J,	1, &names[2], &defFive, 0, &defSeedRange),
+	PRM_Template(PRM_INT_J,	1, &names[0], &defZero, 0, &defNumParticlesRange),
+    PRM_Template(PRM_FLT_J,	1, &names[1], PRMoneDefaults, 0, &PRMscaleRange),
+    PRM_Template(PRM_INT_J,	1, &names[2], &defEighteen, 0, &defNumParticlesRange),
+	PRM_Template(PRM_INT_J,	1, &names[3], &defFive, 0, &defSeedRange),
     PRM_Template(),
 };
 
@@ -98,7 +101,7 @@ UT_Vector3 SOP_FractalGrowth3D::cross( UT_Vector3 a, UT_Vector3 b )
 
 
 
-UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector3 vertex, UT_Vector3 p0, UT_Vector3 p1, UT_Vector3 normal, float R, GU_Detail* gdp, int time )	// Takes in three points of the triangle prim and the radius of our spheres
+UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector3 vertex, UT_Vector3 p0, UT_Vector3 p1, UT_Vector3 normal, float R, GU_Detail* gdp, int time, float& height )	// Takes in three points of the triangle prim and the radius of our spheres
 {
 	UT_Vector3 mid0 = ( p0 + vertex ) / 2.0;
 	UT_Vector3 mid1 = ( p1 + vertex ) / 2.0;
@@ -146,7 +149,10 @@ UT_Vector3 SOP_FractalGrowth3D::computeChildPosition( UT_Vector3 vertex, UT_Vect
 	//             b
 	// Compute the height of the new sphere's position
 	float hypSqr = 4 * R * R;
-	float height = sqrt( abs(hypSqr - bSqr) );
+	float hSqr = hypSqr - bSqr;
+	hSqr = hSqr < 0.0 ? 0.0 : hSqr;			// Clamp it at a minimum of zero
+	float h = sqrt( hSqr );
+	height = h;		// height passed in by reference
 	
 	// Raise the circumcenter point along the height
 	normal.normalize();
@@ -183,6 +189,7 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 {
     GEO_Point   *ppt;
     
+	int primNum = PRIMNUM();
     float sphRad = RADIUS();
     int numSpheresToPopulate = NUMPOINTS();
 	int seed = SEED();
@@ -216,10 +223,12 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 		//int randPrimIndex = randomNumber % numPrims;
 		//prim = prims(randPrimIndex);
 		
-		prim = prims(0);
+		prim = prims( primNum );
 		
 		if ( !prim )
+		{
 			return error();
+		}  // if
 		//{
 			//cout << "ERROR on particle " << i << "!  prim not assigned." << endl;
 			//continue;
@@ -248,11 +257,16 @@ OP_ERROR SOP_FractalGrowth3D::cookMySop( OP_Context &context )
 		
 		int numIntermediatePts = prim->getValue<int>( numintermediatepts_index );		// Gets the number of intermediate points on the chosen prim
 		
+		float height = -88888888.0;
+		
 		// Create the new sphere's point
-		UT_Vector3 newPtPos = computeChildPosition( pt0Pos, pt1Pos, pt2Pos, edgeNormal, sphRad, gdp, (int)(t*24.0) );
+		UT_Vector3 newPtPos = computeChildPosition( pt0Pos, pt1Pos, pt2Pos, edgeNormal, sphRad, gdp, (int)(t*24.0), height );
 		//UT_Vector3 newPtPos = computeChildPosition( pt0->getPos(), UT_Vector4(x1,y1,z1,1), edgeNormal, 1 );
-		GEO_Point* newPt = gdp->appendPointElement();
-		newPt->setPos( newPtPos );		
+		if ( height > 0.001 )
+		{
+			GEO_Point* newPt = gdp->appendPointElement();
+			newPt->setPos( newPtPos );
+		}  // if
     }  // if
 	
     // Unlocking the inputs that were locked at the start of this method
