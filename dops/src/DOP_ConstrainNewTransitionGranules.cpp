@@ -437,12 +437,14 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 					
 					// Move all of gdp1's points to be properly relative to gdp0's points
 					GEO_Point* curPt;
+#if defined(HOUDINI_11)
+#else
 					GA_FOR_ALL_GPOINTS( curGdp, curPt )
 					{
 						UT_Vector3 curPos = curPt->getPos3();
 						curPt->setPos( curPos + offset );
 					}  // GA_FOR_ALL_POINTS
-					
+#endif
 					solidMeshGdp->copy( *curGdp, GEO_COPY_ADD );
 					
 					// For each granule constrained (glued) to curObj, scoot its constraint over to CONSTR
