@@ -15,6 +15,9 @@
 #include <DOP/DOP_Engine.h>
 
 
+#include "macros.h"
+
+
 #include <iostream>
 #include <vector>
 
@@ -215,9 +218,11 @@ DOP_GroupInteriorGranuleConnectedComponents::processObjectsSubclass(fpreal time,
 									SIM_RelationshipGroup,
 									SIM_DATA_RETURN_EXISTING );
 				}  // for j
-				
-				//connectedComponentGroups.remove( curConnectedGroup );
+#if defined(HOUDINI_11)
+				connectedComponentGroups.remove( curConnectedGroup );
+#else
 				connectedComponentGroups.findAndRemove( curConnectedGroup );
+#endif
 			}  // for i
 			
 			// Delete the old component groups
