@@ -32,7 +32,7 @@ except( KeyError ):
     sys.exit(1)
 
 # Go to the directory containing the SOP_FractalGrowth code
-dopGroupDeadMeshGranulesSrcPath = houdiniPath + '/toolkit/DOPs/src'
+dopGroupDeadMeshGranulesSrcPath = 'J:/Animation/Houdini/toolkit/DOP/src'
 dopGroupDeadMeshGranulesSrcPath = dopGroupDeadMeshGranulesSrcPath.replace( '\\', '/' )
 os.chdir( dopGroupDeadMeshGranulesSrcPath )
 
