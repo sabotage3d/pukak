@@ -137,6 +137,7 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
     SIM_Relationship* newTransitionGranulesGroup = engine.addRelationship( newTransitionGranulesGroupName, SIM_DATA_RETURN_EXISTING );
 	newTransitionGranulesGroup->clearGroup();
 	
+	SIM_Relationship* transitionGranulesGroup = engine.addRelationship( "group_transitionGranules", SIM_DATA_RETURN_EXISTING );
     
     // Get the prefix of the group name for each group of neighbors we will create
     UT_String neighborGroupPrefix;
@@ -212,8 +213,6 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
 						SIM_DATA_CREATE( *newTransitionGranulesGroup,  SIM_RELGROUP_DATANAME,
 										SIM_RelationshipGroup,
 										SIM_DATA_RETURN_EXISTING);
-						if ( neighborObject->getObjectId() == 4190 )
-							cout << "becoming trans by " << currObject->getName() << endl;
 					}  // if
 					
 					if ( neighborGroup->getGroupHasObject(neighborObject) )
@@ -226,11 +225,32 @@ DOP_GroupInteriorGranuleNeighbors::processObjectsSubclass(fpreal time, int,
                     //    continue;
 					
                     //neighborGroup = engine.addRelationship( neighborGroupName, SIM_DATA_RETURN_EXISTING );
+					// Add the granule to the neighbor group
                     neighborGroup->addGroup( neighborObject );
                     SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
                                     SIM_RelationshipGroup,
                                     SIM_DATA_RETURN_EXISTING );
                 }  // for n
+				
+				if ( transitionGranulesGroup->getGroupHasObject( currObject ) )
+					cout << "group_transitionGranules has " << currObject->getName() << endl;
+				
+				// If the current interior granule is glued to a solid mesh, add its solid mesh to the group
+				RBD_State* objRbdstate = SIM_DATA_GET( *currObject, "Position", RBD_State );
+				UT_String solidMeshName;
+				objRbdstate->getGlueObject( solidMeshName );
+				if ( solidMeshName != "" )
+				{
+					SIM_Object* solidMeshObj = (SIM_Object*)engine.findObjectFromString( solidMeshName, 0, 0, time, 0 );
+					if ( solidMeshObj )
+					{cout << "adding solid mesh " << solidMeshName << " " << solidMeshObj->getName() << endl;
+						// Attach the solidMesh to the neighbor group
+						neighborGroup->addGroup( solidMeshObj );
+						SIM_DATA_CREATE( *neighborGroup, SIM_RELGROUP_DATANAME,
+										SIM_RelationshipGroup,
+										SIM_DATA_RETURN_EXISTING );
+					}  // if
+				}  // if
             }  // if
 			else		//	Check if this interior granule is glued to a solid mesh.  If so, figure out its granule neighbors.
 			{

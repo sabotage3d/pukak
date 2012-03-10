@@ -15,8 +15,6 @@
 #include <DOP/DOP_Engine.h>
 
 
-#include "macros.h"
-
 
 #include <iostream>
 #include <vector>

@@ -18,8 +18,8 @@
 #include <DOP/DOP_InOutInfo.h>
 #include <DOP/DOP_Engine.h>
 
+#include "../../SIM/SIM_SolverBullet/SIM_SolverBulletHolladay.h"
 
-#include "macros.h"
 
 
 #include <iostream>
@@ -216,6 +216,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 		SIM_ObjectArray transitionGranules;
 		SIM_ObjectArray interiorGranules;
 		int numConnectedObjects = CONN->getGroupEntries();
+		cout << "numConnectedObjects = " << numConnectedObjects << endl;
 		for ( int j = 0; j < numConnectedObjects; j++ )
 		{
 			// Get the name of the object
@@ -225,7 +226,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			// If it is a solid mesh, put it in the solid mesh array
 			if ( curObjName.findString(constraintObjectsPrefix, 0, 0) )
 			{
-				//cout << "adding solid mesh " << curObject->getName() << endl;
+				cout << "adding solid mesh " << curObject->getName() << endl;
 				solidMeshes.add( curObject );
 			}  // if
 			// Otherwise if it is a granule, decide whether to put it in the transition or the interior granules array
@@ -263,9 +264,10 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 		//   If there are shared CONSTR:
 		int numSolidMeshesToMerge = solidMeshes.entries();
 		if ( numSolidMeshesToMerge > 0 )
-		{
+		{cout << "need to merge " << numSolidMeshesToMerge << " meshes" << endl;
 			CONSTR = solidMeshes( 0 );		// If there is only one object, none will be added to it in the following for-loop
-			
+			cout << "CONSTR = " << CONSTR << endl;
+			cout << "CONSTR name = " << CONSTR->getName() << endl;
 			if ( numSolidMeshesToMerge > 1 )
 			{
 				// Grab an editable version of CONSTR's mesh geometry to merge the other CONSTRs' geometry with
@@ -288,10 +290,12 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 					cout << CONSTR->getName() << " is missing glue relationship." << endl;
 					return;
 				}
-				
+				cout << 1 << endl;
 				// Get CONSTR's position
 				RBD_State *constrRbdstate = SIM_DATA_GET( *CONSTR, "Position", RBD_State );
+				cout << "constrRbdstate = " << constrRbdstate << endl;
 				UT_Vector3 constrPos = constrRbdstate->getPosition();
+				cout << 2 << endl;
 				
 				// Connect them all into the first CONSTR obj
 				//   The nice thing is that they are guaranteed to not be overlapping, otherwise they would have been merged already.
@@ -391,6 +395,9 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			SIM_DATA_CREATE( *CONSTR, cullMetasGeomDataName, SIM_SopGeometry, 0 );
 			SIM_DATA_CREATE( *CONSTR, cullVolumeGeomDataName, SIM_SopGeometry, 0 );
 			SIM_DATA_CREATE( *CONSTR, granuleDataName, SIM_EmptyData, 0 );
+			SIM_DATA_CREATE( *CONSTR, "Position", RBD_State, 0 );
+			SIM_DATA_CREATE( *CONSTR, "Geometry/BulletData", SIM_BulletData, 0 );
+			SIM_DATA_CREATE( *CONSTR, "BulletData", SIM_BulletData, 0 );
 			
 			engine.setCreatorInfo(getUniqueId(), forOutputIdx);
 			
@@ -516,7 +523,7 @@ DOP_ConstrainNewTransitionGranules::processObjectsSubclass(fpreal time, int forO
 			RBD_State *rbdstate = SIM_DATA_GET( *curIntGranule, "Position", RBD_State );
 			UT_Vector3 pos = rbdstate->getPosition();
 			
-			// Add that position as a point to the GeometryInteriorGranules data on the solid mesh
+			// Add that position as a point to the GeometryInteriorGranulePoints data on the solid mesh
 #if defined(HOUDINI_11)
 			GEO_Point* newPt = interiorPointsGdp->appendPoint();
 #else
