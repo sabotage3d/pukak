@@ -1,0 +1,1 @@
+Research project to develop more realistic CG snow dynamics (e.g. avalanches) and other granular physics studies.  The code is based in the Bullet Physics library source code (http://bulletphysics.org/).
